@@ -109,26 +109,28 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        # Tags = @()
+        Tags = @('List', "Array", "Modify", "Remove", "Condition", "Where", "Any", "All", "Find",
+            "Assert", "Test", "bool", "Predicate", "Collection", "index", "count", "Last", "Enumerable",
+            "Linq")
 
         # A URL to the license for this module.
-        # LicenseUri = ''
+        LicenseUri = 'https://raw.githubusercontent.com/Yevrag35/PowerShell-ListFunctions/master/LICENSE'
 
         # A URL to the main website for this project.
-        # ProjectUri = ''
+        ProjectUri = 'https://github.com/Yevrag35/PowerShell-ListFunctions.git'
 
         # A URL to an icon representing this module.
         # IconUri = ''
 
         # ReleaseNotes of this module
-        # ReleaseNotes = ''
+        ReleaseNotes = 'Publishing 1.0'
 
     } # End of PSData hashtable
 
 } # End of PrivateData hashtable
 
 # HelpInfo URI of this module
-# HelpInfoURI = ''
+HelpInfoURI = 'https://github.com/Yevrag35/PowerShell-ListFunctions/wiki'
 
 # Default prefix for commands exported from this module. Override the default prefix using Import-Module -Prefix.
 # DefaultCommandPrefix = ''
