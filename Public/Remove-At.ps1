@@ -1,5 +1,37 @@
 ﻿Function Remove-At()
 {
+    <#
+        .SYNOPSIS
+            Removes item(s) of a collection at the specified indices.
+    
+        .DESCRIPTION
+            Removes the elemetns at the specified indexes of the supplied collection of objects.
+
+            When 'Index' and 'Count' are specified, the number ('Count') of elements from the specified
+            index will be removed.  There cannot be more than one (1) index specified when both parameters
+            are used.
+    
+        .PARAMETER InputObject
+            The collection(s) of objects whose elements will be removed.
+
+        .PARAMETER Index
+            The zero-based index of the element to remove.  When used with 'Count', it is the starting index
+            from which elements will be removed.
+
+        .PARAMETER Count
+            The number of elements to remove counting up from the starting index.
+    
+        .INPUTS
+            System.Object - any .NET object or array of objects.
+    
+        .OUTPUTS
+            System.Object[] - the resulting array sans the removed elements.
+    
+        .EXAMPLE
+            @(1, 2, 3) | Remove-At 1
+            # returns:
+            # @(1, 3)
+    #>
     [CmdletBinding()]
     [Alias("RemoveAt")]
     param
