@@ -53,14 +53,21 @@
         $Predicate = BuildPredicate $Condition
         if ($InputObject.Value.GetType().IsArray)
         {
-            $list = [System.Collections.Generic.List[object]]@()
-            $list.AddRange($InputObject.Value)
+            $elementType = $InputObject.Value.GetType().GetElementType()
+            $list = New-Object -TypeName "System.Collections.Generic.List[object]" -ArgumentList $InputObject.Value.Length
+
+            $list.AddRange(@($InputObject.Value))
             [void] $list.RemoveAll($Predicate)
-            $InputObject.Value = $list.ToArray()
+
+            $InputObject.Value = New-Object -TypeName "$($elementType.FullName)[]" $list.Count
+            for ($i = 0; $i -lt $list.Count; $i++)
+            {
+                $InputObject.Value[$i] = $list[$i]
+            }
         }
         elseif ($InputObject.Value -is [System.Collections.ICollection])
         {
-            $list = [System.Collections.Generic.List[object]]@()
+            $list = New-Object -TypeName "System.Collections.Generic.List[object]" -ArgumentList $InputObject.Value.Count
             $list.AddRange(@($InputObject.Value.GetEnumerator()))
             [void] $list.RemoveAll($Predicate)
 
