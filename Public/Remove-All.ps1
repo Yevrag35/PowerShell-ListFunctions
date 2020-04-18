@@ -28,6 +28,12 @@
             Remove-All -InputObject ([ref]$strings) -Condition { $_.Contains(' ') }
             # '$strings' now equals:
             # @('hi', 'bye')
+
+        .EXAMPLE
+            $hash = @{ "hi" = 1; "bye" = 2; "so long" = @{ multi = $true } }
+            [ref]$hash | Remove-All { $_.Key -eq "Hi" -or $_.Value -is [hashtable] }
+            # '$hash' now equals:
+            # @{ "bye" = 2 }
     
         .NOTES
             If 'InputObject' is not a single-dimensional array or does not inherit from 'System.Collections.ICollection',
