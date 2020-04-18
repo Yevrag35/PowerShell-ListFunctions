@@ -8,7 +8,11 @@
             Removes all elements that match the conditions defined by the specified ScriptBlock.
     
         .PARAMETER InputObject
-            parameter1
+            The collection(s) of objects whose elements will be removed.
+
+        .PARAMETER Condition
+            The predicate (scriptblock) condition that determines whether any one element should be removed
+            from the collection.
     
         .INPUTS
             System.Management.Automation.PSReference - [ref].  This must be a reference to an Array, Collection, or List
