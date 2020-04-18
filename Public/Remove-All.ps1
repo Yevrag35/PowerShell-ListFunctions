@@ -93,6 +93,3 @@
         }
     }
 }
-
-$nums = [ordered]@{ Hi = 1; Bye = 2; "So Long" = 3 }
-[ref]$nums | Remove-All { $_.Key -eq "Hi" }
