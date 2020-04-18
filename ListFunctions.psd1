@@ -130,7 +130,7 @@ PrivateData = @{
 } # End of PrivateData hashtable
 
 # HelpInfo URI of this module
-HelpInfoURI = 'https://github.com/Yevrag35/PowerShell-ListFunctions/wiki'
+HelpInfoURI = 'https://github.com/Yevrag35/PowerShell-ListFunctions/issues'
 
 # Default prefix for commands exported from this module. Override the default prefix using Import-Module -Prefix.
 # DefaultCommandPrefix = ''
