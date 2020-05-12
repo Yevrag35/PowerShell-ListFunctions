@@ -1,5 +1,8 @@
 # PowerShell-ListFunctions
 
+[![version](https://img.shields.io/powershellgallery/v/ListFunctions.svg?include_prereleases)](https://www.powershellgallery.com/packages/ListFunctions)
+[![downloads](https://img.shields.io/powershellgallery/dt/ListFunctions.svg?label=downloads)](https://www.powershellgallery.com/stats/packages/ListFunctions?groupby=Version)
+
 This is a simple module that provides functions to manipulate and search through Arrays, Collections, and Lists.  
 
 "ListFunctions" refers to the fact that the functions are inspired by <code>System.Collections.Generic.List</code>'s methods.
