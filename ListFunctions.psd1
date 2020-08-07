@@ -57,7 +57,7 @@ PowerShellVersion = '4.0'
 # RequiredAssemblies = @()
 
 # Script files (.ps1) that are run in the caller's environment prior to importing this module.
-ScriptsToProcess = @("ComparerBuilder.ps1")
+ScriptsToProcess = @("Private\ComparerBuilder.ps1")
 
 # Type files (.ps1xml) to be loaded when importing this module
 # TypesToProcess = @()
@@ -74,7 +74,6 @@ FunctionsToExport = @(
     "Assert-Any",
     "Find-IndexOf",
     "Find-LastIndexOf",
-    "New-EqualityComparer",
     "New-HashSet",
     "New-List",
     "Remove-All",
@@ -114,7 +113,7 @@ PrivateData = @{
         # Tags applied to this module. These help with module discovery in online galleries.
         Tags = @('List', "Array", "Modify", "Remove", "Condition", "Where", "Any", "All", "Find",
             "Assert", "Test", "bool", "Predicate", "Collection", "index", "count", "Last", "Enumerable",
-            "Linq")
+            "Linq", 'HashSet', 'equality', 'compare', 'set')
 
         # A URL to the license for this module.
         LicenseUri = 'https://raw.githubusercontent.com/Yevrag35/PowerShell-ListFunctions/master/LICENSE'
@@ -126,7 +125,7 @@ PrivateData = @{
         # IconUri = ''
 
         # ReleaseNotes of this module
-        ReleaseNotes = 'Publishing 1.0'
+        ReleaseNotes = 'Publishing 1.1; Adding new functions ''New-List'' & ''New-HashSet''.'
 
     } # End of PSData hashtable
 

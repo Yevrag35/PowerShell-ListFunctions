@@ -41,7 +41,7 @@ namespace ListFunctions
         {
             if (this.HashCodeScript == null)
             {
-                item.GetHashCode();
+                return item.GetHashCode();
             }
 
             foreach (PSObject pso in this.HashCodeScript.Invoke(item))
@@ -58,5 +58,15 @@ namespace ListFunctions
 }
 "@
 
-Add-Type -TypeDefinition $code -Language CSharp -ReferencedAssemblies "System",
-    "System.Collections", "System.Management.Automation", "System.Linq"
+$atArgs = @{
+    TypeDefinition = $code
+    Language = "CSharp"
+    ReferencedAssemblies = @(
+        "System", 
+        "System.Collections",
+        "System.Management.Automation", 
+        "System.Linq"
+    )
+}
+
+Add-Type @atArgs

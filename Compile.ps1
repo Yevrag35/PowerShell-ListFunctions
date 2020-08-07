@@ -1,6 +1,6 @@
 ﻿$builder = New-Object -TypeName "System.Text.StringBuilder"
 
-foreach ($priv in Get-ChildItem -Path "$PSScriptRoot\Private" -Filter *.ps1)
+foreach ($priv in $(Get-ChildItem -Path "$PSScriptRoot\Private" -Filter *.ps1 -Exclude "ComparerBuilder.ps1" -Recurse))
 {
     [void] $builder.AppendLine((Get-Content -Path $priv.FullName -Raw))
     [void] $builder.AppendLine()
