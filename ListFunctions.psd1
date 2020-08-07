@@ -30,7 +30,7 @@ CompanyName = 'Yevrag35, LLC.'
 Copyright = 'Copyright (c) 2020 Yevrag35, LLC.'
 
 # Description of the functionality provided by this module
-Description = 'A simple module that provides functions to manipulate and search through Arrays, Collections, and Lists.'
+Description = 'A simple module that provides functions to manipulate and search through Arrays, Collections, Lists, and Sets.'
 
 # Minimum version of the Windows PowerShell engine required by this module
 PowerShellVersion = '4.0'
@@ -122,7 +122,7 @@ PrivateData = @{
         ProjectUri = 'https://github.com/Yevrag35/PowerShell-ListFunctions.git'
 
         # A URL to an icon representing this module.
-        # IconUri = ''
+        IconUri = 'https://images.yevrag35.com/icons/list-functions.png'
 
         # ReleaseNotes of this module
         ReleaseNotes = 'Publishing 1.1; Adding new functions ''New-List'' & ''New-HashSet''.'
