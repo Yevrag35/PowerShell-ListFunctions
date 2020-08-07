@@ -1,4 +1,4 @@
-Function New-EqualityComparer() {
+Function NewEqualityComparer() {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
@@ -12,6 +12,17 @@ Function New-EqualityComparer() {
         [Parameter(Mandatory=$true)]
         [scriptblock] $HashCodeScript
     )
+
+    $ms = [regex]::Matches($EqualityScript, '\$(x|y)(\s|\.)', "IgnoreCase")
+    if ($ms | Assert-Any -Condition { $_.Success }) {
+        $replace1 = [regex]::Replace($EqualityScript, '\$x(\s|\.)', '$args[0]$1', "IgnoreCase")
+        $replace2 = [regex]::Replace($replace1, '\$y(\s|\.)', '$args[1]$1', "IgnoreCase")
+        $EqualityScript = [scriptblock]::Create($replace2)
+    }
+
+    if ($HashCodeScript -match '\$[_](\.|\s)') {
+        $HashCodeScript = [scriptblock]::Create([regex]::Replace($HashCodeScript, '\$[_](\.|\s)', '$args[0]$1'))
+    }
 
     if ($GenericType -is [type]) {
         $GenericType = $GenericType.FullName

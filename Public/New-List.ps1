@@ -9,9 +9,10 @@ Function New-List() {
 
         [Parameter(Mandatory = $false, Position = 0)]
         [Alias("c", "cap")]
-        [int] $Capacity = 1,
+        [ValidateRange(0, [int]::MaxValue)]
+        [int] $Capacity = 0,
 
-        [Parameter(Mandatory = $false, ValueFromPipeline=$true)]
+        [Parameter(Mandatory = $false, ValueFromPipeline = $true)]
         [object[]] $InputObject
     )
     Begin {
@@ -21,17 +22,11 @@ Function New-List() {
             $GenericType = $GenericType.FullName
         }
 
-        if ($PSBoundParameters.ContainsKey("Capacity")) {
-            $private:list = New-Object "System.Collections.Generic.List[$GenericType]"($Capacity)
-        }
-        else {
-            $private:list = New-Object "System.Collections.Generic.List[$GenericType]"
-
-        }
+        $private:list = New-Object "System.Collections.Generic.List[$GenericType]"($Capacity)
         Write-Verbose "List - Created with 'Capacity': $($private:list.Capacity)"
 
         if ($null -eq $type) {
-            $private:type = $private:list.GetType().GenericTypeArguments[0]
+            $private:type = $private:list.GetType().GenericTypeArguments | Select-Object -First 1
         }
         Write-Verbose "List - GenericType: $($private:type.FullName)"
         $private:type = $private:type.MakeArrayType()

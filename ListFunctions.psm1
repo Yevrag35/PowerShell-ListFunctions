@@ -33,6 +33,42 @@ Function BuildPredicate()
     }
 }
 
+Function NewEqualityComparer() {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [Alias("Type", "t")]
+        [ValidateScript( { $_ -is [type] -or $_ -is [string] })]
+        [object] $GenericType = "[object]",
+
+        [Parameter(Mandatory=$true)]
+        [scriptblock] $EqualityScript,
+
+        [Parameter(Mandatory=$true)]
+        [scriptblock] $HashCodeScript
+    )
+
+    $ms = [regex]::Matches($EqualityScript, '\$(x|y)(\s|\.)', "IgnoreCase")
+    if ($ms | Assert-Any -Condition { $_.Success }) {
+        $replace1 = [regex]::Replace($EqualityScript, '\$x(\s|\.)', '$args[0]$1', "IgnoreCase")
+        $replace2 = [regex]::Replace($replace1, '\$y(\s|\.)', '$args[1]$1', "IgnoreCase")
+        $EqualityScript = [scriptblock]::Create($replace2)
+    }
+
+    if ($HashCodeScript -match '\$[_](\.|\s)') {
+        $HashCodeScript = [scriptblock]::Create([regex]::Replace($HashCodeScript, '\$[_](\.|\s)', '$args[0]$1'))
+    }
+
+    if ($GenericType -is [type]) {
+        $GenericType = $GenericType.FullName
+    }
+
+    New-Object -TypeName "ListFunctions.ScriptBlockComparer[$GenericType]" -Property @{
+        EqualityTester = $EqualityScript
+        HashCodeScript = $HashCodeScript
+    }
+}
+
 Function Assert-All()
 {
     <#
@@ -413,73 +449,60 @@ Function Find-LastIndexOf()
     }
 }
 
-Function New-EqualityComparer() {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $false)]
-        [Alias("Type", "t")]
-        [ValidateScript( { $_ -is [type] -or $_ -is [string] })]
-        [object] $GenericType = "[object]",
-
-        [Parameter(Mandatory=$true)]
-        [scriptblock] $EqualityScript,
-
-        [Parameter(Mandatory=$true)]
-        [scriptblock] $HashCodeScript
-    )
-
-    if ($GenericType -is [type]) {
-        $GenericType = $GenericType.FullName
-    }
-
-    New-Object -TypeName "ListFunctions.ScriptBlockComparer[$GenericType]" -Property @{
-        EqualityTester = $EqualityScript
-        HashCodeScript = $HashCodeScript
-    }
-}
-
 Function New-HashSet() {
-    [CmdletBinding()]
+
+    [CmdletBinding(DefaultParameterSetName = "None")]
     param (
         [Parameter(Mandatory = $false)]
-        [int] $Capacity = 1,
+        [ValidateRange(0, [int]::MaxValue)]
+        [int] $Capacity = 0,
 
         [Parameter(Mandatory = $false, Position = 0)]
         [Alias("Type", "t")]
         [ValidateScript( { $_ -is [type] -or $_ -is [string] })]
+        [ValidateNotNull()]
         [object] $GenericType = "[object]",
 
-        [Parameter(Mandatory = $false)]
-        [ValidateScript({
-            $true -in @(
-                $_.GetType().ImplementedInterfaces.FullName | Foreach-Object {
-                    $_ -like "System.Collections.Generic.IEqualityComparer*"
-                }
-            )
-        })]
-        [object] $EqualityComparer
+        [Parameter(Mandatory = $false, ValueFromPipeline = $true)]
+        [object[]] $InputObject,
+
+        [Parameter(Mandatory = $true, ParameterSetName = "WithCustomEqualityComparer")]
+        [scriptblock] $EqualityScript,
+
+        [Parameter(Mandatory = $true, ParameterSetName = "WithCustomEqualityComparer")]
+        [scriptblock] $HashCodeScript
     )
+    Begin {
 
-    if ($GenericType -is [type]) {
-        $GenericType = $GenericType.FullName
-    }
+        if ($GenericType -is [type]) {
+            $private:type = $GenericType
+            $GenericType = $GenericType.FullName
+        }
 
-    if ($PSBoundParameters.ContainsKey("Capacity") -and -not $PSBoundParameters.ContainsKey("EqualityComparer"))
-    {
-        $set = New-Object -TypeName "System.Collections.Generic.Hashset[$GenericType]"($Capacity)
+        if ($PSCmdlet.ParameterSetName -eq "WithCustomEqualityComparer") {
+            $comparer = NewEqualityComparer -GenericType $GenericType -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript
+        }
+
+        $set = New-Object -TypeName "System.Collections.Generic.HashSet[$GenericType]"($Capacity, $comparer)
+        
+        if ($null -eq $type) {
+            $private:type = $set.GetType().GenericTypeArguments | Select-Object -First 1
+        }
+
+        Write-Verbose "HashSet - GenericType $($private:type.FullName)"
+        $private:type = $private:type.MakeArrayType()
     }
-    elseif (-not $PSBoundParameters.ContainsKey("Capacity") -and $PSBoundParameters.ContainsKey("EqualityComparer"))
-    {
-        $set = New-Object -TypeName "System.Collections.Generic.Hashset[$GenericType]"($EqualityComparer)
+    Process {
+
+        if ($PSBoundParameters.ContainsKey("InputObject")) {
+            
+            $set.UnionWith(($InputObject -as $private:type))
+        }
     }
-    elseif ($PSBoundParameters.ContainsKey("Capacity") -and $PSBoundParameters.ContainsKey("EqualityComparer"))
-    {
-        $set = New-Object -TypeName "System.Collections.Generic.Hashset[$GenericType]"($Capacity, $EqualityComparer)
+    End {
+
+        , $set
     }
-    else {
-        $set = New-Object -TypeName "System.Collections.Generic.Hashset[$GenericType]"($Capacity)
-    }
-    , $set
 }
 
 Function New-List() {
@@ -493,9 +516,10 @@ Function New-List() {
 
         [Parameter(Mandatory = $false, Position = 0)]
         [Alias("c", "cap")]
-        [int] $Capacity = 1,
+        [ValidateRange(0, [int]::MaxValue)]
+        [int] $Capacity = 0,
 
-        [Parameter(Mandatory = $false, ValueFromPipeline=$true)]
+        [Parameter(Mandatory = $false, ValueFromPipeline = $true)]
         [object[]] $InputObject
     )
     Begin {
@@ -505,17 +529,11 @@ Function New-List() {
             $GenericType = $GenericType.FullName
         }
 
-        if ($PSBoundParameters.ContainsKey("Capacity")) {
-            $private:list = New-Object "System.Collections.Generic.List[$GenericType]"($Capacity)
-        }
-        else {
-            $private:list = New-Object "System.Collections.Generic.List[$GenericType]"
-
-        }
+        $private:list = New-Object "System.Collections.Generic.List[$GenericType]"($Capacity)
         Write-Verbose "List - Created with 'Capacity': $($private:list.Capacity)"
 
         if ($null -eq $type) {
-            $private:type = $private:list.GetType().GenericTypeArguments[0]
+            $private:type = $private:list.GetType().GenericTypeArguments | Select-Object -First 1
         }
         Write-Verbose "List - GenericType: $($private:type.FullName)"
         $private:type = $private:type.MakeArrayType()

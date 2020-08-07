@@ -1,43 +1,55 @@
 Function New-HashSet() {
-    [CmdletBinding()]
+
+    [CmdletBinding(DefaultParameterSetName = "None")]
     param (
         [Parameter(Mandatory = $false)]
-        [int] $Capacity = 1,
+        [ValidateRange(0, [int]::MaxValue)]
+        [int] $Capacity = 0,
 
         [Parameter(Mandatory = $false, Position = 0)]
         [Alias("Type", "t")]
         [ValidateScript( { $_ -is [type] -or $_ -is [string] })]
+        [ValidateNotNull()]
         [object] $GenericType = "[object]",
 
-        [Parameter(Mandatory = $false)]
-        [ValidateScript({
-            $true -in @(
-                $_.GetType().ImplementedInterfaces.FullName | Foreach-Object {
-                    $_ -like "System.Collections.Generic.IEqualityComparer*"
-                }
-            )
-        })]
-        [object] $EqualityComparer
+        [Parameter(Mandatory = $false, ValueFromPipeline = $true)]
+        [object[]] $InputObject,
+
+        [Parameter(Mandatory = $true, ParameterSetName = "WithCustomEqualityComparer")]
+        [scriptblock] $EqualityScript,
+
+        [Parameter(Mandatory = $true, ParameterSetName = "WithCustomEqualityComparer")]
+        [scriptblock] $HashCodeScript
     )
+    Begin {
 
-    if ($GenericType -is [type]) {
-        $GenericType = $GenericType.FullName
-    }
+        if ($GenericType -is [type]) {
+            $private:type = $GenericType
+            $GenericType = $GenericType.FullName
+        }
 
-    if ($PSBoundParameters.ContainsKey("Capacity") -and -not $PSBoundParameters.ContainsKey("EqualityComparer"))
-    {
-        $set = New-Object -TypeName "System.Collections.Generic.Hashset[$GenericType]"($Capacity)
+        if ($PSCmdlet.ParameterSetName -eq "WithCustomEqualityComparer") {
+            $comparer = NewEqualityComparer -GenericType $GenericType -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript
+        }
+
+        $set = New-Object -TypeName "System.Collections.Generic.HashSet[$GenericType]"($Capacity, $comparer)
+        
+        if ($null -eq $type) {
+            $private:type = $set.GetType().GenericTypeArguments | Select-Object -First 1
+        }
+
+        Write-Verbose "HashSet - GenericType $($private:type.FullName)"
+        $private:type = $private:type.MakeArrayType()
     }
-    elseif (-not $PSBoundParameters.ContainsKey("Capacity") -and $PSBoundParameters.ContainsKey("EqualityComparer"))
-    {
-        $set = New-Object -TypeName "System.Collections.Generic.Hashset[$GenericType]"($EqualityComparer)
+    Process {
+
+        if ($PSBoundParameters.ContainsKey("InputObject")) {
+            
+            $set.UnionWith(($InputObject -as $private:type))
+        }
     }
-    elseif ($PSBoundParameters.ContainsKey("Capacity") -and $PSBoundParameters.ContainsKey("EqualityComparer"))
-    {
-        $set = New-Object -TypeName "System.Collections.Generic.Hashset[$GenericType]"($Capacity, $EqualityComparer)
+    End {
+
+        , $set
     }
-    else {
-        $set = New-Object -TypeName "System.Collections.Generic.Hashset[$GenericType]"($Capacity)
-    }
-    , $set
 }
