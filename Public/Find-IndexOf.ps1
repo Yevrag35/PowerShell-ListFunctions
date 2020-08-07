@@ -1,5 +1,4 @@
-﻿Function Find-IndexOf()
-{
+﻿Function Find-IndexOf() {
     <#
         .SYNOPSIS
             Finds the index of the first element that matches a condition.
@@ -84,23 +83,18 @@
         [Parameter(Mandatory = $false)]
         [int] $Count
     )
-    Begin
-    {
+    Begin {
         $list = New-Object -TypeName "System.Collections.Generic.List[object]"
         $Predicate = BuildPredicate -ScriptBlock $Condition
     }
-    Process
-    {
+    Process {
         $list.AddRange($InputObject)
     }
-    End
-    {
-        if (-not $PSBoundParameters.ContainsKey("Count"))
-        {
+    End {
+        if (-not $PSBoundParameters.ContainsKey("Count")) {
             $list.FindIndex($StartIndex, $Predicate)
         }
-        else
-        {
+        else {
             $list.FindIndex($StartIndex, $Count, $Predicate)
         }
     }

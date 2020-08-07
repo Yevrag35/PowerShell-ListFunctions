@@ -1,5 +1,4 @@
-﻿Function Remove-At()
-{
+﻿Function Remove-At() {
     <#
         .SYNOPSIS
             Removes item(s) of a collection at the specified indices.
@@ -36,42 +35,34 @@
     [Alias("RemoveAt")]
     param
     (
-        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [object[]] $InputObject,
 
-        [Parameter(Mandatory=$true, Position=0)]
+        [Parameter(Mandatory = $true, Position = 0)]
         [int[]] $Index,
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [int] $Count
     )
-    Begin
-    {
-        if ($PSBoundParameters.ContainsKey("Count") -and $Index.Length -gt 1)
-        {
+    Begin {
+        if ($PSBoundParameters.ContainsKey("Count") -and $Index.Length -gt 1) {
             throw "When using 'Count', only 1 index may be specified at a time."
         }
         $list = New-Object -TypeName "System.Collections.Generic.List[object]"
     }
-    Process
-    {
+    Process {
         $list.AddRange($InputObject)
     }
-    End
-    {
-        if (-not $PSBoundParameters.ContainsKey("Count"))
-        {
-            $itemsToRemove = foreach ($remIndex in $Index)
-            {
+    End {
+        if (-not $PSBoundParameters.ContainsKey("Count")) {
+            $itemsToRemove = foreach ($remIndex in $Index) {
                 $list[$remIndex]
             }
-            foreach ($item in $itemsToRemove)
-            {
+            foreach ($item in $itemsToRemove) {
                 [void] $list.Remove($item)
             }
         }
-        else
-        {
+        else {
             $list.RemoveRange($Index[0], $Count)
         }
         $list

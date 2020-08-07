@@ -1,5 +1,4 @@
-﻿Function Find-LastIndexOf()
-{
+﻿Function Find-LastIndexOf() {
     <#
         .SYNOPSIS
             Finds the index of the last element that matches a condition.
@@ -67,45 +66,39 @@
 
                 Look at Example #3 to see an example of this.
     #>
-    [CmdletBinding(DefaultParameterSetName="None")]
+    [CmdletBinding(DefaultParameterSetName = "None")]
     [Alias("Find-LastIndex", "LastIndexOf")]
     [OutputType([int])]
     param
     (
-        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [object[]] $InputObject,
 
-        [Parameter(Mandatory=$true, Position=0)]
+        [Parameter(Mandatory = $true, Position = 0)]
         [scriptblock] $Condition,
 
-        [Parameter(Mandatory=$true, ParameterSetName="ByStartingIndex")]
+        [Parameter(Mandatory = $true, ParameterSetName = "ByStartingIndex")]
         [int] $StartIndex,
 
-        [Parameter(Mandatory=$false, ParameterSetName="ByStartingIndex")]
+        [Parameter(Mandatory = $false, ParameterSetName = "ByStartingIndex")]
         [int] $Count
     )
-    Begin
-    {
+    Begin {
         $list = New-Object -TypeName "System.Collections.Generic.List[object]"
         $Predicate = BuildPredicate -ScriptBlock $Condition
     }
-    Process
-    {
+    Process {
         $list.AddRange($InputObject)
     }
-    End
-    {
-        if (-not $PSBoundParameters.ContainsKey("StartIndex"))
-        {
+    End {
+        if (-not $PSBoundParameters.ContainsKey("StartIndex")) {
             $StartIndex = $list.Count - 1
         }
 
-        if (-not $PSBoundParameters.ContainsKey("Count"))
-        {
+        if (-not $PSBoundParameters.ContainsKey("Count")) {
             $list.FindLastIndex($StartIndex, $Predicate)
         }
-        else
-        {
+        else {
             $list.FindLastIndex($StartIndex, $Count, $Predicate)
         }
     }

@@ -59,8 +59,8 @@ namespace ListFunctions
 "@
 
 $atArgs = @{
-    TypeDefinition = $code
-    Language = "CSharp"
+    TypeDefinition       = $code
+    Language             = "CSharp"
     ReferencedAssemblies = @(
         "System", 
         "System.Collections",

@@ -1,5 +1,4 @@
-﻿Function Remove-All()
-{
+﻿Function Remove-All() {
     <#
         .SYNOPSIS
             Removes objects from collection(s) that satisfy a condition.
@@ -52,17 +51,15 @@
     [Alias("RemoveAll")]
     param
     (
-        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [ref] $InputObject,
 
-        [Parameter(Mandatory=$true, Position=0)]
+        [Parameter(Mandatory = $true, Position = 0)]
         [scriptblock] $Condition
     )
-    Process
-    {
+    Process {
         $Predicate = BuildPredicate $Condition
-        if ($InputObject.Value.GetType().IsArray)
-        {
+        if ($InputObject.Value.GetType().IsArray) {
             $elementType = $InputObject.Value.GetType().GetElementType()
             $list = New-Object -TypeName "System.Collections.Generic.List[object]" -ArgumentList $InputObject.Value.Length
 
@@ -70,26 +67,21 @@
             [void] $list.RemoveAll($Predicate)
 
             $InputObject.Value = New-Object -TypeName "$($elementType.FullName)[]" $list.Count
-            for ($i = 0; $i -lt $list.Count; $i++)
-            {
+            for ($i = 0; $i -lt $list.Count; $i++) {
                 $InputObject.Value[$i] = $list[$i]
             }
         }
-        elseif ($InputObject.Value -is [System.Collections.ICollection])
-        {
+        elseif ($InputObject.Value -is [System.Collections.ICollection]) {
             $list = New-Object -TypeName "System.Collections.Generic.List[object]" -ArgumentList $InputObject.Value.Count
             $list.AddRange(@($InputObject.Value.GetEnumerator()))
             [void] $list.RemoveAll($Predicate)
 
             $newCol = [System.Activator]::CreateInstance($InputObject.Value.GetType())
-            foreach ($item in $list)
-            {
-                if ($item -is [System.Collections.DictionaryEntry])
-                {
+            foreach ($item in $list) {
+                if ($item -is [System.Collections.DictionaryEntry]) {
                     [void] $newCol.Add($item.Key, $item.Value)
                 }
-                else
-                {
+                else {
                     [void] $newCol.Add($item)
                 }
             }

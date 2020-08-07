@@ -1,5 +1,4 @@
-﻿Function Assert-Any()
-{
+﻿Function Assert-Any() {
     <#
         .SYNOPSIS
             Asserts any object of a collection exists or matches a condition.
@@ -42,40 +41,32 @@
     [OutputType([bool])]
     param
     (
-        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [AllowNull()]
         [AllowEmptyCollection()]
         [object[]] $InputObject,
 
-        [Parameter(Mandatory=$false, Position=0)]
+        [Parameter(Mandatory = $false, Position = 0)]
         [scriptblock] $Condition
     )
-    Begin
-    {
+    Begin {
         $list = New-Object -TypeName "System.Collections.Generic.List[object]"
     }
-    Process
-    {
-        if ($null -ne $InputObject -and $InputObject.Length -gt 0)
-        {
+    Process {
+        if ($null -ne $InputObject -and $InputObject.Length -gt 0) {
             $list.AddRange($InputObject)
         }
     }
-    End
-    {
-        if ($list.Count -gt 0)
-        {
-            if ($PSBoundParameters.ContainsKey("Condition"))
-            {
+    End {
+        if ($list.Count -gt 0) {
+            if ($PSBoundParameters.ContainsKey("Condition")) {
                 $list.Where($Condition).Count -gt 0
             }
-            else
-            {
+            else {
                 $true
             }
         }
-        else
-        {
+        else {
             $false
         }
     }

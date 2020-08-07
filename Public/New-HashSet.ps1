@@ -1,4 +1,52 @@
 Function New-HashSet() {
+    <#
+        .SYNOPSIS
+            Creates a HashSet of unique values.
+    
+        .DESCRIPTION
+            Creates a 'System.Collections.Generic.HashSet[T]' in order to store unique values into.
+
+        .PARAMETER Capacity
+            The total number of elements the set can hold without resizing.  Default -- 0.
+
+        .PARAMETER GenericType
+            The constraining type that every object added into the list must be.
+    
+        .PARAMETER EqualityScript
+            The scripblock that will check the equality between any 2 objects in the set.  It must return a boolean (True/False) value.
+            
+            '$x' -or- '$args[0]' must represent the 1st item to be compared.
+            '$y' -or - '$args[1]' must represent the 2nd item to be compared.
+
+        .PARAMETER HashCodeScript
+            The scriptblock that retrieve an item's hash code value.
+
+            A "hash code" is a numeric value that is used to insert and identify an object in a "hash-based" collection.
+            The easiest way to provide this through an object's 'GetHashCode()' method.
+            Two objects that are equal return hash codes that are equal.  However, the reverse is not true: equal hash codes
+            do not imply object equality, becuase different (unequal) objects can have identical hash codes.
+    
+        .INPUTS
+            System.Object[] -- The objects that will immediately added to the returned set.
+    
+        .OUTPUTS
+            System.Collections.Generic.HashSet[T] -- where 'T' is the constrained generic type that all objects must be.
+    
+        .EXAMPLE
+            # Create a HashSet[string] that ignores case for equality.
+            $set = New-HashSet [string] -EqualityScript { $x -eq $y } -HashCodeScript { $_.ToLower().GetHashCode() }
+
+        .EXAMPLE
+            # Create a HashSet[object] that objects with the same 'Name' and 'Id' properties equal.
+            $set = New-HashSet -EqualityScript { $x.Name -eq $y.Name -and $x.Id -eq $y.Id }
+    
+        .NOTES
+            The EqualityScript must use either '$x' and '$y' -or- '$args[0]' and '$args[1]' in the
+            scriptblock to properly identify the 2 comparing values.
+
+            The HashCodeScript must use either '$_' -or- '$args[0]' in the scriptblock to properly identify
+            the object whose hash code is retrieved.
+    #>
 
     [CmdletBinding(DefaultParameterSetName = "None")]
     param (
@@ -18,8 +66,8 @@ Function New-HashSet() {
         [Parameter(Mandatory = $true, ParameterSetName = "WithCustomEqualityComparer")]
         [scriptblock] $EqualityScript,
 
-        [Parameter(Mandatory = $true, ParameterSetName = "WithCustomEqualityComparer")]
-        [scriptblock] $HashCodeScript
+        [Parameter(Mandatory = $false, ParameterSetName = "WithCustomEqualityComparer")]
+        [scriptblock] $HashCodeScript = { $_.GetHashCode() }
     )
     Begin {
 

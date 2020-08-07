@@ -6,10 +6,10 @@ Function NewEqualityComparer() {
         [ValidateScript( { $_ -is [type] -or $_ -is [string] })]
         [object] $GenericType = "[object]",
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [scriptblock] $EqualityScript,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [scriptblock] $HashCodeScript
     )
 

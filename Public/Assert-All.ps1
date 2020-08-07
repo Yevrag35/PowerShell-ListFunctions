@@ -1,5 +1,4 @@
-﻿Function Assert-All()
-{
+﻿Function Assert-All() {
     <#
         .SYNOPSIS
             Asserts all objects of a collections satisfy a condition.
@@ -42,33 +41,27 @@
     [OutputType([bool])]
     param
     (
-        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [AllowNull()]
         [AllowEmptyCollection()]
         [object[]] $InputObject,
 
-        [Parameter(Mandatory=$true, Position=0)]
+        [Parameter(Mandatory = $true, Position = 0)]
         [scriptblock] $Condition
     )
-    Begin
-    {
+    Begin {
         $list = New-Object -TypeName "System.Collections.Generic.List[object]"
     }
-    Process
-    {
-        if ($null -ne $InputObject -and $InputObject.Length -gt 0)
-        {
+    Process {
+        if ($null -ne $InputObject -and $InputObject.Length -gt 0) {
             $list.AddRange($InputObject)
         }
     }
-    End
-    {
-        if ($list.Count -gt 0)
-        {
+    End {
+        if ($list.Count -gt 0) {
             $list.Where($Condition).Count -eq $list.Count
         }
-        else
-        {
+        else {
             $false
         }
     }

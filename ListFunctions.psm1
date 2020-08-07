@@ -1,21 +1,22 @@
-Function BuildPredicate()
-{
+Function BuildPredicate() {
+
     [CmdletBinding()]
     [OutputType([System.Predicate[object]])]
     param
     (
-        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [scriptblock] $ScriptBlock
     )
-    Begin
-    {
+    Begin {
+
         $rebuild = New-Object -TypeName 'System.Collections.Generic.List[string]' -ArgumentList 2
     }
-    Process
-    {
+    Process {
+
         # Replace all instances of '$_' and '$PSItem' in the ScriptBlock with '$x'
         $sbString = $ScriptBlock.ToString().Replace('$_', '$x')
         $matchCol = [regex]::Matches($sbString, '\$PSItem', "IgnoreCase")
+        
         $matchCol | Select-Object Value -Unique | ForEach-Object {
             $sbString = $sbString.Replace($PSItem.Value, [string]'$_')
         }
@@ -23,8 +24,8 @@ Function BuildPredicate()
         # Split the ScriptBlock by new lines and add them to $rebuild
         $rebuild.AddRange(($sbString -split "`n"))
 
-        if ($rebuild[0] -cnotmatch '^\s*param') # If the first line is not the start of a 'param' block then...
-        {
+        if ($rebuild[0] -cnotmatch '^\s*param') { # If the first line is not the start of a 'param' block then...
+
             $rebuild.Insert(0, 'param ($x)')    # ...insert one at the beginning of the list.
         }
 
@@ -41,10 +42,10 @@ Function NewEqualityComparer() {
         [ValidateScript( { $_ -is [type] -or $_ -is [string] })]
         [object] $GenericType = "[object]",
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [scriptblock] $EqualityScript,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [scriptblock] $HashCodeScript
     )
 
@@ -69,8 +70,7 @@ Function NewEqualityComparer() {
     }
 }
 
-Function Assert-All()
-{
+Function Assert-All() {
     <#
         .SYNOPSIS
             Asserts all objects of a collections satisfy a condition.
@@ -113,40 +113,33 @@ Function Assert-All()
     [OutputType([bool])]
     param
     (
-        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [AllowNull()]
         [AllowEmptyCollection()]
         [object[]] $InputObject,
 
-        [Parameter(Mandatory=$true, Position=0)]
+        [Parameter(Mandatory = $true, Position = 0)]
         [scriptblock] $Condition
     )
-    Begin
-    {
+    Begin {
         $list = New-Object -TypeName "System.Collections.Generic.List[object]"
     }
-    Process
-    {
-        if ($null -ne $InputObject -and $InputObject.Length -gt 0)
-        {
+    Process {
+        if ($null -ne $InputObject -and $InputObject.Length -gt 0) {
             $list.AddRange($InputObject)
         }
     }
-    End
-    {
-        if ($list.Count -gt 0)
-        {
+    End {
+        if ($list.Count -gt 0) {
             $list.Where($Condition).Count -eq $list.Count
         }
-        else
-        {
+        else {
             $false
         }
     }
 }
 
-Function Assert-Any()
-{
+Function Assert-Any() {
     <#
         .SYNOPSIS
             Asserts any object of a collection exists or matches a condition.
@@ -189,47 +182,38 @@ Function Assert-Any()
     [OutputType([bool])]
     param
     (
-        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [AllowNull()]
         [AllowEmptyCollection()]
         [object[]] $InputObject,
 
-        [Parameter(Mandatory=$false, Position=0)]
+        [Parameter(Mandatory = $false, Position = 0)]
         [scriptblock] $Condition
     )
-    Begin
-    {
+    Begin {
         $list = New-Object -TypeName "System.Collections.Generic.List[object]"
     }
-    Process
-    {
-        if ($null -ne $InputObject -and $InputObject.Length -gt 0)
-        {
+    Process {
+        if ($null -ne $InputObject -and $InputObject.Length -gt 0) {
             $list.AddRange($InputObject)
         }
     }
-    End
-    {
-        if ($list.Count -gt 0)
-        {
-            if ($PSBoundParameters.ContainsKey("Condition"))
-            {
+    End {
+        if ($list.Count -gt 0) {
+            if ($PSBoundParameters.ContainsKey("Condition")) {
                 $list.Where($Condition).Count -gt 0
             }
-            else
-            {
+            else {
                 $true
             }
         }
-        else
-        {
+        else {
             $false
         }
     }
 }
 
-Function Find-IndexOf()
-{
+Function Find-IndexOf() {
     <#
         .SYNOPSIS
             Finds the index of the first element that matches a condition.
@@ -314,30 +298,24 @@ Function Find-IndexOf()
         [Parameter(Mandatory = $false)]
         [int] $Count
     )
-    Begin
-    {
+    Begin {
         $list = New-Object -TypeName "System.Collections.Generic.List[object]"
         $Predicate = BuildPredicate -ScriptBlock $Condition
     }
-    Process
-    {
+    Process {
         $list.AddRange($InputObject)
     }
-    End
-    {
-        if (-not $PSBoundParameters.ContainsKey("Count"))
-        {
+    End {
+        if (-not $PSBoundParameters.ContainsKey("Count")) {
             $list.FindIndex($StartIndex, $Predicate)
         }
-        else
-        {
+        else {
             $list.FindIndex($StartIndex, $Count, $Predicate)
         }
     }
 }
 
-Function Find-LastIndexOf()
-{
+Function Find-LastIndexOf() {
     <#
         .SYNOPSIS
             Finds the index of the last element that matches a condition.
@@ -405,51 +383,93 @@ Function Find-LastIndexOf()
 
                 Look at Example #3 to see an example of this.
     #>
-    [CmdletBinding(DefaultParameterSetName="None")]
+    [CmdletBinding(DefaultParameterSetName = "None")]
     [Alias("Find-LastIndex", "LastIndexOf")]
     [OutputType([int])]
     param
     (
-        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [object[]] $InputObject,
 
-        [Parameter(Mandatory=$true, Position=0)]
+        [Parameter(Mandatory = $true, Position = 0)]
         [scriptblock] $Condition,
 
-        [Parameter(Mandatory=$true, ParameterSetName="ByStartingIndex")]
+        [Parameter(Mandatory = $true, ParameterSetName = "ByStartingIndex")]
         [int] $StartIndex,
 
-        [Parameter(Mandatory=$false, ParameterSetName="ByStartingIndex")]
+        [Parameter(Mandatory = $false, ParameterSetName = "ByStartingIndex")]
         [int] $Count
     )
-    Begin
-    {
+    Begin {
         $list = New-Object -TypeName "System.Collections.Generic.List[object]"
         $Predicate = BuildPredicate -ScriptBlock $Condition
     }
-    Process
-    {
+    Process {
         $list.AddRange($InputObject)
     }
-    End
-    {
-        if (-not $PSBoundParameters.ContainsKey("StartIndex"))
-        {
+    End {
+        if (-not $PSBoundParameters.ContainsKey("StartIndex")) {
             $StartIndex = $list.Count - 1
         }
 
-        if (-not $PSBoundParameters.ContainsKey("Count"))
-        {
+        if (-not $PSBoundParameters.ContainsKey("Count")) {
             $list.FindLastIndex($StartIndex, $Predicate)
         }
-        else
-        {
+        else {
             $list.FindLastIndex($StartIndex, $Count, $Predicate)
         }
     }
 }
 
 Function New-HashSet() {
+    <#
+        .SYNOPSIS
+            Creates a HashSet of unique values.
+    
+        .DESCRIPTION
+            Creates a 'System.Collections.Generic.HashSet[T]' in order to store unique values into.
+
+        .PARAMETER Capacity
+            The total number of elements the set can hold without resizing.  Default -- 0.
+
+        .PARAMETER GenericType
+            The constraining type that every object added into the list must be.
+    
+        .PARAMETER EqualityScript
+            The scripblock that will check the equality between any 2 objects in the set.  It must return a boolean (True/False) value.
+            
+            '$x' -or- '$args[0]' must represent the 1st item to be compared.
+            '$y' -or - '$args[1]' must represent the 2nd item to be compared.
+
+        .PARAMETER HashCodeScript
+            The scriptblock that retrieve an item's hash code value.
+
+            A "hash code" is a numeric value that is used to insert and identify an object in a "hash-based" collection.
+            The easiest way to provide this through an object's 'GetHashCode()' method.
+            Two objects that are equal return hash codes that are equal.  However, the reverse is not true: equal hash codes
+            do not imply object equality, becuase different (unequal) objects can have identical hash codes.
+    
+        .INPUTS
+            System.Object[] -- The objects that will immediately added to the returned set.
+    
+        .OUTPUTS
+            System.Collections.Generic.HashSet[T] -- where 'T' is the constrained generic type that all objects must be.
+    
+        .EXAMPLE
+            # Create a HashSet[string] that ignores case for equality.
+            $set = New-HashSet [string] -EqualityScript { $x -eq $y } -HashCodeScript { $_.ToLower().GetHashCode() }
+
+        .EXAMPLE
+            # Create a HashSet[object] that objects with the same 'Name' and 'Id' properties equal.
+            $set = New-HashSet -EqualityScript { $x.Name -eq $y.Name -and $x.Id -eq $y.Id }
+    
+        .NOTES
+            The EqualityScript must use either '$x' and '$y' -or- '$args[0]' and '$args[1]' in the
+            scriptblock to properly identify the 2 comparing values.
+
+            The HashCodeScript must use either '$_' -or- '$args[0]' in the scriptblock to properly identify
+            the object whose hash code is retrieved.
+    #>
 
     [CmdletBinding(DefaultParameterSetName = "None")]
     param (
@@ -469,8 +489,8 @@ Function New-HashSet() {
         [Parameter(Mandatory = $true, ParameterSetName = "WithCustomEqualityComparer")]
         [scriptblock] $EqualityScript,
 
-        [Parameter(Mandatory = $true, ParameterSetName = "WithCustomEqualityComparer")]
-        [scriptblock] $HashCodeScript
+        [Parameter(Mandatory = $false, ParameterSetName = "WithCustomEqualityComparer")]
+        [scriptblock] $HashCodeScript = { $_.GetHashCode() }
     )
     Begin {
 
@@ -506,6 +526,39 @@ Function New-HashSet() {
 }
 
 Function New-List() {
+    <#
+        .SYNOPSIS
+            Creates a strongly-typed list of objects.
+    
+        .DESCRIPTION
+            Generates a strongly-typed list of objects that can be accessed by index.
+
+            'System.Collections.Generic.List[T]'
+
+            This functions creates the list with the specified constrained type and the specified capacity.  Objects can be immediately
+            added to the list by explicit calling the "InputObject" parameter or by passing the objects through the pipeline.
+    
+        .PARAMETER Capacity
+            The total number of elements the list can hold without resizing.  Default -- 0.
+
+        .PARAMETER GenericType
+            The constraining type that every object added into the list must be.
+
+        .PARAMETER InputObject
+            A collection of objects that will initially added into the new list.
+    
+        .INPUTS
+            System.Object[] -- Objects of any type of if constrained with a generic, objects must be of that type.
+    
+        .OUTPUTS
+            System.Collections.Generic.List[T] -- where 'T' is the constrained object type.
+    
+        .EXAMPLE
+            $list = New-List 780 -Type [string]
+
+        .EXAMPLE
+            $list = ,@('hi', 'hello', 'goodbye') | New-List 3 -GenericType [string]
+    #>
     [CmdletBinding()]
     param
     (
@@ -552,8 +605,7 @@ Function New-List() {
     }
 }
 
-Function Remove-All()
-{
+Function Remove-All() {
     <#
         .SYNOPSIS
             Removes objects from collection(s) that satisfy a condition.
@@ -606,17 +658,15 @@ Function Remove-All()
     [Alias("RemoveAll")]
     param
     (
-        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [ref] $InputObject,
 
-        [Parameter(Mandatory=$true, Position=0)]
+        [Parameter(Mandatory = $true, Position = 0)]
         [scriptblock] $Condition
     )
-    Process
-    {
+    Process {
         $Predicate = BuildPredicate $Condition
-        if ($InputObject.Value.GetType().IsArray)
-        {
+        if ($InputObject.Value.GetType().IsArray) {
             $elementType = $InputObject.Value.GetType().GetElementType()
             $list = New-Object -TypeName "System.Collections.Generic.List[object]" -ArgumentList $InputObject.Value.Length
 
@@ -624,26 +674,21 @@ Function Remove-All()
             [void] $list.RemoveAll($Predicate)
 
             $InputObject.Value = New-Object -TypeName "$($elementType.FullName)[]" $list.Count
-            for ($i = 0; $i -lt $list.Count; $i++)
-            {
+            for ($i = 0; $i -lt $list.Count; $i++) {
                 $InputObject.Value[$i] = $list[$i]
             }
         }
-        elseif ($InputObject.Value -is [System.Collections.ICollection])
-        {
+        elseif ($InputObject.Value -is [System.Collections.ICollection]) {
             $list = New-Object -TypeName "System.Collections.Generic.List[object]" -ArgumentList $InputObject.Value.Count
             $list.AddRange(@($InputObject.Value.GetEnumerator()))
             [void] $list.RemoveAll($Predicate)
 
             $newCol = [System.Activator]::CreateInstance($InputObject.Value.GetType())
-            foreach ($item in $list)
-            {
-                if ($item -is [System.Collections.DictionaryEntry])
-                {
+            foreach ($item in $list) {
+                if ($item -is [System.Collections.DictionaryEntry]) {
                     [void] $newCol.Add($item.Key, $item.Value)
                 }
-                else
-                {
+                else {
                     [void] $newCol.Add($item)
                 }
             }
@@ -652,8 +697,7 @@ Function Remove-All()
     }
 }
 
-Function Remove-At()
-{
+Function Remove-At() {
     <#
         .SYNOPSIS
             Removes item(s) of a collection at the specified indices.
@@ -690,42 +734,34 @@ Function Remove-At()
     [Alias("RemoveAt")]
     param
     (
-        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [object[]] $InputObject,
 
-        [Parameter(Mandatory=$true, Position=0)]
+        [Parameter(Mandatory = $true, Position = 0)]
         [int[]] $Index,
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [int] $Count
     )
-    Begin
-    {
-        if ($PSBoundParameters.ContainsKey("Count") -and $Index.Length -gt 1)
-        {
+    Begin {
+        if ($PSBoundParameters.ContainsKey("Count") -and $Index.Length -gt 1) {
             throw "When using 'Count', only 1 index may be specified at a time."
         }
         $list = New-Object -TypeName "System.Collections.Generic.List[object]"
     }
-    Process
-    {
+    Process {
         $list.AddRange($InputObject)
     }
-    End
-    {
-        if (-not $PSBoundParameters.ContainsKey("Count"))
-        {
-            $itemsToRemove = foreach ($remIndex in $Index)
-            {
+    End {
+        if (-not $PSBoundParameters.ContainsKey("Count")) {
+            $itemsToRemove = foreach ($remIndex in $Index) {
                 $list[$remIndex]
             }
-            foreach ($item in $itemsToRemove)
-            {
+            foreach ($item in $itemsToRemove) {
                 [void] $list.Remove($item)
             }
         }
-        else
-        {
+        else {
             $list.RemoveRange($Index[0], $Count)
         }
         $list
