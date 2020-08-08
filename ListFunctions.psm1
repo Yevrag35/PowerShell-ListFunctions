@@ -45,28 +45,56 @@ Function NewEqualityComparer() {
         [Parameter(Mandatory = $true)]
         [scriptblock] $EqualityScript,
 
-        [Parameter(Mandatory = $true)]
-        [scriptblock] $HashCodeScript
+        [Parameter(Mandatory = $false)]
+        [scriptblock] $HashCodeScript = { $args[0].GetHashCode() }
     )
 
-    $ms = [regex]::Matches($EqualityScript, '\$(x|y)(\s|\.)', "IgnoreCase")
-    if ($ms | Assert-Any -Condition { $_.Success }) {
+    if ($EqualityScript -match '\$x(\s|\.)' -and $EqualityScript -match '\$y(\s|\.)') {
+
         $replace1 = [regex]::Replace($EqualityScript, '\$x(\s|\.)', '$args[0]$1', "IgnoreCase")
         $replace2 = [regex]::Replace($replace1, '\$y(\s|\.)', '$args[1]$1', "IgnoreCase")
         $EqualityScript = [scriptblock]::Create($replace2)
     }
+    elseif (-not ($EqualityScript -match '\$args\[0\]' -and $EqualityScript -match '\$args\[1\]')) {
+        
+        $errMsg = 'EqualityScript does not contain valid variables ($x and $y -or- $args[0] and $args[1]).'
+
+        return [pscustomobject]@{
+            Comparer = $null
+            IsFaulted = $true
+            ErrorMessage = $errMsg
+        }
+    }
 
     if ($HashCodeScript -match '\$[_](\.|\s)') {
+
         $HashCodeScript = [scriptblock]::Create([regex]::Replace($HashCodeScript, '\$[_](\.|\s)', '$args[0]$1'))
+    }
+    elseif ($HashCodeScript -notmatch '\$args\[0\]') {
+
+        $errMsg = "HashCodeScript does not contain the required variables: '`$_' -or- '`$args[0]."
+
+        return [pscustomobject]@{
+            Comparer = $null
+            IsFaulted = $true
+            ErrorMessage = $errMsg
+        }
     }
 
     if ($GenericType -is [type]) {
+
         $GenericType = $GenericType.FullName
     }
 
-    New-Object -TypeName "ListFunctions.ScriptBlockComparer[$GenericType]" -Property @{
+    $comparer = New-Object -TypeName "ListFunctions.ScriptBlockComparer[$GenericType]" -Property @{
         EqualityTester = $EqualityScript
         HashCodeScript = $HashCodeScript
+    }
+
+    [pscustomobject]@{
+        Comparer = $comparer
+        IsFaulted = $false
+        ErrorMessage = $null
     }
 }
 
@@ -145,7 +173,7 @@ Function Assert-Any() {
             Asserts any object of a collection exists or matches a condition.
 
         .DESCRIPTION
-            Determines whether any element of a sequence satisifies a condition.  If no condition
+            Determines whether any element of a sequence satisfies a condition.  If no condition
             (scriptblock) is specified, then the functions determines whether the sequence contains
             any elements at all.
 
@@ -424,30 +452,30 @@ Function Find-LastIndexOf() {
 Function New-HashSet() {
     <#
         .SYNOPSIS
-            Creates a HashSet of unique values.
+            Creates a HashSet of unique objects.
     
         .DESCRIPTION
-            Creates a 'System.Collections.Generic.HashSet[T]' in order to store unique values into.
+            Creates a 'System.Collections.Generic.HashSet[T]' in order to store unique objects into.
 
         .PARAMETER Capacity
             The total number of elements the set can hold without resizing.  Default -- 0.
 
         .PARAMETER GenericType
-            The constraining type that every object added into the list must be.
+            The constraining type that every object added into the set must be.
     
         .PARAMETER EqualityScript
-            The scripblock that will check the equality between any 2 objects in the set.  It must return a boolean (True/False) value.
+            The scriptblock that will check the equality between any 2 objects in the set.  It must return a boolean (True/False) value.
             
             '$x' -or- '$args[0]' must represent the 1st item to be compared.
             '$y' -or - '$args[1]' must represent the 2nd item to be compared.
 
         .PARAMETER HashCodeScript
-            The scriptblock that retrieve an item's hash code value.
+            The scriptblock that retrieve an object's hash code value.
 
             A "hash code" is a numeric value that is used to insert and identify an object in a "hash-based" collection.
             The easiest way to provide this through an object's 'GetHashCode()' method.
             Two objects that are equal return hash codes that are equal.  However, the reverse is not true: equal hash codes
-            do not imply object equality, becuase different (unequal) objects can have identical hash codes.
+            do not imply object equality, because different (unequal) objects can have identical hash codes.
     
         .INPUTS
             System.Object[] -- The objects that will immediately added to the returned set.
@@ -457,10 +485,10 @@ Function New-HashSet() {
     
         .EXAMPLE
             # Create a HashSet[string] that ignores case for equality.
-            $set = New-HashSet [string] -EqualityScript { $x -eq $y } -HashCodeScript { $_.ToLower().GetHashCode() }
+            $set = New-HashSet -GenericType [string] -EqualityScript { $x -eq $y } -HashCodeScript { $_.ToLower().GetHashCode() }
 
         .EXAMPLE
-            # Create a HashSet[object] that objects with the same 'Name' and 'Id' properties equal.
+            # Create a HashSet[object] that determines objects with the same 'Name' and 'Id' properties to be equal.
             $set = New-HashSet -EqualityScript { $x.Name -eq $y.Name -and $x.Id -eq $y.Id }
     
         .NOTES
@@ -500,7 +528,12 @@ Function New-HashSet() {
         }
 
         if ($PSCmdlet.ParameterSetName -eq "WithCustomEqualityComparer") {
-            $comparer = NewEqualityComparer -GenericType $GenericType -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript
+            $result = NewEqualityComparer -GenericType $GenericType -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript
+
+            if ($result.IsFaulted) {
+                Write-Error -Message $result.ErrorMessage -Category SyntaxError -ErrorId $([System.ArgumentException]).FullName
+            }
+            $comparer = $result.Comparer
         }
 
         $set = New-Object -TypeName "System.Collections.Generic.HashSet[$GenericType]"($Capacity, $comparer)
@@ -548,7 +581,7 @@ Function New-List() {
             A collection of objects that will initially added into the new list.
     
         .INPUTS
-            System.Object[] -- Objects of any type of if constrained with a generic, objects must be of that type.
+            System.Object[] -- Objects of any type. But if constrained with a generic, objects must be of that type.
     
         .OUTPUTS
             System.Collections.Generic.List[T] -- where 'T' is the constrained object type.
@@ -703,7 +736,7 @@ Function Remove-At() {
             Removes item(s) of a collection at the specified indices.
     
         .DESCRIPTION
-            Removes the elemetns at the specified indexes of the supplied collection of objects.
+            Removes the elements at the specified indexes of the supplied collection of objects.
 
             When 'Index' and 'Count' are specified, the number ('Count') of elements from the specified
             index will be removed.  There cannot be more than one (1) index specified when both parameters

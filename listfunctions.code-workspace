@@ -1,0 +1,50 @@
+{
+	"folders": [
+		{
+			"path": ".",
+			"name": "ListFunctions"
+		}
+	],
+	"settings": {
+		"terminal.explorerKind": "integrated",
+		"powershell.powerShellDefaultVersion": "PowerShell (x64)",
+		"powershell.debugging.createTemporaryIntegratedConsole": false,
+		"powershell.enableProfileLoading": false
+	},
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"label": "Build",
+				"type": "shell",
+				"command": "& ${workspaceFolder:ListFunctions}\\build\\Build.ps1",
+				"problemMatcher": [],
+				"promptOnClose": true,
+				"presentation": {
+					"echo": true,
+					"reveal": "silent",
+					"focus": false,
+					"panel": "shared",
+					"showReuseMessage": false,
+					"clear": false
+				},
+				"group": {
+					"kind": "build",
+					"isDefault": true
+				}
+			}
+		]
+	},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"name": "PowerShell: Launch Script",
+				"type": "PowerShell",
+				"request": "launch",
+				"script": "${workspaceFolder:ListFunctions}\\_debug\\Debug.ps1",
+				"cwd": "${workspaceFolder:ListFunctions}"
+			}
+		]
+	}
+}

@@ -77,7 +77,12 @@ Function New-HashSet() {
         }
 
         if ($PSCmdlet.ParameterSetName -eq "WithCustomEqualityComparer") {
-            $comparer = NewEqualityComparer -GenericType $GenericType -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript
+            $result = NewEqualityComparer -GenericType $GenericType -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript
+
+            if ($result.IsFaulted) {
+                Write-Error -Message $result.ErrorMessage -Category SyntaxError -ErrorId $([System.ArgumentException]).FullName
+            }
+            $comparer = $result.Comparer
         }
 
         $set = New-Object -TypeName "System.Collections.Generic.HashSet[$GenericType]"($Capacity, $comparer)
