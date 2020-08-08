@@ -4,7 +4,7 @@
             Removes item(s) of a collection at the specified indices.
     
         .DESCRIPTION
-            Removes the elemetns at the specified indexes of the supplied collection of objects.
+            Removes the elements at the specified indexes of the supplied collection of objects.
 
             When 'Index' and 'Count' are specified, the number ('Count') of elements from the specified
             index will be removed.  There cannot be more than one (1) index specified when both parameters

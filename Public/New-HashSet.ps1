@@ -1,30 +1,30 @@
 Function New-HashSet() {
     <#
         .SYNOPSIS
-            Creates a HashSet of unique values.
+            Creates a HashSet of unique objects.
     
         .DESCRIPTION
-            Creates a 'System.Collections.Generic.HashSet[T]' in order to store unique values into.
+            Creates a 'System.Collections.Generic.HashSet[T]' in order to store unique objects into.
 
         .PARAMETER Capacity
             The total number of elements the set can hold without resizing.  Default -- 0.
 
         .PARAMETER GenericType
-            The constraining type that every object added into the list must be.
+            The constraining type that every object added into the set must be.
     
         .PARAMETER EqualityScript
-            The scripblock that will check the equality between any 2 objects in the set.  It must return a boolean (True/False) value.
+            The scriptblock that will check the equality between any 2 objects in the set.  It must return a boolean (True/False) value.
             
             '$x' -or- '$args[0]' must represent the 1st item to be compared.
             '$y' -or - '$args[1]' must represent the 2nd item to be compared.
 
         .PARAMETER HashCodeScript
-            The scriptblock that retrieve an item's hash code value.
+            The scriptblock that retrieve an object's hash code value.
 
             A "hash code" is a numeric value that is used to insert and identify an object in a "hash-based" collection.
             The easiest way to provide this through an object's 'GetHashCode()' method.
             Two objects that are equal return hash codes that are equal.  However, the reverse is not true: equal hash codes
-            do not imply object equality, becuase different (unequal) objects can have identical hash codes.
+            do not imply object equality, because different (unequal) objects can have identical hash codes.
     
         .INPUTS
             System.Object[] -- The objects that will immediately added to the returned set.
@@ -34,10 +34,10 @@ Function New-HashSet() {
     
         .EXAMPLE
             # Create a HashSet[string] that ignores case for equality.
-            $set = New-HashSet [string] -EqualityScript { $x -eq $y } -HashCodeScript { $_.ToLower().GetHashCode() }
+            $set = New-HashSet -GenericType [string] -EqualityScript { $x -eq $y } -HashCodeScript { $_.ToLower().GetHashCode() }
 
         .EXAMPLE
-            # Create a HashSet[object] that objects with the same 'Name' and 'Id' properties equal.
+            # Create a HashSet[object] that determines objects with the same 'Name' and 'Id' properties to be equal.
             $set = New-HashSet -EqualityScript { $x.Name -eq $y.Name -and $x.Id -eq $y.Id }
     
         .NOTES

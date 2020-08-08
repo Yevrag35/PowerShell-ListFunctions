@@ -4,7 +4,7 @@
             Asserts any object of a collection exists or matches a condition.
 
         .DESCRIPTION
-            Determines whether any element of a sequence satisifies a condition.  If no condition
+            Determines whether any element of a sequence satisfies a condition.  If no condition
             (scriptblock) is specified, then the functions determines whether the sequence contains
             any elements at all.
 

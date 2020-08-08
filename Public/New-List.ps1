@@ -21,7 +21,7 @@ Function New-List() {
             A collection of objects that will initially added into the new list.
     
         .INPUTS
-            System.Object[] -- Objects of any type of if constrained with a generic, objects must be of that type.
+            System.Object[] -- Objects of any type. But if constrained with a generic, objects must be of that type.
     
         .OUTPUTS
             System.Collections.Generic.List[T] -- where 'T' is the constrained object type.
