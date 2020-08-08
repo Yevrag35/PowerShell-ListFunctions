@@ -4,32 +4,23 @@
     [OutputType([System.Predicate[object]])]
     param
     (
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
         [scriptblock] $ScriptBlock
     )
-    Begin {
-
-        $rebuild = New-Object -TypeName 'System.Collections.Generic.List[string]' -ArgumentList 2
-    }
     Process {
 
-        # Replace all instances of '$_' and '$PSItem' in the ScriptBlock with '$x'
-        $sbString = $ScriptBlock.ToString().Replace('$_', '$x')
-        $matchCol = [regex]::Matches($sbString, '\$PSItem', "IgnoreCase")
+        # Replace all instances of '$_' in the ScriptBlock with '$x'
+        $sbString = [regex]::Replace($ScriptBlock, '\$[_](\s|\.)', '$x$1', "IgnoreCase")
         
-        $matchCol | Select-Object Value -Unique | ForEach-Object {
-            $sbString = $sbString.Replace($PSItem.Value, [string]'$_')
+        # Replace all instance of '$PSItem' in the ScriptBlock with '$_'
+        $sbString = [regex]::Replace($sbString, '\$PSItem(\s|\.)', '$_$1', "IgnoreCase")
+
+        if ($sbString -notlike "param (`$x)`n*") {   # If the first line is not the start of a 'param' block then...
+
+            $sbString = "param (`$x)`n" + $sbString  # ...insert one at the beginning of the string.
         }
 
-        # Split the ScriptBlock by new lines and add them to $rebuild
-        $rebuild.AddRange(($sbString -split "`n"))
-
-        if ($rebuild[0] -cnotmatch '^\s*param') { # If the first line is not the start of a 'param' block then...
-
-            $rebuild.Insert(0, 'param ($x)')    # ...insert one at the beginning of the list.
-        }
-
-        # Cast all joined strings from the list into a System.Predicate[object]
-        [System.Predicate[object]][scriptblock]::Create(($rebuild -join "`n"))
+        # Create a new scriptblock from the StringBuilder and cast it into a System.Predicate[object].
+        [System.Predicate[object]][scriptblock]::Create($sbString)
     }
 }

@@ -77,6 +77,7 @@ Function New-HashSet() {
         }
 
         if ($PSCmdlet.ParameterSetName -eq "WithCustomEqualityComparer") {
+            
             $result = NewEqualityComparer -GenericType $GenericType -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript
 
             if ($result.IsFaulted) {
