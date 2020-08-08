@@ -42,7 +42,7 @@
 				"name": "PowerShell: Launch Script",
 				"type": "PowerShell",
 				"request": "launch",
-				"script": "${workspaceFolder:ListFunctions}\\_debug\\Debug.ps1",
+				"script": "${workspaceFolder:ListFunctions}\\debug\\Debug.ps1",
 				"cwd": "${workspaceFolder:ListFunctions}"
 			}
 		]
