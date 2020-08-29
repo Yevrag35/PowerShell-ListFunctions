@@ -70,7 +70,7 @@
             default { }
         }
 
-        $sortedSet = New-Object -TypeName "System.Collections.Generic.SortedSet[$GenericType]"($intComparer)
+        $sortedSet = New-Object -TypeName "ListFunctions.SortedSetList[$GenericType]"($intComparer)
 
         if ($null -eq $private:type) {
             

@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Management.Automation;
 
 using Comparer = System.Collections.Comparer;
@@ -100,6 +101,28 @@ namespace ListFunctions
             return item.GetHashCode();
         }
     }
+
+    public class SortedSetList<T> : SortedSet<T>
+    {
+        public T this[int index]
+        {
+            get
+            {
+                if (index < 0)
+                {
+                    index = base.Count + index;
+                }
+
+                return this.ElementAtOrDefault(index);
+            }
+        }
+
+        public SortedSetList() : base() { }
+        public SortedSetList(IComparer<T> comparer)
+            : base(comparer)
+        {
+        }
+    }
 }
 "@
 
@@ -112,6 +135,7 @@ if ($PSVersionTable.PSVersion.Major -le 5) {
     $atArgs.ReferencedAssemblies = @(
         'System',
         'System.Collections',
+        'System.Linq',
         'System.Management.Automation'
     )
 }
@@ -120,7 +144,7 @@ else {
         "System", 
         "System.Collections",
         "System.Collections.NonGeneric",
-        "System.Console",
+        "System.Linq",
         "System.Management.Automation",
         "System.Runtime.Extensions"
     )
