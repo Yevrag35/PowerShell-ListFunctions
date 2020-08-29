@@ -43,7 +43,7 @@ namespace ListFunctions
                 return _comparer.Compare(x, y);
             }
 
-            int answer = 0;
+            int answer = 1;
             try {
                 foreach (PSObject pso in this.CompareScript.Invoke(x, y))
                 {
