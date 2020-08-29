@@ -17,7 +17,7 @@
 			{
 				"label": "Build",
 				"type": "shell",
-				"command": "& ${workspaceFolder:ListFunctions}\\build\\Build.ps1",
+				"command": "& ${workspaceFolder:ListFunctions}\\.build\\build.ps1",
 				"problemMatcher": [],
 				"promptOnClose": true,
 				"presentation": {
@@ -42,7 +42,7 @@
 				"name": "PowerShell: Launch Script",
 				"type": "PowerShell",
 				"request": "launch",
-				"script": "${workspaceFolder:ListFunctions}\\debug\\Debug.ps1",
+				"script": "${workspaceFolder:ListFunctions}\\.debug\\debug.ps1",
 				"cwd": "${workspaceFolder:ListFunctions}"
 			}
 		]
