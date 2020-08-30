@@ -4,33 +4,84 @@ Function BuildPredicate() {
     [OutputType([System.Predicate[object]])]
     param
     (
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
         [scriptblock] $ScriptBlock
     )
-    Begin {
-
-        $rebuild = New-Object -TypeName 'System.Collections.Generic.List[string]' -ArgumentList 2
-    }
     Process {
 
-        # Replace all instances of '$_' and '$PSItem' in the ScriptBlock with '$x'
-        $sbString = $ScriptBlock.ToString().Replace('$_', '$x')
-        $matchCol = [regex]::Matches($sbString, '\$PSItem', "IgnoreCase")
+        # Replace all instances of '$_' in the ScriptBlock with '$x'
+        $sbString = [regex]::Replace($ScriptBlock, '\$[_](\s|\.)', '$x$1', "IgnoreCase")
         
-        $matchCol | Select-Object Value -Unique | ForEach-Object {
-            $sbString = $sbString.Replace($PSItem.Value, [string]'$_')
+        # Replace all instance of '$PSItem' in the ScriptBlock with '$_'
+        $sbString = [regex]::Replace($sbString, '\$PSItem(\s|\.)', '$_$1', "IgnoreCase")
+
+        if ($sbString -notlike "param (`$x)`n*") {   # If the first line is not the start of a 'param' block then...
+
+            $sbString = "param (`$x)`n" + $sbString  # ...insert one at the beginning of the string.
         }
 
-        # Split the ScriptBlock by new lines and add them to $rebuild
-        $rebuild.AddRange(($sbString -split "`n"))
+        # Create a new scriptblock from the StringBuilder and cast it into a System.Predicate[object].
+        [System.Predicate[object]][scriptblock]::Create($sbString)
+    }
+}
 
-        if ($rebuild[0] -cnotmatch '^\s*param') { # If the first line is not the start of a 'param' block then...
+Function NewComparer() {
 
-            $rebuild.Insert(0, 'param ($x)')    # ...insert one at the beginning of the list.
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string] $GenericType,
+
+        [Parameter(Mandatory = $false)]
+        [AllowNull()]
+        [scriptblock] $ComparingScript,
+
+        [Parameter(Mandatory = $true)]
+        [bool] $IsCaseSensitive
+    )
+
+    if ($ComparingScript -match '\$x(\s|\.|\))' -and $ComparingScript -match '\$y(\s|\.|\))') {
+
+        $replace1 = [regex]::Replace($ComparingScript, '\$x(\s|\.|\))', '$args[0]$1', "IgnoreCase")
+        $replace2 = [regex]::Replace($replace1, '\$y(\s|\.|\))', '$args[1]$1', "IgnoreCase")
+        
+        $ComparingScript = [scriptblock]::Create($replace2)
+    }
+    elseif (-not ($ComparingScript -match '\$args\[0\]' -and $ComparingScript -match '\$args\[1\]')) {
+        
+        return [pscustomobject]@{
+            Comparer = New-Object -TypeName "ListFunctions.ScriptBlockComparer[$GenericType]" -ArgumentList $IsCaseSensitive
+            IsFaulted = $false
+            ErrorMessage = $null
         }
+        # $errMsg = 'ComparingScript does not contain valid variables ($x and $y -or- $args[0] and $args[1]).'
 
-        # Cast all joined strings from the list into a System.Predicate[object]
-        [System.Predicate[object]][scriptblock]::Create(($rebuild -join "`n"))
+        # return [pscustomobject]@{
+        #     Comparer     = $null
+        #     IsFaulted    = $true
+        #     ErrorMessage = $errMsg
+        # }
+    }
+
+    if ($GenericType -is [type]) {
+
+        $GenericType = $GenericType.FullName
+    }
+
+    $newObjArgs = @{
+        TypeName     = "ListFunctions.ScriptBlockComparer[$GenericType]"
+        ArgumentList = $IsCaseSensitive
+        Property     = @{
+            CompareScript = $ComparingScript
+        }
+    }
+
+    $comparer = New-Object @newObjArgs
+
+    [pscustomobject]@{
+        Comparer     = $comparer
+        IsFaulted    = $false
+        ErrorMessage = $null
     }
 }
 
@@ -38,7 +89,6 @@ Function NewEqualityComparer() {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [Alias("Type", "t")]
         [ValidateScript( { $_ -is [type] -or $_ -is [string] })]
         [object] $GenericType = "[object]",
 
@@ -49,10 +99,10 @@ Function NewEqualityComparer() {
         [scriptblock] $HashCodeScript = { $args[0].GetHashCode() }
     )
 
-    if ($EqualityScript -match '\$x(\s|\.)' -and $EqualityScript -match '\$y(\s|\.)') {
+    if ($EqualityScript -match '\$x(\s|\.|\))' -and $EqualityScript -match '\$y(\s|\.|\))') {
 
-        $replace1 = [regex]::Replace($EqualityScript, '\$x(\s|\.)', '$args[0]$1', "IgnoreCase")
-        $replace2 = [regex]::Replace($replace1, '\$y(\s|\.)', '$args[1]$1', "IgnoreCase")
+        $replace1 = [regex]::Replace($EqualityScript, '\$x(\s|\.|\))', '$args[0]$1', "IgnoreCase")
+        $replace2 = [regex]::Replace($replace1, '\$y(\s|\.|\))', '$args[1]$1', "IgnoreCase")
         $EqualityScript = [scriptblock]::Create($replace2)
     }
     elseif (-not ($EqualityScript -match '\$args\[0\]' -and $EqualityScript -match '\$args\[1\]')) {
@@ -66,9 +116,9 @@ Function NewEqualityComparer() {
         }
     }
 
-    if ($HashCodeScript -match '\$[_](\.|\s)') {
+    if ($HashCodeScript -match '\$[_](\.|\s|\))') {
 
-        $HashCodeScript = [scriptblock]::Create([regex]::Replace($HashCodeScript, '\$[_](\.|\s)', '$args[0]$1'))
+        $HashCodeScript = [scriptblock]::Create([regex]::Replace($HashCodeScript, '\$[_](\.|\s|\))', '$args[0]$1'))
     }
     elseif ($HashCodeScript -notmatch '\$args\[0\]') {
 
@@ -528,6 +578,7 @@ Function New-HashSet() {
         }
 
         if ($PSCmdlet.ParameterSetName -eq "WithCustomEqualityComparer") {
+            
             $result = NewEqualityComparer -GenericType $GenericType -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript
 
             if ($result.IsFaulted) {
@@ -635,6 +686,101 @@ Function New-List() {
     End {
 
         , $private:list
+    }
+}
+
+Function New-SortedSet() {
+
+    [CmdletBinding(DefaultParameterSetName = "None")]
+    param (
+        [Parameter(Mandatory = $false, Position = 0)]
+        [Alias("Type", "t")]
+        [ValidateScript( { $_ -is [type] -or $_ -is [string] })]
+        [ValidateNotNull()]
+        [object] $GenericType = "[object]",
+
+        [Parameter(Mandatory = $false, ValueFromPipeline = $true)]
+        [object[]] $InputObject,
+
+        [Parameter(Mandatory=$true, ParameterSetName = "WithCustomComparer")]
+        [scriptblock] $ComparingScript,
+
+        [Parameter(Mandatory=$false, ParameterSetName="WithCustomComparer")]
+        [switch] $CaseSensitive,
+
+        [Parameter(Mandatory=$true, ParameterSetName="StringInsensitiveComparer")]
+        [switch] $IgnoreCaseStringComparer,
+
+        [Parameter(Mandatory=$true, ParameterSetName="WithComparer")]
+        [object] $Comparer
+    )
+    Begin {
+
+        if ($GenericType -is [type]) {
+            $private:type = $GenericType
+            $GenericType = $GenericType.FullName
+        }
+
+        $intComparer = switch ($PSCmdlet.ParameterSetName) {
+
+            "StringInsensitiveComparer" {
+                
+                $useOrNot = -not $IgnoreCaseStringComparer.ToBool()
+
+                $private:type = $([string])
+                $GenericType = $private:type.FullName
+                $result = NewComparer -GenericType $GenericType -IsCaseSensitive:$useOrNot
+                $result.Comparer
+            }
+
+            "WithComparer" {
+
+                if (-not ($Comparer -is [System.Collections.IComparer] -or $Comparer -is "[System.Collections.Generic.IComparer[$GenericType]")) {
+
+                    Write-Error -Message "The specified comparer does not implement `"[System.Collections.IComparer]`"."
+                    break
+                }
+
+                $Comparer
+            }
+            "WithCustomComparer" {
+                
+                $comparerArgs = @{
+                    GenericType     = $GenericType
+                    ComparingScript = $ComparingScript
+                    IsCaseSensitive = $CaseSensitive.ToBool()
+                }
+                $result = NewComparer @comparerArgs
+                
+                if ($result.IsFaulted) {
+                    Write-Error -Message $result.ErrorMessage -Category SyntaxError -ErrorId 'System.ArgumentException'
+                }
+
+                $result.Comparer
+            }
+            default { }
+        }
+
+        $sortedSet = New-Object -TypeName "ListFunctions.SortedSetList[$GenericType]"($intComparer)
+
+        if ($null -eq $private:type) {
+            
+            $private:type = $set.GetType().GenericTypeArguments | Select-Object -First 1
+        }
+
+        Write-Verbose "HashSet - GenericType $($private:type.FullName)"
+        $private:type = $private:type.MakeArrayType()
+    }
+    Process {
+
+        if ($PSBoundParameters.ContainsKey("InputObject")) {
+            
+            $sortedSet.UnionWith(($InputObject -as $private:type))
+        }
+    }
+    End {
+
+        , $sortedSet
     }
 }
 
