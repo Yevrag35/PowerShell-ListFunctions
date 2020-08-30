@@ -1,21 +1,67 @@
 $code = @"
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Management.Automation;
 
+using Comparer = System.Collections.Comparer;
+
 namespace ListFunctions
 {
-    public class ScriptBlockComparer<T> : IEqualityComparer<T>
+    public class ScriptBlockComparer<T> : IComparer<T>, IEqualityComparer<T>
     {
+        private IComparer _comparer;
+
+        public ScriptBlock CompareScript { get; set; }
         public ScriptBlock EqualityTester { get; set; }
         public ScriptBlock HashCodeScript { get; set; }
 
-        public ScriptBlockComparer() { }
-        public ScriptBlockComparer(ScriptBlock tester)
+        public ScriptBlockComparer() : this(false) { }
+        public ScriptBlockComparer(bool isCaseSensitive)
         {
-            this.EqualityTester = tester;
+            if (isCaseSensitive)
+            {
+                _comparer = Comparer.Default;
+            }
+            else
+            {
+                _comparer = CaseInsensitiveComparer.Default;
+            }
+        }
+
+        public IComparer GetDefaultComparer()
+        {
+            return _comparer;
+        }
+
+        public int Compare(T x, T y)
+        {
+            if (this.CompareScript == null)
+            {
+                return _comparer.Compare(x, y);
+            }
+
+            int answer = 1;
+            try {
+                foreach (PSObject pso in this.CompareScript.Invoke(x, y))
+                {
+                    if (pso == null)
+                    {
+                        continue;
+                    }
+
+                    int? maybe = pso.ImmediateBaseObject as int?;
+                    if (maybe.HasValue && (maybe.Value == 0 || maybe.Value == -1 || maybe.Value == 1))
+                    {
+                        answer = maybe.Value;
+                        break;
+                    }
+                }
+            }
+            catch {}
+            return answer;
         }
 
         public bool Equals(T x, T y)
@@ -55,17 +101,52 @@ namespace ListFunctions
             return item.GetHashCode();
         }
     }
+
+    public class SortedSetList<T> : SortedSet<T>
+    {
+        public T this[int index]
+        {
+            get
+            {
+                if (index < 0)
+                {
+                    index = base.Count + index;
+                }
+
+                return this.ElementAtOrDefault(index);
+            }
+        }
+
+        public SortedSetList() : base() { }
+        public SortedSetList(IComparer<T> comparer)
+            : base(comparer)
+        {
+        }
+    }
 }
 "@
 
 $atArgs = @{
-    TypeDefinition       = $code
-    Language             = "CSharp"
-    ReferencedAssemblies = @(
+    TypeDefinition = $code
+    Language       = "CSharp"
+}
+if ($PSVersionTable.PSVersion.Major -le 5) {
+
+    $atArgs.ReferencedAssemblies = @(
+        'System',
+        'System.Collections',
+        'System.Linq',
+        'System.Management.Automation'
+    )
+}
+else {
+    $atArgs.ReferencedAssemblies = @(
         "System", 
         "System.Collections",
-        "System.Management.Automation", 
-        "System.Linq"
+        "System.Collections.NonGeneric",
+        "System.Linq",
+        "System.Management.Automation",
+        "System.Runtime.Extensions"
     )
 }
 
