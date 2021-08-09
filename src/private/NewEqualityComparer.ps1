@@ -6,41 +6,49 @@ Function NewEqualityComparer() {
         [object] $GenericType = "[object]",
 
         [Parameter(Mandatory = $true)]
+        [AllowNull()]
         [scriptblock] $EqualityScript,
 
         [Parameter(Mandatory = $false)]
-        [scriptblock] $HashCodeScript = { $args[0].GetHashCode() }
+        [AllowNull()]
+        [scriptblock] $HashCodeScript
     )
 
-    if ($EqualityScript -match '\$x(\s|\.|\))' -and $EqualityScript -match '\$y(\s|\.|\))') {
+    if ($null -ne $EqualityScript) {
 
-        $replace1 = [regex]::Replace($EqualityScript, '\$x(\s|\.|\))', '$args[0]$1', "IgnoreCase")
-        $replace2 = [regex]::Replace($replace1, '\$y(\s|\.|\))', '$args[1]$1', "IgnoreCase")
-        $EqualityScript = [scriptblock]::Create($replace2)
-    }
-    elseif (-not ($EqualityScript -match '\$args\[0\]' -and $EqualityScript -match '\$args\[1\]')) {
-        
-        $errMsg = 'EqualityScript does not contain valid variables ($x and $y -or- $args[0] and $args[1]).'
+        if ($EqualityScript -match '\$x(\s|\.|\))' -and $EqualityScript -match '\$y(\s|\.|\))') {
 
-        return [pscustomobject]@{
-            Comparer = $null
-            IsFaulted = $true
-            ErrorMessage = $errMsg
+            $replace1 = [regex]::Replace($EqualityScript, '\$x(\s|\.|\))', '$args[0]$1', "IgnoreCase")
+            $replace2 = [regex]::Replace($replace1, '\$y(\s|\.|\))', '$args[1]$1', "IgnoreCase")
+            $EqualityScript = [scriptblock]::Create($replace2)
+        }
+        elseif (-not ($EqualityScript -match '\$args\[0\]' -and $EqualityScript -match '\$args\[1\]')) {
+
+            $errMsg = 'EqualityScript does not contain valid variables ($x and $y -or- $args[0] and $args[1]).'
+
+            return [pscustomobject]@{
+                Comparer = $null
+                IsFaulted = $true
+                ErrorMessage = $errMsg
+            }
         }
     }
 
-    if ($HashCodeScript -match '\$[_](\.|\s|\))') {
+    if ($null -ne $HashCodeScript) {
 
-        $HashCodeScript = [scriptblock]::Create([regex]::Replace($HashCodeScript, '\$[_](\.|\s|\))', '$args[0]$1'))
-    }
-    elseif ($HashCodeScript -notmatch '\$args\[0\]') {
+        if ($HashCodeScript -match '\$[_](\.|\s|\))') {
 
-        $errMsg = "HashCodeScript does not contain the required variables: '`$_' -or- '`$args[0]."
+            $HashCodeScript = [scriptblock]::Create([regex]::Replace($HashCodeScript, '\$[_](\.|\s|\))', '$args[0]$1'))
+        }
+        elseif ($HashCodeScript -notmatch '\$args\[0\]') {
 
-        return [pscustomobject]@{
-            Comparer = $null
-            IsFaulted = $true
-            ErrorMessage = $errMsg
+            $errMsg = "HashCodeScript does not contain the required variables: '`$_' -or- '`$args[0]."
+
+            return [pscustomobject]@{
+                Comparer = $null
+                IsFaulted = $true
+                ErrorMessage = $errMsg
+            }
         }
     }
 

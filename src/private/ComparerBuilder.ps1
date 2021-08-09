@@ -12,39 +12,57 @@ namespace ListFunctions
 {
     public class ScriptBlockComparer<T> : IComparer<T>, IEqualityComparer<T>
     {
-        private IComparer _comparer;
+        //private IComparer _comparer;
+        private IComparer<T> _comparer;
+        private IEqualityComparer<T> _equalityComparer;
 
         public ScriptBlock CompareScript { get; set; }
         public ScriptBlock EqualityTester { get; set; }
         public ScriptBlock HashCodeScript { get; set; }
 
-        public ScriptBlockComparer() : this(false) { }
-        public ScriptBlockComparer(bool isCaseSensitive)
+        public ScriptBlockComparer()
         {
-            if (isCaseSensitive)
+            if (typeof(T).Equals(typeof(string)))
             {
-                _comparer = Comparer.Default;
+                var c = StringComparer.CurrentCultureIgnoreCase;
+                _comparer = (IComparer<T>)c;
+                _equalityComparer = (IEqualityComparer<T>)c;
             }
             else
             {
-                _comparer = CaseInsensitiveComparer.Default;
+                _comparer = Comparer<T>.Default;
+                _equalityComparer = EqualityComparer<T>.Default;
             }
         }
+        //public ScriptBlockComparer(bool isCaseSensitive)
+        //{
+        //    if (isCaseSensitive)
+        //    {
+        //        _comparer = Comparer.Default;
+        //    }
+        //    else
+        //    {
+        //        _comparer = CaseInsensitiveComparer.Default;
+        //    }
+        //}
 
-        public IComparer GetDefaultComparer()
-        {
-            return _comparer;
-        }
+        //public IComparer GetDefaultComparer()
+        //{
+        //    return _comparer;
+        //}
 
         public int Compare(T x, T y)
         {
-            if (this.CompareScript == null)
+            //if (this.CompareScript == null)
+            if (null == this.CompareScript)
             {
+                //return _comparer.Compare(x, y);
                 return _comparer.Compare(x, y);
             }
 
             int answer = 1;
-            try {
+            try
+            {
                 foreach (PSObject pso in this.CompareScript.Invoke(x, y))
                 {
                     if (pso == null)
@@ -66,9 +84,10 @@ namespace ListFunctions
 
         public bool Equals(T x, T y)
         {
-            if (this.EqualityTester == null)
+            if (null == this.EqualityTester)
             {
-                return x.Equals(y);
+                //return x.Equals(y);
+                return _equalityComparer.Equals(x, y);
             }
 
             bool answer = false;
@@ -85,9 +104,11 @@ namespace ListFunctions
         }
         public int GetHashCode(T item)
         {
-            if (this.HashCodeScript == null)
+            //if (this.HashCodeScript == null)
+            if (null == this.HashCodeScript)
             {
-                return item.GetHashCode();
+                //return item.GetHashCode();
+                return _equalityComparer.GetHashCode(item);
             }
 
             foreach (PSObject pso in this.HashCodeScript.Invoke(item))
@@ -141,7 +162,7 @@ if ($PSVersionTable.PSVersion.Major -le 5) {
 }
 else {
     $atArgs.ReferencedAssemblies = @(
-        "System", 
+        "System",
         "System.Collections",
         "System.Collections.NonGeneric",
         "System.Linq",
