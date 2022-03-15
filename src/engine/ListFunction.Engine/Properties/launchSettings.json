@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "Powershell7": {
+      "commandName": "Executable",
+      "executablePath": "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+      "commandLineArgs": "-NoExit -File \"Debug.ps1\""
+    },
+    "WindowsPowerShell": {
+      "commandName": "Executable",
+      "executablePath": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "commandLineArgs": "-NoExit -File \"Debug.ps1\""
+    }
+  }
+}
