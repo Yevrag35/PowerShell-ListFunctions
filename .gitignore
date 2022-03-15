@@ -12,8 +12,8 @@
 
 # Build results
 
-src/engine/ListFunction.Engine/[Oo]bj/
-src/engine/ListFunction.Engine/[Bb]in/
+src/engine/ListFunctions.Engine/[Oo]bj/
+src/engine/ListFunctions.Engine/[Bb]in/
 
 # Visual Studio 2015 cache/options directory
 src/engine/.vs/
