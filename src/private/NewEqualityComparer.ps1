@@ -14,41 +14,23 @@ Function NewEqualityComparer() {
         [scriptblock] $HashCodeScript
     )
 
-    if ($null -ne $EqualityScript) {
+    if ($null -ne $EqualityScript -and -not ($EqualityScript -match '\$x(\s|\.|\))' -and $EqualityScript -match '\$y(\s|\.|\))')) {
 
-        if ($EqualityScript -match '\$x(\s|\.|\))' -and $EqualityScript -match '\$y(\s|\.|\))') {
-
-            $replace1 = [regex]::Replace($EqualityScript, '\$x(\s|\.|\))', '$args[0]$1', "IgnoreCase")
-            $replace2 = [regex]::Replace($replace1, '\$y(\s|\.|\))', '$args[1]$1', "IgnoreCase")
-            $EqualityScript = [scriptblock]::Create($replace2)
-        }
-        elseif (-not ($EqualityScript -match '\$args\[0\]' -and $EqualityScript -match '\$args\[1\]')) {
-
-            $errMsg = 'EqualityScript does not contain valid variables ($x and $y -or- $args[0] and $args[1]).'
-
-            return [pscustomobject]@{
-                Comparer = $null
-                IsFaulted = $true
-                ErrorMessage = $errMsg
-            }
+        return [pscustomobject]@{
+            Comparer = $null
+            IsFaulted = $true
+            ErrorMessage = $errMsg = 'EqualityScript does not contain valid variables ($x and $y).'
         }
     }
 
-    if ($null -ne $HashCodeScript) {
+    if ($null -ne $HashCodeScript -and -not ($HashCodeScript -match '\$[_](\.|\s|\))')) {
 
-        if ($HashCodeScript -match '\$[_](\.|\s|\))') {
+        $errMsg = "HashCodeScript does not contain the required variables: '`$_'."
 
-            $HashCodeScript = [scriptblock]::Create([regex]::Replace($HashCodeScript, '\$[_](\.|\s|\))', '$args[0]$1'))
-        }
-        elseif ($HashCodeScript -notmatch '\$args\[0\]') {
-
-            $errMsg = "HashCodeScript does not contain the required variables: '`$_' -or- '`$args[0]."
-
-            return [pscustomobject]@{
-                Comparer = $null
-                IsFaulted = $true
-                ErrorMessage = $errMsg
-            }
+        return [pscustomobject]@{
+            Comparer = $null
+            IsFaulted = $true
+            ErrorMessage = $errMsg
         }
     }
 
@@ -57,10 +39,7 @@ Function NewEqualityComparer() {
         $GenericType = $GenericType.FullName
     }
 
-    $comparer = New-Object -TypeName "ListFunctions.ScriptBlockComparer[$GenericType]" -Property @{
-        EqualityTester = $EqualityScript
-        HashCodeScript = $HashCodeScript
-    }
+    $comparer = New-Object "ListFunctions.ScriptBlockEqualityComparer[$GenericType]"($EqualityScript, $HashCodeScript)
 
     [pscustomobject]@{
         Comparer = $comparer

@@ -34,33 +34,23 @@ Function NewComparer() {
 
         [Parameter(Mandatory = $false)]
         [AllowNull()]
-        [scriptblock] $ComparingScript,
-
-        [Parameter(Mandatory = $true)]
-        [bool] $IsCaseSensitive
+        [scriptblock] $ComparingScript
     )
 
-    if ($ComparingScript -match '\$x(\s|\.|\))' -and $ComparingScript -match '\$y(\s|\.|\))') {
+    # if ($ComparingScript -match '\$x(\s|\.|\))' -and $ComparingScript -match '\$y(\s|\.|\))') {
 
-        $replace1 = [regex]::Replace($ComparingScript, '\$x(\s|\.|\))', '$args[0]$1', "IgnoreCase")
-        $replace2 = [regex]::Replace($replace1, '\$y(\s|\.|\))', '$args[1]$1', "IgnoreCase")
-        
-        $ComparingScript = [scriptblock]::Create($replace2)
-    }
-    elseif (-not ($ComparingScript -match '\$args\[0\]' -and $ComparingScript -match '\$args\[1\]')) {
-        
+    #     $replace1 = [regex]::Replace($ComparingScript, '\$x(\s|\.|\))', '$args[0]$1', "IgnoreCase")
+    #     $replace2 = [regex]::Replace($replace1, '\$y(\s|\.|\))', '$args[1]$1', "IgnoreCase")
+
+    #     $ComparingScript = [scriptblock]::Create($replace2)
+    # }
+    if ($null -ne $ComparingScript -and -not ($ComparingScript -match '\$x(\s|\.|\))' -and $ComparingScript -match '\$y(\s|\.|\))')) {
+
         return [pscustomobject]@{
-            Comparer = New-Object -TypeName "ListFunctions.ScriptBlockComparer[$GenericType]" -ArgumentList $IsCaseSensitive
-            IsFaulted = $false
-            ErrorMessage = $null
+            Comparer = $null
+            IsFaulted = $true
+            ErrorMessage = "Comparing script block does not use '`$x' and '`$y' for comparison."
         }
-        # $errMsg = 'ComparingScript does not contain valid variables ($x and $y -or- $args[0] and $args[1]).'
-
-        # return [pscustomobject]@{
-        #     Comparer     = $null
-        #     IsFaulted    = $true
-        #     ErrorMessage = $errMsg
-        # }
     }
 
     if ($GenericType -is [type]) {
@@ -70,10 +60,13 @@ Function NewComparer() {
 
     $newObjArgs = @{
         TypeName     = "ListFunctions.ScriptBlockComparer[$GenericType]"
-        ArgumentList = $IsCaseSensitive
-        Property     = @{
-            CompareScript = $ComparingScript
-        }
+    }
+
+    if ($null -ne $ComparingScript) {
+
+        $newObjArgs.Add("Property", @{
+            ComparerScript = $ComparingScript
+        })
     }
 
     $comparer = New-Object @newObjArgs
@@ -93,36 +86,26 @@ Function NewEqualityComparer() {
         [object] $GenericType = "[object]",
 
         [Parameter(Mandatory = $true)]
+        [AllowNull()]
         [scriptblock] $EqualityScript,
 
         [Parameter(Mandatory = $false)]
-        [scriptblock] $HashCodeScript = { $args[0].GetHashCode() }
+        [AllowNull()]
+        [scriptblock] $HashCodeScript
     )
 
-    if ($EqualityScript -match '\$x(\s|\.|\))' -and $EqualityScript -match '\$y(\s|\.|\))') {
-
-        $replace1 = [regex]::Replace($EqualityScript, '\$x(\s|\.|\))', '$args[0]$1', "IgnoreCase")
-        $replace2 = [regex]::Replace($replace1, '\$y(\s|\.|\))', '$args[1]$1', "IgnoreCase")
-        $EqualityScript = [scriptblock]::Create($replace2)
-    }
-    elseif (-not ($EqualityScript -match '\$args\[0\]' -and $EqualityScript -match '\$args\[1\]')) {
-        
-        $errMsg = 'EqualityScript does not contain valid variables ($x and $y -or- $args[0] and $args[1]).'
+    if ($null -ne $EqualityScript -and -not ($EqualityScript -match '\$x(\s|\.|\))' -and $EqualityScript -match '\$y(\s|\.|\))')) {
 
         return [pscustomobject]@{
             Comparer = $null
             IsFaulted = $true
-            ErrorMessage = $errMsg
+            ErrorMessage = $errMsg = 'EqualityScript does not contain valid variables ($x and $y).'
         }
     }
 
-    if ($HashCodeScript -match '\$[_](\.|\s|\))') {
+    if ($null -ne $HashCodeScript -and -not ($HashCodeScript -match '\$[_](\.|\s|\))')) {
 
-        $HashCodeScript = [scriptblock]::Create([regex]::Replace($HashCodeScript, '\$[_](\.|\s|\))', '$args[0]$1'))
-    }
-    elseif ($HashCodeScript -notmatch '\$args\[0\]') {
-
-        $errMsg = "HashCodeScript does not contain the required variables: '`$_' -or- '`$args[0]."
+        $errMsg = "HashCodeScript does not contain the required variables: '`$_'."
 
         return [pscustomobject]@{
             Comparer = $null
@@ -136,10 +119,7 @@ Function NewEqualityComparer() {
         $GenericType = $GenericType.FullName
     }
 
-    $comparer = New-Object -TypeName "ListFunctions.ScriptBlockComparer[$GenericType]" -Property @{
-        EqualityTester = $EqualityScript
-        HashCodeScript = $HashCodeScript
-    }
+    $comparer = New-Object "ListFunctions.ScriptBlockComparer[$GenericType]"($EqualityScript, $HashCodeScript)
 
     [pscustomobject]@{
         Comparer = $comparer
@@ -503,7 +483,7 @@ Function New-HashSet() {
     <#
         .SYNOPSIS
             Creates a HashSet of unique objects.
-    
+
         .DESCRIPTION
             Creates a 'System.Collections.Generic.HashSet[T]' in order to store unique objects into.
 
@@ -512,10 +492,10 @@ Function New-HashSet() {
 
         .PARAMETER GenericType
             The constraining type that every object added into the set must be.
-    
+
         .PARAMETER EqualityScript
             The scriptblock that will check the equality between any 2 objects in the set.  It must return a boolean (True/False) value.
-            
+
             '$x' -or- '$args[0]' must represent the 1st item to be compared.
             '$y' -or - '$args[1]' must represent the 2nd item to be compared.
 
@@ -526,13 +506,13 @@ Function New-HashSet() {
             The easiest way to provide this through an object's 'GetHashCode()' method.
             Two objects that are equal return hash codes that are equal.  However, the reverse is not true: equal hash codes
             do not imply object equality, because different (unequal) objects can have identical hash codes.
-    
+
         .INPUTS
             System.Object[] -- The objects that will immediately added to the returned set.
-    
+
         .OUTPUTS
             System.Collections.Generic.HashSet[T] -- where 'T' is the constrained generic type that all objects must be.
-    
+
         .EXAMPLE
             # Create a HashSet[string] that ignores case for equality.
             $set = New-HashSet -GenericType [string] -EqualityScript { $x -eq $y } -HashCodeScript { $_.ToLower().GetHashCode() }
@@ -540,7 +520,7 @@ Function New-HashSet() {
         .EXAMPLE
             # Create a HashSet[object] that determines objects with the same 'Name' and 'Id' properties to be equal.
             $set = New-HashSet -EqualityScript { $x.Name -eq $y.Name -and $x.Id -eq $y.Id }
-    
+
         .NOTES
             The EqualityScript must use either '$x' and '$y' -or- '$args[0]' and '$args[1]' in the
             scriptblock to properly identify the 2 comparing values.
@@ -564,11 +544,13 @@ Function New-HashSet() {
         [Parameter(Mandatory = $false, ValueFromPipeline = $true)]
         [object[]] $InputObject,
 
-        [Parameter(Mandatory = $true, ParameterSetName = "WithCustomEqualityComparer")]
+        #[Parameter(Mandatory = $true, ParameterSetName = "WithCustomEqualityComparer")]
+        [Parameter(Mandatory=$false)]
         [scriptblock] $EqualityScript,
 
-        [Parameter(Mandatory = $false, ParameterSetName = "WithCustomEqualityComparer")]
-        [scriptblock] $HashCodeScript = { $_.GetHashCode() }
+        #[Parameter(Mandatory = $false, ParameterSetName = "WithCustomEqualityComparer")]
+        [Parameter(Mandatory=$false)]
+        [scriptblock] $HashCodeScript
     )
     Begin {
 
@@ -577,18 +559,15 @@ Function New-HashSet() {
             $GenericType = $GenericType.FullName
         }
 
-        if ($PSCmdlet.ParameterSetName -eq "WithCustomEqualityComparer") {
-            
-            $result = NewEqualityComparer -GenericType $GenericType -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript
+        $result = NewEqualityComparer -GenericType $GenericType -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript
 
-            if ($result.IsFaulted) {
-                Write-Error -Message $result.ErrorMessage -Category SyntaxError -ErrorId $([System.ArgumentException]).FullName
-            }
-            $comparer = $result.Comparer
+        if ($result.IsFaulted) {
+            Write-Error -Message $result.ErrorMessage -Category SyntaxError -ErrorId $([System.ArgumentException]).FullName
         }
+        $comparer = $result.Comparer
 
         $set = New-Object -TypeName "System.Collections.Generic.HashSet[$GenericType]"($Capacity, $comparer)
-        
+
         if ($null -eq $type) {
             $private:type = $set.GetType().GenericTypeArguments | Select-Object -First 1
         }
@@ -599,7 +578,7 @@ Function New-HashSet() {
     Process {
 
         if ($PSBoundParameters.ContainsKey("InputObject")) {
-            
+
             $set.UnionWith(($InputObject -as $private:type))
         }
     }

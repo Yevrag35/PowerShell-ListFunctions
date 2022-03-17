@@ -78,10 +78,6 @@ Function New-HashSet() {
             $GenericType = $GenericType.FullName
         }
 
-        # if ($PSCmdlet.ParameterSetName -eq "WithCustomEqualityComparer") {
-
-
-        # }
         $result = NewEqualityComparer -GenericType $GenericType -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript
 
         if ($result.IsFaulted) {

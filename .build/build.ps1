@@ -13,3 +13,11 @@ foreach ($pub in Get-ChildItem -Path "$PSScriptRoot\..\src\public" -Filter *.ps1
 }
 
 Set-Content -Path "$PSScriptRoot\..\src\ListFunctions.psm1" -Value $builder.ToString() -Force
+
+# Build DotNet Project
+dotnet build "$PSScriptRoot\..\src\engine\ListFunctions.Engine.sln" -c Release
+
+foreach ($dll in $(Get-ChildItem -Path "$PSScriptRoot\..\src\engine\ListFunctions.Engine\bin\Release" -Filter *.dll -Recurse)) {
+
+    $dll | Copy-Item -Destination "$PSScriptRoot\..\src\assemblies" -Force
+}

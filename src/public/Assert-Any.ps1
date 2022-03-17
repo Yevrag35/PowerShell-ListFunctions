@@ -60,7 +60,9 @@
     End {
         if ($list.Count -gt 0) {
             if ($PSBoundParameters.ContainsKey("Condition")) {
-                $list.Where($Condition).Count -gt 0
+                # $list.Where($Condition).Count -gt 0
+                $func = $Condition -as "[System.Predicate["
+
             }
             else {
                 $true

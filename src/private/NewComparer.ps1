@@ -7,25 +7,22 @@
 
         [Parameter(Mandatory = $false)]
         [AllowNull()]
-        [scriptblock] $ComparingScript,
-
-        [Parameter(Mandatory = $true)]
-        [bool] $IsCaseSensitive
+        [scriptblock] $ComparingScript
     )
 
-    if ($ComparingScript -match '\$x(\s|\.|\))' -and $ComparingScript -match '\$y(\s|\.|\))') {
+    # if ($ComparingScript -match '\$x(\s|\.|\))' -and $ComparingScript -match '\$y(\s|\.|\))') {
 
-        $replace1 = [regex]::Replace($ComparingScript, '\$x(\s|\.|\))', '$args[0]$1', "IgnoreCase")
-        $replace2 = [regex]::Replace($replace1, '\$y(\s|\.|\))', '$args[1]$1', "IgnoreCase")
+    #     $replace1 = [regex]::Replace($ComparingScript, '\$x(\s|\.|\))', '$args[0]$1', "IgnoreCase")
+    #     $replace2 = [regex]::Replace($replace1, '\$y(\s|\.|\))', '$args[1]$1', "IgnoreCase")
 
-        $ComparingScript = [scriptblock]::Create($replace2)
-    }
-    elseif (-not ($ComparingScript -match '\$args\[0\]' -and $ComparingScript -match '\$args\[1\]')) {
+    #     $ComparingScript = [scriptblock]::Create($replace2)
+    # }
+    if ($null -ne $ComparingScript -and -not ($ComparingScript -match '\$x(\s|\.|\))' -and $ComparingScript -match '\$y(\s|\.|\))')) {
 
         return [pscustomobject]@{
-            Comparer = New-Object -TypeName "ListFunctions.ScriptBlockComparer[$GenericType]" -ArgumentList $IsCaseSensitive
-            IsFaulted = $false
-            ErrorMessage = $null
+            Comparer = $null
+            IsFaulted = $true
+            ErrorMessage = "Comparing script block does not use '`$x' and '`$y' for comparison."
         }
     }
 
@@ -36,10 +33,13 @@
 
     $newObjArgs = @{
         TypeName     = "ListFunctions.ScriptBlockComparer[$GenericType]"
-        ArgumentList = $IsCaseSensitive
-        Property     = @{
-            CompareScript = $ComparingScript
-        }
+    }
+
+    if ($null -ne $ComparingScript) {
+
+        $newObjArgs.Add("Property", @{
+            ComparerScript = $ComparingScript
+        })
     }
 
     $comparer = New-Object @newObjArgs
