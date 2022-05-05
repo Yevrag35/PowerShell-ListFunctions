@@ -50,24 +50,25 @@
         [scriptblock] $Condition
     )
     Begin {
-        $list = New-Object -TypeName "System.Collections.Generic.List[object]"
+        $result = $false
+        $hasCondition = $PSBoundParameters.ContainsKey("Condition")
+        $equality = [ListFunctions.ScriptBlockEquality]::Create($Condition, @(Get-Variable))
     }
     Process {
-        if ($null -ne $InputObject -and $InputObject.Length -gt 0) {
-            $list.AddRange($InputObject)
+
+        if (-not $result) {
+
+            if (-not $hasCondition) {
+
+                $result = $InputObject.Count -gt 0
+                return
+            }
+
+            $result = $equality.Any($InputObject)
         }
     }
     End {
-        if ($list.Count -gt 0) {
-            if ($PSBoundParameters.ContainsKey("Condition")) {
-                $list.Where($Condition).Count -gt 0
-            }
-            else {
-                $true
-            }
-        }
-        else {
-            $false
-        }
+
+        return $result
     }
 }

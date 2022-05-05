@@ -1,8 +1,9 @@
+using ListFunctions.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
-using System.Text;
 
 namespace ListFunctions
 {
@@ -32,24 +33,21 @@ namespace ListFunctions
             }
         }
 
+        [return: MaybeNull]
         protected static TValue GetFirstValue<TValue>(Collection<PSObject> collection, Func<object, TValue> castFunction,
-            TValue defaultValue = default(TValue))
+            [MaybeNull] TValue defaultValue = default)
         {
-            if (!(collection is null) && collection.Count > 0 && !(collection[0] is null))
+            TValue outVal;
+            try
             {
-                try
-                {
-                    return castFunction(collection[0]);
-                }
-                catch
-                {
-                    return defaultValue;
-                }
+                outVal = collection.GetFirstValue(castFunction);
             }
-            else
+            catch
             {
-                return defaultValue;
+                outVal = defaultValue;
             }
+
+            return outVal;
         }
     }
 }

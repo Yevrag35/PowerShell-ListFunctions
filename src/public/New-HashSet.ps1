@@ -78,7 +78,7 @@ Function New-HashSet() {
 
         $rtDict = New-Object System.Management.Automation.RuntimeDefinedParameterDictionary
 
-        if (($GenericType -is [type] -and $GenericType.Name -eq "String") -or ($GenericType -is [string] -and $GenericType -eq '[string]')) {
+        if (($GenericType -is [type] -and $GenericType.Name -eq "String") -or ($GenericType -is [string] -and $GenericType -in @('[string]', '[System.String]'))) {
 
             $pName = 'CaseSensitive'
             $attCol = New-Object 'System.Collections.ObjectModel.Collection[System.Attribute]'

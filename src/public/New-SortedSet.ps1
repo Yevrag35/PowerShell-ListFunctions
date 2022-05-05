@@ -9,21 +9,34 @@
         [object] $GenericType = "[object]",
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $true)]
+        [AllowNull()]
+        [AllowEmptyCollection()]
         [object[]] $InputObject,
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory=$true, ParameterSetName = "WithCustomComparer")]
         [AllowNull()]
         [scriptblock] $ComparingScript
-
-        # [Parameter(Mandatory=$false, ParameterSetName="WithCustomComparer")]
-        # [switch] $CaseSensitive,
-
-        # [Parameter(Mandatory=$true, ParameterSetName="StringInsensitiveComparer")]
-        # [switch] $IgnoreCaseStringComparer,
-
-        # [Parameter(Mandatory=$true, ParameterSetName="WithComparer")]
-        # [object] $Comparer
     )
+    DynamicParam {
+
+        $rtDict = New-Object System.Management.Automation.RuntimeDefinedParameterDictionary
+
+        if (($GenericType -is [type] -and $GenericType.Name -eq "String") -or ($GenericType -is [string] -and $GenericType -in @('[string]', '[System.String]'))) {
+
+            $pName = 'CaseSensitive'
+            $attCol = New-Object 'System.Collections.ObjectModel.Collection[System.Attribute]'
+            $pAtt = New-Object System.Management.Automation.ParameterAttribute -Property @{
+                Mandatory = $true
+                ParameterSetName = "WithStringSet"
+            };
+            $attCol.Add($pAtt)
+            $rtParam = New-Object System.Management.Automation.RuntimeDefinedParameter($pName, $([switch]), $attCol)
+            
+            $rtDict.Add($pName, $rtParam)
+        }
+
+        $rtDict
+    }
     Begin {
 
         if ($GenericType -is [type]) {
@@ -31,49 +44,32 @@
             $GenericType = $GenericType.FullName
         }
 
-        # $intComparer = switch ($PSCmdlet.ParameterSetName) {
+        if ($GenericType -in @('[string]', 'System.String', '[System.String]')) {
 
-        #     "StringInsensitiveComparer" {
-                
-        #         $useOrNot = -not $IgnoreCaseStringComparer.ToBool()
+            if (-not $PSBoundParameters.ContainsKey("CaseSensitive") -or -not $PSBoundParameters["CaseSensitive"].ToBool()) {
 
-        #         $private:type = $([string])
-        #         $GenericType = $private:type.FullName
-        #         $result = NewComparer -GenericType $GenericType -IsCaseSensitive:$useOrNot
-        #         $result.Comparer
-        #     }
+                $IsCaseInsensitive = $true
+            }
+        }
 
-        #     "WithComparer" {
+        if ($PSBoundParameters.ContainsKey("ComparingScript")) {
+            
+            $comparer = New-Object -TypeName "ListFunctions.ScriptBlockComparer[$GenericType]"($ComparingScript)
+        }
+        elseif ($IsCaseInsensitive) {
 
-        #         if (-not ($Comparer -is [System.Collections.IComparer] -or $Comparer -is "[System.Collections.Generic.IComparer[$GenericType]")) {
+            $comparer = [System.StringComparer]::CurrentCultureIgnoreCase
+        }
 
-        #             Write-Error -Message "The specified comparer does not implement `"[System.Collections.IComparer]`"."
-        #             break
-        #         }
+        if ($null -ne $comparer) {
 
-        #         $Comparer
-        #     }
-        #     "WithCustomComparer" {
-                
-        #         $comparerArgs = @{
-        #             GenericType     = $GenericType
-        #             ComparingScript = $ComparingScript
-        #             IsCaseSensitive = $CaseSensitive.ToBool()
-        #         }
-        #         $result = NewComparer @comparerArgs
-                
-        #         if ($result.IsFaulted) {
-        #             Write-Error -Message $result.ErrorMessage -Category SyntaxError -ErrorId 'System.ArgumentException'
-        #         }
+            $sortedSet = New-Object "System.Collections.Generic.SortedSet[$GenericType]"($comparer)
+        }
+        else {
 
-        #         $result.Comparer
-        #     }
-        #     default { }
-        # }
-
-        $comparer = New-Object -TypeName "ListFunctions.ScriptBlockComparer[$GenericType]"($ComparingScript)
-
-        $sortedSet = New-Object "System.Collections.Generic.SortedSet[$GenericType]"($comparer)
+            $sortedSet = New-Object "System.Collections.Generic.SortedSet[$GenericType]"
+        }
+        
 
         if ($null -eq $private:type) {
             

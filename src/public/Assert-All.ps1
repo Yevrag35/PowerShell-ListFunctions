@@ -50,19 +50,18 @@
         [scriptblock] $Condition
     )
     Begin {
-        $list = New-Object -TypeName "System.Collections.Generic.List[object]"
+        $result = $true
+        $equality = [ListFunctions.ScriptBlockEquality]::Create($Condition, @(Get-Variable))
     }
     Process {
-        if ($null -ne $InputObject -and $InputObject.Length -gt 0) {
-            $list.AddRange($InputObject)
+        
+        if ($result) {
+
+            $result = $equality.All($InputObject)
         }
     }
     End {
-        if ($list.Count -gt 0) {
-            $list.Where($Condition).Count -eq $list.Count
-        }
-        else {
-            $false
-        }
+        
+        return $result
     }
 }
