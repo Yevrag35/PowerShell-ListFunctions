@@ -47,7 +47,6 @@ Function New-HashSet() {
             The HashCodeScript must use either '$_' -or- '$args[0]' in the scriptblock to properly identify
             the object whose hash code is retrieved.
     #>
-
     [CmdletBinding(DefaultParameterSetName = "None")]
     param (
         [Parameter(Mandatory = $false)]
@@ -61,14 +60,14 @@ Function New-HashSet() {
         [object] $GenericType = "[object]",
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $true)]
+        [AllowNull()]
+        [AllowEmptyCollection()]
         [object[]] $InputObject,
 
-        #[Parameter(Mandatory = $true, ParameterSetName = "WithCustomEqualityComparer")]
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $true, ParameterSetName = "WithCustomEqualityComparer")]
         [scriptblock] $EqualityScript,
 
-        #[Parameter(Mandatory = $false, ParameterSetName = "WithCustomEqualityComparer")]
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false, ParameterSetName = "WithCustomEqualityComparer")]
         [scriptblock] $HashCodeScript
     )
     Begin {
@@ -78,14 +77,21 @@ Function New-HashSet() {
             $GenericType = $GenericType.FullName
         }
 
-        $result = NewEqualityComparer -GenericType $GenericType -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript
+        if ($PSCmdlet.ParameterSetName -like "*CustomEquality*") {
 
-        if ($result.IsFaulted) {
-            Write-Error -Message $result.ErrorMessage -Category SyntaxError -ErrorId $([System.ArgumentException]).FullName
+            $result = NewEqualityComparer -GenericType $GenericType -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript
+
+            if ($result.IsFaulted) {
+                Write-Error -Message $result.ErrorMessage -Category SyntaxError -ErrorId $([System.ArgumentException]).FullName
+            }
+
+            $comparer = $result.Comparer
+            $set = New-Object -TypeName "System.Collections.Generic.HashSet[$GenericType]"($Capacity, $comparer)
         }
-        $comparer = $result.Comparer
+        else {
 
-        $set = New-Object -TypeName "System.Collections.Generic.HashSet[$GenericType]"($Capacity, $comparer)
+            $set = New-Object -TypeName "System.Collections.Generic.HashSet[$GenericType]"($Capacity)
+        }
 
         if ($null -eq $type) {
             $private:type = $set.GetType().GenericTypeArguments | Select-Object -First 1
@@ -96,7 +102,7 @@ Function New-HashSet() {
     }
     Process {
 
-        if ($PSBoundParameters.ContainsKey("InputObject")) {
+        if ($PSBoundParameters.ContainsKey("InputObject") -and $null -ne $InputObject) {
 
             $set.UnionWith(($InputObject -as $private:type))
         }

@@ -54,10 +54,10 @@
     # RequiredModules = @()
 
     # Assemblies that must be loaded prior to importing this module
-    # RequiredAssemblies = @()
+    RequiredAssemblies = @('assemblies\ListFunctions.Engine.dll')
 
     # Script files (.ps1) that are run in the caller's environment prior to importing this module.
-    ScriptsToProcess  = @("private\ComparerBuilder.ps1")
+    #ScriptsToProcess  = @("private\ComparerBuilder.ps1")
 
     # Type files (.ps1xml) to be loaded when importing this module
     # TypesToProcess = @()
