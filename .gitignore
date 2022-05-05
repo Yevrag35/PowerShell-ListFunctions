@@ -256,3 +256,7 @@ __pycache__/
 desktop\.ini
 
 *.no
+
+src/**/*.psd1
+
+src/**/*.psm1
