@@ -9,6 +9,9 @@
             any elements at all.
 
             This function is more useful the more complex the InputObjects become.
+
+            *Updated* - The entire collection of 'InputObject' is no longer required to be fully enumerated.  
+            The enumeration will stop as soon as the 1st 'True' value is returned by the scriptblock.
         
         .PARAMETER InputObject
             The collection(s) whose elements to apply the condition to.  If the incoming collection(s) of objects
@@ -35,6 +38,9 @@
                 [pscustomobject]@{ Greeting = @{ 1 = "Hi" }},
                 [pscustomobject]@{ Greeting = @{ 2 = "Hey"}}
             ) | Any { $_.Greeting.ContainsKey(2) -and $_.Greeting[2] -eq "Hey" }   # returns 'True'
+
+        .NOTES
+            The result of the function will be the FIRST boolean value returned by the specified scriptblock.
     #>
     [CmdletBinding()]
     [Alias("Any-Object", "Any")]
