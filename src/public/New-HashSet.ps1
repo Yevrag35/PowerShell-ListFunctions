@@ -12,6 +12,10 @@ Function New-HashSet() {
         .PARAMETER GenericType
             The constraining type that every object added into the set must be.
 
+        .PARAMETER CaseSensitive
+            When 'GenericType' is equal to the type of 'System.String', then this parameter specifies the HashSet to use the default 
+            (case-sensitive) string comparer.
+
         .PARAMETER EqualityScript
             The scriptblock that will check the equality between any 2 objects in the set.  It must return a boolean (True/False) value.
 
@@ -41,10 +45,10 @@ Function New-HashSet() {
             $set = New-HashSet -EqualityScript { $x.Name -eq $y.Name -and $x.Id -eq $y.Id }
 
         .NOTES
-            The EqualityScript must use either '$x' and '$y' -or- '$args[0]' and '$args[1]' in the
+            The EqualityScript must use either '$x' and '$y' in the
             scriptblock to properly identify the 2 comparing values.
 
-            The HashCodeScript must use either '$_' -or- '$args[0]' in the scriptblock to properly identify
+            The HashCodeScript must use either '$_' in the scriptblock to properly identify
             the object whose hash code is retrieved.
     #>
     [CmdletBinding(DefaultParameterSetName = "None")]
@@ -70,11 +74,39 @@ Function New-HashSet() {
         [Parameter(Mandatory = $false, ParameterSetName = "WithCustomEqualityComparer")]
         [scriptblock] $HashCodeScript
     )
+    DynamicParam {
+
+        $rtDict = New-Object System.Management.Automation.RuntimeDefinedParameterDictionary
+
+        if (($GenericType -is [type] -and $GenericType.Name -eq "String") -or ($GenericType -is [string] -and $GenericType -eq '[string]')) {
+
+            $pName = 'CaseSensitive'
+            $attCol = New-Object 'System.Collections.ObjectModel.Collection[System.Attribute]'
+            $pAtt = New-Object System.Management.Automation.ParameterAttribute -Property @{
+                Mandatory = $true
+                ParameterSetName = "WithStringSet"
+            };
+            $attCol.Add($pAtt)
+            $rtParam = New-Object System.Management.Automation.RuntimeDefinedParameter($pName, $([switch]), $attCol)
+            
+            $rtDict.Add($pName, $rtParam)
+        }
+
+        $rtDict
+    }
     Begin {
 
         if ($GenericType -is [type]) {
             $private:type = $GenericType
             $GenericType = $GenericType.FullName
+        }
+
+        if ($GenericType -in @('[string]', 'System.String', '[System.String]')) {
+
+            if (-not $PSBoundParameters.ContainsKey("CaseSensitive") -or -not $PSBoundParameters["CaseSensitive"].ToBool()) {
+
+                $IsCaseInsensitive = $true
+            }
         }
 
         if ($PSCmdlet.ParameterSetName -like "*CustomEquality*") {
@@ -90,7 +122,14 @@ Function New-HashSet() {
         }
         else {
 
-            $set = New-Object -TypeName "System.Collections.Generic.HashSet[$GenericType]"($Capacity)
+            if ($IsCaseInsensitive) {
+
+                $set = New-Object -TypeName "System.Collections.Generic.HashSet[$GenericType]"($Capacity, [System.StringComparer]::CurrentCultureIgnoreCase)
+            }
+            else {
+
+                $set = New-Object -TypeName "System.Collections.Generic.HashSet[$GenericType]"($Capacity)
+            }
         }
 
         if ($null -eq $type) {
