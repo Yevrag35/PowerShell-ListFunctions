@@ -260,3 +260,5 @@ desktop\.ini
 src/**/*.psd1
 
 src/**/*.psm1
+
+src/assemblies/ListFunctions.Engine.dll
