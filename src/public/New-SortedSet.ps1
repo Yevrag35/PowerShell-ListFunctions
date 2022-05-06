@@ -10,7 +10,7 @@
             The constraining .NET type that every object added into the set must be.
 
         .PARAMETER InputObject
-
+            A collection of objects that will initially added into the new set.
 
         .PARAMETER ComparingScript
             A custom script that provides 'CompareTo' functionality for the SortedSet to use. The comparison of two objects returns an
