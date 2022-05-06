@@ -139,6 +139,9 @@ Function Assert-All() {
             System.Predicate (this means the scriptblock must return 'True/False').
 
             This function is more useful the more complex the InputObjects become.
+
+            *Updated* - The entire collection of 'InputObject' is no longer required to be fully enumerated.
+            The enumeration will stop as soon as the 1st 'False' value is returned by the scriptblock.
     
         .PARAMETER InputObject
             The collection(s) that contains the elements to apply the condition to.  If an empty collection
@@ -165,6 +168,9 @@ Function Assert-All() {
                 [pscustomobject]@{ Greeting = @{ 1 = "Hi" }},
                 [pscustomobject]@{ Greeting = @{ 2 = "Hey"}}
             ) | All { $_.Greeting.Count -gt 0 }   # returns 'True'
+
+        .NOTES
+            The result of the function will be the FIRST boolean value returned by the specified scriptblock.
     #>
     [CmdletBinding()]
     [Alias("Assert-AllObjects", "All-Objects", "All")]
@@ -181,18 +187,20 @@ Function Assert-All() {
     )
     Begin {
         $result = $true
+        $allAreNull = $true
         $equality = [ListFunctions.ScriptBlockEquality]::Create($Condition, @(Get-Variable))
     }
     Process {
         
-        if ($result) {
+        if ($result -and $null -ne $InputObject -and $InputObject.Count -gt 0) {
 
             $result = $equality.All($InputObject)
+            $allAreNull = $false
         }
     }
     End {
         
-        return $result
+        return $result -and -not $allAreNull
     }
 }
 
@@ -207,6 +215,9 @@ Function Assert-Any() {
             any elements at all.
 
             This function is more useful the more complex the InputObjects become.
+
+            *Updated* - The entire collection of 'InputObject' is no longer required to be fully enumerated.  
+            The enumeration will stop as soon as the 1st 'True' value is returned by the scriptblock.
         
         .PARAMETER InputObject
             The collection(s) whose elements to apply the condition to.  If the incoming collection(s) of objects
@@ -233,6 +244,9 @@ Function Assert-Any() {
                 [pscustomobject]@{ Greeting = @{ 1 = "Hi" }},
                 [pscustomobject]@{ Greeting = @{ 2 = "Hey"}}
             ) | Any { $_.Greeting.ContainsKey(2) -and $_.Greeting[2] -eq "Hey" }   # returns 'True'
+
+        .NOTES
+            The result of the function will be the FIRST boolean value returned by the specified scriptblock.
     #>
     [CmdletBinding()]
     [Alias("Any-Object", "Any")]
@@ -491,17 +505,20 @@ Function New-HashSet() {
             The total number of elements the set can hold without resizing.  Default -- 0.
 
         .PARAMETER GenericType
-            The constraining type that every object added into the set must be.
+            The constraining .NET type that every object added into the set must be.
 
         .PARAMETER CaseSensitive
             When 'GenericType' is equal to the type of 'System.String', then this parameter specifies the HashSet to use the default 
             (case-sensitive) string comparer.
 
+        .PARAMETER InputObject
+            A collection of objects that will initially added into the new set.
+
         .PARAMETER EqualityScript
             The scriptblock that will check the equality between any 2 objects in the set.  It must return a boolean (True/False) value.
 
-            '$x' -or- '$args[0]' must represent the 1st item to be compared.
-            '$y' -or - '$args[1]' must represent the 2nd item to be compared.
+            '$x' must represent the 1st item to be compared.
+            '$y' must represent the 2nd item to be compared.
 
         .PARAMETER HashCodeScript
             The scriptblock that retrieve an object's hash code value.
@@ -714,13 +731,63 @@ Function New-List() {
 }
 
 Function New-SortedSet() {
+    <#
+        .SYNOPSIS
+            Creates a Sorted set of unique objects.
 
+        .DESCRIPTION
+            Creates a new instance of 'System.Collections.Generic.SortedSet[T]' with the default or custom comparer.
+
+        .PARAMETER GenericType
+            The constraining .NET type that every object added into the set must be.
+
+        .PARAMETER InputObject
+
+
+        .PARAMETER ComparingScript
+            A custom script that provides 'CompareTo' functionality for the SortedSet to use. The comparison of two objects returns an
+            [int] value indicating whether one is 'less than', 'equal to', or 'greater than' the other.  The table below describes 
+            the meaning of the returned [int] value.
+
+            FYI, any object that implements 'System.IComparable' or 'System.IComparable[T]' will always have a method called 'CompareTo' that
+            can be used to generate/return the logic below. Examples of .NET types that do this include [int], [string], [guid], [datetime], etc.
+
+            '$x' must represent the 1st item to be compared.
+            '$y' must represent the 2nd item to be compared.
+
+                Value           |   Meaning
+            ------------------- | --------------------
+            Less than zero      | X is less than Y.
+            Zero                | X equals Y.
+            Greater than zero   | X is greater than Y.
+
+        .INPUTS
+            System.Object[] -- The objects that will immediately added to the returned set.
+
+        .OUTPUTS
+            System.Collections.Generic.SortedSet[T] -- where 'T' is the constrained generic type that all objects must be.
+
+        .EXAMPLE
+            Sort PSCustomObjects by a shared 'ID' property.
+
+            $obj1 = [pscustomobject]@{ Id = 2; Name = "John" }
+            $obj2 = [pscustomobject]@{ Id = 1; Name = "Jane" }
+
+            $set = New-SortedSet -ComparingScript { $x.Id.CompareTo($y.Id) } -InputObject $obj1, $obj2
+
+        .EXAMPLE
+            Sort strings with case-sensitive reverse logic (i.e. - Descending order)
+
+            $obj1 = "Jane"
+            $obj2 = "John"
+
+            $set = $obj1, $obj2 | New-SortedSet -GenericType [string] -ComparingScript { $x.CompareTo($y) * -1 }
+    #>
     [CmdletBinding(DefaultParameterSetName = "None")]
     param (
         [Parameter(Mandatory = $false, Position = 0)]
         [Alias("Type", "t")]
         [ValidateScript( { $_ -is [type] -or $_ -is [string] })]
-        [ValidateNotNull()]
         [object] $GenericType = "[object]",
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $true)]
@@ -729,6 +796,7 @@ Function New-SortedSet() {
         [object[]] $InputObject,
 
         [Parameter(Mandatory=$true, ParameterSetName = "WithCustomComparer")]
+        [Alias("ScriptBlock")]
         [AllowNull()]
         [scriptblock] $ComparingScript
     )
@@ -755,8 +823,13 @@ Function New-SortedSet() {
     Begin {
 
         if ($GenericType -is [type]) {
+
             $private:type = $GenericType
             $GenericType = $GenericType.FullName
+        }
+        elseif ($null -eq $GenericType -or ($GenericType -is [string] -and [string]::IsNullOrWhiteSpace($GenericType))) {
+
+
         }
 
         if ($GenericType -in @('[string]', 'System.String', '[System.String]')) {
