@@ -4,33 +4,77 @@ Function BuildPredicate() {
     [OutputType([System.Predicate[object]])]
     param
     (
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
         [scriptblock] $ScriptBlock
     )
-    Begin {
-
-        $rebuild = New-Object -TypeName 'System.Collections.Generic.List[string]' -ArgumentList 2
-    }
     Process {
 
-        # Replace all instances of '$_' and '$PSItem' in the ScriptBlock with '$x'
-        $sbString = $ScriptBlock.ToString().Replace('$_', '$x')
-        $matchCol = [regex]::Matches($sbString, '\$PSItem', "IgnoreCase")
+        # Replace all instances of '$_' in the ScriptBlock with '$x'
+        $sbString = [regex]::Replace($ScriptBlock, '\$[_](\s|\.)', '$x$1', "IgnoreCase")
         
-        $matchCol | Select-Object Value -Unique | ForEach-Object {
-            $sbString = $sbString.Replace($PSItem.Value, [string]'$_')
+        # Replace all instance of '$PSItem' in the ScriptBlock with '$_'
+        $sbString = [regex]::Replace($sbString, '\$PSItem(\s|\.)', '$_$1', "IgnoreCase")
+
+        if ($sbString -notlike "param (`$x)`n*") {   # If the first line is not the start of a 'param' block then...
+
+            $sbString = "param (`$x)`n" + $sbString  # ...insert one at the beginning of the string.
         }
 
-        # Split the ScriptBlock by new lines and add them to $rebuild
-        $rebuild.AddRange(($sbString -split "`n"))
+        # Create a new scriptblock from the StringBuilder and cast it into a System.Predicate[object].
+        [System.Predicate[object]][scriptblock]::Create($sbString)
+    }
+}
 
-        if ($rebuild[0] -cnotmatch '^\s*param') { # If the first line is not the start of a 'param' block then...
+Function NewComparer() {
 
-            $rebuild.Insert(0, 'param ($x)')    # ...insert one at the beginning of the list.
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string] $GenericType,
+
+        [Parameter(Mandatory = $false)]
+        [AllowNull()]
+        [scriptblock] $ComparingScript
+    )
+
+    # if ($ComparingScript -match '\$x(\s|\.|\))' -and $ComparingScript -match '\$y(\s|\.|\))') {
+
+    #     $replace1 = [regex]::Replace($ComparingScript, '\$x(\s|\.|\))', '$args[0]$1', "IgnoreCase")
+    #     $replace2 = [regex]::Replace($replace1, '\$y(\s|\.|\))', '$args[1]$1', "IgnoreCase")
+
+    #     $ComparingScript = [scriptblock]::Create($replace2)
+    # }
+    if ($null -ne $ComparingScript -and -not ($ComparingScript -match '\$x(\s|\.|\))' -and $ComparingScript -match '\$y(\s|\.|\))')) {
+
+        return [pscustomobject]@{
+            Comparer = $null
+            IsFaulted = $true
+            ErrorMessage = "Comparing script block does not use '`$x' and '`$y' for comparison."
         }
+    }
 
-        # Cast all joined strings from the list into a System.Predicate[object]
-        [System.Predicate[object]][scriptblock]::Create(($rebuild -join "`n"))
+    if ($GenericType -is [type]) {
+
+        $GenericType = $GenericType.FullName
+    }
+
+    $newObjArgs = @{
+        TypeName     = "ListFunctions.ScriptBlockComparer[$GenericType]"
+    }
+
+    if ($null -ne $ComparingScript) {
+
+        $newObjArgs.Add("Property", @{
+            ComparerScript = $ComparingScript
+        })
+    }
+
+    $comparer = New-Object @newObjArgs
+
+    [pscustomobject]@{
+        Comparer     = $comparer
+        IsFaulted    = $false
+        ErrorMessage = $null
     }
 }
 
@@ -38,41 +82,30 @@ Function NewEqualityComparer() {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [Alias("Type", "t")]
         [ValidateScript( { $_ -is [type] -or $_ -is [string] })]
         [object] $GenericType = "[object]",
 
         [Parameter(Mandatory = $true)]
+        [AllowNull()]
         [scriptblock] $EqualityScript,
 
         [Parameter(Mandatory = $false)]
-        [scriptblock] $HashCodeScript = { $args[0].GetHashCode() }
+        [AllowNull()]
+        [scriptblock] $HashCodeScript
     )
 
-    if ($EqualityScript -match '\$x(\s|\.)' -and $EqualityScript -match '\$y(\s|\.)') {
-
-        $replace1 = [regex]::Replace($EqualityScript, '\$x(\s|\.)', '$args[0]$1', "IgnoreCase")
-        $replace2 = [regex]::Replace($replace1, '\$y(\s|\.)', '$args[1]$1', "IgnoreCase")
-        $EqualityScript = [scriptblock]::Create($replace2)
-    }
-    elseif (-not ($EqualityScript -match '\$args\[0\]' -and $EqualityScript -match '\$args\[1\]')) {
-        
-        $errMsg = 'EqualityScript does not contain valid variables ($x and $y -or- $args[0] and $args[1]).'
+    if ($null -ne $EqualityScript -and -not ($EqualityScript -match '\$x(\s|\.|\))' -and $EqualityScript -match '\$y(\s|\.|\))')) {
 
         return [pscustomobject]@{
             Comparer = $null
             IsFaulted = $true
-            ErrorMessage = $errMsg
+            ErrorMessage = $errMsg = 'EqualityScript does not contain valid variables ($x and $y).'
         }
     }
 
-    if ($HashCodeScript -match '\$[_](\.|\s)') {
+    if ($null -ne $HashCodeScript -and -not ($HashCodeScript -match '\$[_](\.|\s|\))')) {
 
-        $HashCodeScript = [scriptblock]::Create([regex]::Replace($HashCodeScript, '\$[_](\.|\s)', '$args[0]$1'))
-    }
-    elseif ($HashCodeScript -notmatch '\$args\[0\]') {
-
-        $errMsg = "HashCodeScript does not contain the required variables: '`$_' -or- '`$args[0]."
+        $errMsg = "HashCodeScript does not contain the required variables: '`$_'."
 
         return [pscustomobject]@{
             Comparer = $null
@@ -86,10 +119,7 @@ Function NewEqualityComparer() {
         $GenericType = $GenericType.FullName
     }
 
-    $comparer = New-Object -TypeName "ListFunctions.ScriptBlockComparer[$GenericType]" -Property @{
-        EqualityTester = $EqualityScript
-        HashCodeScript = $HashCodeScript
-    }
+    $comparer = New-Object "ListFunctions.ScriptBlockEqualityComparer[$GenericType]"($EqualityScript, $HashCodeScript)
 
     [pscustomobject]@{
         Comparer = $comparer
@@ -109,6 +139,9 @@ Function Assert-All() {
             System.Predicate (this means the scriptblock must return 'True/False').
 
             This function is more useful the more complex the InputObjects become.
+
+            *Updated* - The entire collection of 'InputObject' is no longer required to be fully enumerated.
+            The enumeration will stop as soon as the 1st 'False' value is returned by the scriptblock.
     
         .PARAMETER InputObject
             The collection(s) that contains the elements to apply the condition to.  If an empty collection
@@ -135,6 +168,9 @@ Function Assert-All() {
                 [pscustomobject]@{ Greeting = @{ 1 = "Hi" }},
                 [pscustomobject]@{ Greeting = @{ 2 = "Hey"}}
             ) | All { $_.Greeting.Count -gt 0 }   # returns 'True'
+
+        .NOTES
+            The result of the function will be the FIRST boolean value returned by the specified scriptblock.
     #>
     [CmdletBinding()]
     [Alias("Assert-AllObjects", "All-Objects", "All")]
@@ -150,20 +186,21 @@ Function Assert-All() {
         [scriptblock] $Condition
     )
     Begin {
-        $list = New-Object -TypeName "System.Collections.Generic.List[object]"
+        $result = $true
+        $allAreNull = $true
+        $equality = [ListFunctions.ScriptBlockEquality]::Create($Condition, @(Get-Variable))
     }
     Process {
-        if ($null -ne $InputObject -and $InputObject.Length -gt 0) {
-            $list.AddRange($InputObject)
+        
+        if ($result -and $null -ne $InputObject -and $InputObject.Count -gt 0) {
+
+            $result = $equality.All($InputObject)
+            $allAreNull = $false
         }
     }
     End {
-        if ($list.Count -gt 0) {
-            $list.Where($Condition).Count -eq $list.Count
-        }
-        else {
-            $false
-        }
+        
+        return $result -and -not $allAreNull
     }
 }
 
@@ -178,6 +215,9 @@ Function Assert-Any() {
             any elements at all.
 
             This function is more useful the more complex the InputObjects become.
+
+            *Updated* - The entire collection of 'InputObject' is no longer required to be fully enumerated.  
+            The enumeration will stop as soon as the 1st 'True' value is returned by the scriptblock.
         
         .PARAMETER InputObject
             The collection(s) whose elements to apply the condition to.  If the incoming collection(s) of objects
@@ -204,6 +244,9 @@ Function Assert-Any() {
                 [pscustomobject]@{ Greeting = @{ 1 = "Hi" }},
                 [pscustomobject]@{ Greeting = @{ 2 = "Hey"}}
             ) | Any { $_.Greeting.ContainsKey(2) -and $_.Greeting[2] -eq "Hey" }   # returns 'True'
+
+        .NOTES
+            The result of the function will be the FIRST boolean value returned by the specified scriptblock.
     #>
     [CmdletBinding()]
     [Alias("Any-Object", "Any")]
@@ -219,25 +262,26 @@ Function Assert-Any() {
         [scriptblock] $Condition
     )
     Begin {
-        $list = New-Object -TypeName "System.Collections.Generic.List[object]"
+        $result = $false
+        $hasCondition = $PSBoundParameters.ContainsKey("Condition")
+        $equality = [ListFunctions.ScriptBlockEquality]::Create($Condition, @(Get-Variable))
     }
     Process {
-        if ($null -ne $InputObject -and $InputObject.Length -gt 0) {
-            $list.AddRange($InputObject)
+
+        if (-not $result) {
+
+            if (-not $hasCondition) {
+
+                $result = $InputObject.Count -gt 0
+                return
+            }
+
+            $result = $equality.Any($InputObject)
         }
     }
     End {
-        if ($list.Count -gt 0) {
-            if ($PSBoundParameters.ContainsKey("Condition")) {
-                $list.Where($Condition).Count -gt 0
-            }
-            else {
-                $true
-            }
-        }
-        else {
-            $false
-        }
+
+        return $result
     }
 }
 
@@ -453,7 +497,7 @@ Function New-HashSet() {
     <#
         .SYNOPSIS
             Creates a HashSet of unique objects.
-    
+
         .DESCRIPTION
             Creates a 'System.Collections.Generic.HashSet[T]' in order to store unique objects into.
 
@@ -461,13 +505,20 @@ Function New-HashSet() {
             The total number of elements the set can hold without resizing.  Default -- 0.
 
         .PARAMETER GenericType
-            The constraining type that every object added into the set must be.
-    
+            The constraining .NET type that every object added into the set must be.
+
+        .PARAMETER CaseSensitive
+            When 'GenericType' is equal to the type of 'System.String', then this parameter specifies the HashSet to use the default 
+            (case-sensitive) string comparer.
+
+        .PARAMETER InputObject
+            A collection of objects that will initially added into the new set.
+
         .PARAMETER EqualityScript
             The scriptblock that will check the equality between any 2 objects in the set.  It must return a boolean (True/False) value.
-            
-            '$x' -or- '$args[0]' must represent the 1st item to be compared.
-            '$y' -or - '$args[1]' must represent the 2nd item to be compared.
+
+            '$x' must represent the 1st item to be compared.
+            '$y' must represent the 2nd item to be compared.
 
         .PARAMETER HashCodeScript
             The scriptblock that retrieve an object's hash code value.
@@ -476,13 +527,13 @@ Function New-HashSet() {
             The easiest way to provide this through an object's 'GetHashCode()' method.
             Two objects that are equal return hash codes that are equal.  However, the reverse is not true: equal hash codes
             do not imply object equality, because different (unequal) objects can have identical hash codes.
-    
+
         .INPUTS
             System.Object[] -- The objects that will immediately added to the returned set.
-    
+
         .OUTPUTS
             System.Collections.Generic.HashSet[T] -- where 'T' is the constrained generic type that all objects must be.
-    
+
         .EXAMPLE
             # Create a HashSet[string] that ignores case for equality.
             $set = New-HashSet -GenericType [string] -EqualityScript { $x -eq $y } -HashCodeScript { $_.ToLower().GetHashCode() }
@@ -490,15 +541,14 @@ Function New-HashSet() {
         .EXAMPLE
             # Create a HashSet[object] that determines objects with the same 'Name' and 'Id' properties to be equal.
             $set = New-HashSet -EqualityScript { $x.Name -eq $y.Name -and $x.Id -eq $y.Id }
-    
+
         .NOTES
-            The EqualityScript must use either '$x' and '$y' -or- '$args[0]' and '$args[1]' in the
+            The EqualityScript must use either '$x' and '$y' in the
             scriptblock to properly identify the 2 comparing values.
 
-            The HashCodeScript must use either '$_' -or- '$args[0]' in the scriptblock to properly identify
+            The HashCodeScript must use either '$_' in the scriptblock to properly identify
             the object whose hash code is retrieved.
     #>
-
     [CmdletBinding(DefaultParameterSetName = "None")]
     param (
         [Parameter(Mandatory = $false)]
@@ -512,14 +562,36 @@ Function New-HashSet() {
         [object] $GenericType = "[object]",
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $true)]
+        [AllowNull()]
+        [AllowEmptyCollection()]
         [object[]] $InputObject,
 
         [Parameter(Mandatory = $true, ParameterSetName = "WithCustomEqualityComparer")]
         [scriptblock] $EqualityScript,
 
         [Parameter(Mandatory = $false, ParameterSetName = "WithCustomEqualityComparer")]
-        [scriptblock] $HashCodeScript = { $_.GetHashCode() }
+        [scriptblock] $HashCodeScript
     )
+    DynamicParam {
+
+        $rtDict = New-Object System.Management.Automation.RuntimeDefinedParameterDictionary
+
+        if (($GenericType -is [type] -and $GenericType.Name -eq "String") -or ($GenericType -is [string] -and $GenericType -in @('[string]', '[System.String]'))) {
+
+            $pName = 'CaseSensitive'
+            $attCol = New-Object 'System.Collections.ObjectModel.Collection[System.Attribute]'
+            $pAtt = New-Object System.Management.Automation.ParameterAttribute -Property @{
+                Mandatory = $true
+                ParameterSetName = "WithStringSet"
+            };
+            $attCol.Add($pAtt)
+            $rtParam = New-Object System.Management.Automation.RuntimeDefinedParameter($pName, $([switch]), $attCol)
+            
+            $rtDict.Add($pName, $rtParam)
+        }
+
+        $rtDict
+    }
     Begin {
 
         if ($GenericType -is [type]) {
@@ -527,17 +599,37 @@ Function New-HashSet() {
             $GenericType = $GenericType.FullName
         }
 
-        if ($PSCmdlet.ParameterSetName -eq "WithCustomEqualityComparer") {
+        if ($GenericType -in @('[string]', 'System.String', '[System.String]')) {
+
+            if (-not $PSBoundParameters.ContainsKey("CaseSensitive") -or -not $PSBoundParameters["CaseSensitive"].ToBool()) {
+
+                $IsCaseInsensitive = $true
+            }
+        }
+
+        if ($PSCmdlet.ParameterSetName -like "*CustomEquality*") {
+
             $result = NewEqualityComparer -GenericType $GenericType -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript
 
             if ($result.IsFaulted) {
                 Write-Error -Message $result.ErrorMessage -Category SyntaxError -ErrorId $([System.ArgumentException]).FullName
             }
+
             $comparer = $result.Comparer
+            $set = New-Object -TypeName "System.Collections.Generic.HashSet[$GenericType]"($Capacity, $comparer)
+        }
+        else {
+
+            if ($IsCaseInsensitive) {
+
+                $set = New-Object -TypeName "System.Collections.Generic.HashSet[$GenericType]"($Capacity, [System.StringComparer]::CurrentCultureIgnoreCase)
+            }
+            else {
+
+                $set = New-Object -TypeName "System.Collections.Generic.HashSet[$GenericType]"($Capacity)
+            }
         }
 
-        $set = New-Object -TypeName "System.Collections.Generic.HashSet[$GenericType]"($Capacity, $comparer)
-        
         if ($null -eq $type) {
             $private:type = $set.GetType().GenericTypeArguments | Select-Object -First 1
         }
@@ -547,8 +639,8 @@ Function New-HashSet() {
     }
     Process {
 
-        if ($PSBoundParameters.ContainsKey("InputObject")) {
-            
+        if ($PSBoundParameters.ContainsKey("InputObject") -and $null -ne $InputObject) {
+
             $set.UnionWith(($InputObject -as $private:type))
         }
     }
@@ -635,6 +727,156 @@ Function New-List() {
     End {
 
         , $private:list
+    }
+}
+
+Function New-SortedSet() {
+    <#
+        .SYNOPSIS
+            Creates a Sorted set of unique objects.
+
+        .DESCRIPTION
+            Creates a new instance of 'System.Collections.Generic.SortedSet[T]' with the default or custom comparer.
+
+        .PARAMETER GenericType
+            The constraining .NET type that every object added into the set must be.
+
+        .PARAMETER InputObject
+
+
+        .PARAMETER ComparingScript
+            A custom script that provides 'CompareTo' functionality for the SortedSet to use. The comparison of two objects returns an
+            [int] value indicating whether one is 'less than', 'equal to', or 'greater than' the other.  The table below describes 
+            the meaning of the returned [int] value.
+
+            FYI, any object that implements 'System.IComparable' or 'System.IComparable[T]' will always have a method called 'CompareTo' that
+            can be used to generate/return the logic below. Examples of .NET types that do this include [int], [string], [guid], [datetime], etc.
+
+            '$x' must represent the 1st item to be compared.
+            '$y' must represent the 2nd item to be compared.
+
+                Value           |   Meaning
+            ------------------- | --------------------
+            Less than zero      | X is less than Y.
+            Zero                | X equals Y.
+            Greater than zero   | X is greater than Y.
+
+        .INPUTS
+            System.Object[] -- The objects that will immediately added to the returned set.
+
+        .OUTPUTS
+            System.Collections.Generic.SortedSet[T] -- where 'T' is the constrained generic type that all objects must be.
+
+        .EXAMPLE
+            Sort PSCustomObjects by a shared 'ID' property.
+
+            $obj1 = [pscustomobject]@{ Id = 2; Name = "John" }
+            $obj2 = [pscustomobject]@{ Id = 1; Name = "Jane" }
+
+            $set = New-SortedSet -ComparingScript { $x.Id.CompareTo($y.Id) } -InputObject $obj1, $obj2
+
+        .EXAMPLE
+            Sort strings with case-sensitive reverse logic (i.e. - Descending order)
+
+            $obj1 = "Jane"
+            $obj2 = "John"
+
+            $set = $obj1, $obj2 | New-SortedSet -GenericType [string] -ComparingScript { $x.CompareTo($y) * -1 }
+    #>
+    [CmdletBinding(DefaultParameterSetName = "None")]
+    param (
+        [Parameter(Mandatory = $false, Position = 0)]
+        [Alias("Type", "t")]
+        [ValidateScript( { $_ -is [type] -or $_ -is [string] })]
+        [object] $GenericType = "[object]",
+
+        [Parameter(Mandatory = $false, ValueFromPipeline = $true)]
+        [AllowNull()]
+        [AllowEmptyCollection()]
+        [object[]] $InputObject,
+
+        [Parameter(Mandatory=$true, ParameterSetName = "WithCustomComparer")]
+        [Alias("ScriptBlock")]
+        [AllowNull()]
+        [scriptblock] $ComparingScript
+    )
+    DynamicParam {
+
+        $rtDict = New-Object System.Management.Automation.RuntimeDefinedParameterDictionary
+
+        if (($GenericType -is [type] -and $GenericType.Name -eq "String") -or ($GenericType -is [string] -and $GenericType -in @('[string]', '[System.String]'))) {
+
+            $pName = 'CaseSensitive'
+            $attCol = New-Object 'System.Collections.ObjectModel.Collection[System.Attribute]'
+            $pAtt = New-Object System.Management.Automation.ParameterAttribute -Property @{
+                Mandatory = $true
+                ParameterSetName = "WithStringSet"
+            };
+            $attCol.Add($pAtt)
+            $rtParam = New-Object System.Management.Automation.RuntimeDefinedParameter($pName, $([switch]), $attCol)
+            
+            $rtDict.Add($pName, $rtParam)
+        }
+
+        $rtDict
+    }
+    Begin {
+
+        if ($GenericType -is [type]) {
+
+            $private:type = $GenericType
+            $GenericType = $GenericType.FullName
+        }
+        elseif ($null -eq $GenericType -or ($GenericType -is [string] -and [string]::IsNullOrWhiteSpace($GenericType))) {
+
+
+        }
+
+        if ($GenericType -in @('[string]', 'System.String', '[System.String]')) {
+
+            if (-not $PSBoundParameters.ContainsKey("CaseSensitive") -or -not $PSBoundParameters["CaseSensitive"].ToBool()) {
+
+                $IsCaseInsensitive = $true
+            }
+        }
+
+        if ($PSBoundParameters.ContainsKey("ComparingScript")) {
+            
+            $comparer = New-Object -TypeName "ListFunctions.ScriptBlockComparer[$GenericType]"($ComparingScript)
+        }
+        elseif ($IsCaseInsensitive) {
+
+            $comparer = [System.StringComparer]::CurrentCultureIgnoreCase
+        }
+
+        if ($null -ne $comparer) {
+
+            $sortedSet = New-Object "System.Collections.Generic.SortedSet[$GenericType]"($comparer)
+        }
+        else {
+
+            $sortedSet = New-Object "System.Collections.Generic.SortedSet[$GenericType]"
+        }
+        
+
+        if ($null -eq $private:type) {
+            
+            $private:type = $sortedSet.GetType().GenericTypeArguments | Select-Object -First 1
+        }
+
+        Write-Verbose "HashSet - GenericType $($private:type.FullName)"
+        $private:type = $private:type.MakeArrayType()
+    }
+    Process {
+
+        if ($PSBoundParameters.ContainsKey("InputObject")) {
+            
+            $sortedSet.UnionWith(($InputObject -as $private:type))
+        }
+    }
+    End {
+
+        , $sortedSet
     }
 }
 

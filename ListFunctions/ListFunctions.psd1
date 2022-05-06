@@ -12,10 +12,10 @@
     RootModule        = 'ListFunctions.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '1.2'
+    ModuleVersion     = '1.2.0'
 
     # Supported PSEditions
-    # CompatiblePSEditions = @()
+    CompatiblePSEditions = @('Desk', 'Core')
 
     # ID used to uniquely identify this module
     GUID              = '731eae50-355d-4718-a2df-89d9beaae89e'
@@ -27,13 +27,13 @@
     CompanyName       = 'Yevrag35, LLC.'
 
     # Copyright statement for this module
-    Copyright         = 'Copyright (c) 2020 Yevrag35, LLC.'
+    Copyright         = 'Copyright (c) 2020-2022 Yevrag35, LLC.'
 
     # Description of the functionality provided by this module
     Description       = 'A simple module that provides functions to manipulate and search through Arrays, Collections, Lists, and Sets.'
 
     # Minimum version of the Windows PowerShell engine required by this module
-    PowerShellVersion = '4.0'
+    PowerShellVersion = '5.1'
 
     # Name of the Windows PowerShell host required by this module
     # PowerShellHostName = ''
@@ -54,10 +54,10 @@
     # RequiredModules = @()
 
     # Assemblies that must be loaded prior to importing this module
-    # RequiredAssemblies = @()
+    RequiredAssemblies = @('assemblies\ListFunctions.Engine.dll')
 
     # Script files (.ps1) that are run in the caller's environment prior to importing this module.
-    ScriptsToProcess  = @("private\ComparerBuilder.ps1")
+    #ScriptsToProcess  = @("private\ComparerBuilder.ps1")
 
     # Type files (.ps1xml) to be loaded when importing this module
     # TypesToProcess = @()
@@ -75,6 +75,7 @@
         "Find-IndexOf",
         "Find-LastIndexOf",
         "New-HashSet",
+        "New-SortedSet",
         "New-List",
         "Remove-All",
         "Remove-At"
@@ -103,7 +104,11 @@
     # ModuleList = @()
 
     # List of all files packaged with this module
-    # FileList = @()
+    FileList = @(
+		'assemblies\ListFunctions.Engine.dll',
+		'ListFunctions.psd1',
+		'ListFunctions.psm1'
+	)
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
     PrivateData       = @{
@@ -113,7 +118,7 @@
             # Tags applied to this module. These help with module discovery in online galleries.
             Tags         = @('List', "Array", "Modify", "Remove", "Condition", "Where", "Any", "All", "Find",
                 "Assert", "Test", "bool", "Predicate", "Collection", "index", "count", "Last", "Enumerable",
-                "Linq", 'HashSet', 'equality', 'compare', 'set')
+                "Linq", 'HashSet', 'equality', 'compare', 'set', 'sort')
 
             # A URL to the license for this module.
             LicenseUri   = 'https://raw.githubusercontent.com/Yevrag35/PowerShell-ListFunctions/master/LICENSE'
@@ -124,10 +129,10 @@
             # A URL to an icon representing this module.
             IconUri      = 'https://images.yevrag35.com/icons/list-functions.png'
 
-            Prerelease   = 'beta'
+            # Prerelease   = 'beta'
 
             # ReleaseNotes of this module
-            ReleaseNotes = 'Publishing 1.1; Adding new functions ''New-List'' & ''New-HashSet''.'
+            ReleaseNotes = 'Added precompiled Engine for better control; New function introduced - "New-SortedSet".'
 
         } # End of PSData hashtable
 

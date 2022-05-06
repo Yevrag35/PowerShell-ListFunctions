@@ -9,6 +9,9 @@
             System.Predicate (this means the scriptblock must return 'True/False').
 
             This function is more useful the more complex the InputObjects become.
+
+            *Updated* - The entire collection of 'InputObject' is no longer required to be fully enumerated.
+            The enumeration will stop as soon as the 1st 'False' value is returned by the scriptblock.
     
         .PARAMETER InputObject
             The collection(s) that contains the elements to apply the condition to.  If an empty collection
@@ -35,6 +38,9 @@
                 [pscustomobject]@{ Greeting = @{ 1 = "Hi" }},
                 [pscustomobject]@{ Greeting = @{ 2 = "Hey"}}
             ) | All { $_.Greeting.Count -gt 0 }   # returns 'True'
+
+        .NOTES
+            The result of the function will be the FIRST boolean value returned by the specified scriptblock.
     #>
     [CmdletBinding()]
     [Alias("Assert-AllObjects", "All-Objects", "All")]
@@ -50,19 +56,20 @@
         [scriptblock] $Condition
     )
     Begin {
-        $list = New-Object -TypeName "System.Collections.Generic.List[object]"
+        $result = $true
+        $allAreNull = $true
+        $equality = [ListFunctions.ScriptBlockEquality]::Create($Condition, @(Get-Variable))
     }
     Process {
-        if ($null -ne $InputObject -and $InputObject.Length -gt 0) {
-            $list.AddRange($InputObject)
+        
+        if ($result -and $null -ne $InputObject -and $InputObject.Count -gt 0) {
+
+            $result = $equality.All($InputObject)
+            $allAreNull = $false
         }
     }
     End {
-        if ($list.Count -gt 0) {
-            $list.Where($Condition).Count -eq $list.Count
-        }
-        else {
-            $false
-        }
+        
+        return $result -and -not $allAreNull
     }
 }
