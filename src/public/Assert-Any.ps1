@@ -58,7 +58,7 @@
     Begin {
         $result = $false
         $hasCondition = $PSBoundParameters.ContainsKey("Condition")
-        $equality = [ListFunctions.ScriptBlockEquality]::Create($Condition, @(Get-Variable))
+        $equality = [ListFunctions.ScriptBlockEquality]::Create($Condition)
     }
     Process {
 

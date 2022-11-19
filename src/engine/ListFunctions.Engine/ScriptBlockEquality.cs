@@ -10,14 +10,11 @@ namespace ListFunctions
 {
     public sealed class ScriptBlockEquality
     {
-        private readonly List<PSVariable> _allVars;
         private readonly ScriptBlock _scriptBlock;
 
-        public ScriptBlockEquality(ScriptBlock scriptBlock, IEnumerable<PSVariable?> variables)
+        public ScriptBlockEquality(ScriptBlock scriptBlock)
         {
             _scriptBlock = scriptBlock;
-            _allVars = new List<PSVariable>(FilterOnlyNonNull(variables));
-            this.InsertDefaultVariable(null);
         }
 
         public bool Any(IEnumerable<object?>? collection)
@@ -47,61 +44,21 @@ namespace ListFunctions
             return result;
         }
 
-        private IEnumerable<PSVariable> FilterOnlyNonNull(IEnumerable<PSVariable?> variables)
-        {
-            foreach (PSVariable? variable in variables)
-            {
-                if (!(variable is null) && !IsInvalidScope(variable) && !variable.Name.Equals("null", StringComparison.CurrentCultureIgnoreCase))
-                {
-                    yield return variable;
-                }
-            }
-        }
-
-        private void InsertDefaultVariable(object? value)
-        {
-            _allVars.Insert(0, new PSVariable("_", value));
-        }
         public bool IsTrue(object? value)
         {
-            if (_allVars.Count <= 0 || _allVars[0] is null || _allVars[0].Name != "_")
+            var varContext = new List<PSVariable>()
             {
-                this.InsertDefaultVariable(value);
-            }
-            else
-            {
-                _allVars[0].Value = value;
-            }
+                new PSVariable("_", value)
+            };
 
-            Collection<PSObject> results = _scriptBlock.InvokeWithContext(null, _allVars);
+            Collection<PSObject> results = _scriptBlock.InvokeWithContext(null, varContext);
 
             return results.GetFirstValue(x => Convert.ToBoolean(x));
         }
 
-        private static bool IsInvalidScope(PSVariable variable)
+        public static ScriptBlockEquality Create(ScriptBlock scriptBlock)
         {
-            var opts = variable.Options;
-            return opts.HasFlag(ScopedItemOptions.AllScope)
-                   ||
-                   opts.HasFlag(ScopedItemOptions.ReadOnly)
-                   ||
-                   opts.HasFlag(ScopedItemOptions.Constant)
-                   ||
-                   opts.HasFlag(ScopedItemOptions.Unspecified);
-        }
-
-        public static ScriptBlockEquality Create(ScriptBlock scriptBlock, IEnumerable<PSObject> variables)
-        {
-            return new ScriptBlockEquality(scriptBlock, variables.Select(x => x.ImmediateBaseObject as PSVariable));
-        }
-
-        public static ScriptBlockEquality Create(ScriptBlock scriptBlock, IEnumerable<object> variables)
-        {
-            if (!(variables is null) && variables.Any(x => x is PSObject))
-                return Create(scriptBlock, variables.Cast<PSObject>());
-
-            else
-                return new ScriptBlockEquality(scriptBlock, variables.Cast<PSVariable>());
+            return new ScriptBlockEquality(scriptBlock);
         }
     }
 }
