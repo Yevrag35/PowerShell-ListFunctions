@@ -10,13 +10,6 @@
         [scriptblock] $ComparingScript
     )
 
-    # if ($ComparingScript -match '\$x(\s|\.|\))' -and $ComparingScript -match '\$y(\s|\.|\))') {
-
-    #     $replace1 = [regex]::Replace($ComparingScript, '\$x(\s|\.|\))', '$args[0]$1', "IgnoreCase")
-    #     $replace2 = [regex]::Replace($replace1, '\$y(\s|\.|\))', '$args[1]$1', "IgnoreCase")
-
-    #     $ComparingScript = [scriptblock]::Create($replace2)
-    # }
     if ($null -ne $ComparingScript -and -not ($ComparingScript -match '\$x(\s|\.|\))' -and $ComparingScript -match '\$y(\s|\.|\))')) {
 
         return [pscustomobject]@{

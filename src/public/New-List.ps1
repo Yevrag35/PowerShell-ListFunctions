@@ -32,6 +32,7 @@ Function New-List() {
         .EXAMPLE
             $list = ,@('hi', 'hello', 'goodbye') | New-List 3 -GenericType [string]
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "")]
     [CmdletBinding()]
     param
     (

@@ -1,0 +1,17 @@
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-Next\bin\Debug\net6.0\Debug.ps1
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-Next\bin\Debug\net6.0\ListFunctions.Next.deps.json
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-Next\bin\Debug\net6.0\ListFunctions.Next.dll
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-Next\bin\Debug\net6.0\ListFunctions.Next.pdb
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-Next\bin\Debug\net6.0\ListFunctions.Engine.dll
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-Next\bin\Debug\net6.0\ListFunctions.Engine.pdb
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-Next\obj\Debug\net6.0\ListFunctions-Next.csproj.AssemblyReference.cache
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-Next\obj\Debug\net6.0\ListFunctions-Next.GeneratedMSBuildEditorConfig.editorconfig
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-Next\obj\Debug\net6.0\ListFunctions-Next.AssemblyInfoInputs.cache
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-Next\obj\Debug\net6.0\ListFunctions-Next.AssemblyInfo.cs
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-Next\obj\Debug\net6.0\ListFunctions-Next.csproj.CoreCompileInputs.cache
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-Next\obj\Debug\net6.0\ListFunctions-Next.sourcelink.json
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-Next\obj\Debug\net6.0\ListFunctions-Next.csproj.CopyComplete
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-Next\obj\Debug\net6.0\ListFunctions.Next.dll
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-Next\obj\Debug\net6.0\refint\ListFunctions.Next.dll
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-Next\obj\Debug\net6.0\ListFunctions.Next.pdb
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-Next\obj\Debug\net6.0\ref\ListFunctions.Next.dll

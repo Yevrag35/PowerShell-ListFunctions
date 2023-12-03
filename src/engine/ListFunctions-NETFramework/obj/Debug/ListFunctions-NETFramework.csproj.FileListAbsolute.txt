@@ -1,0 +1,16 @@
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-NETFramework\bin\Debug\Debug.ps1
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-NETFramework\bin\Debug\ListFunctions.NETFramework.dll
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-NETFramework\bin\Debug\ListFunctions.NETFramework.pdb
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-NETFramework\bin\Debug\ListFunctions.Engine.dll
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-NETFramework\bin\Debug\System.Management.Automation.dll
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-NETFramework\bin\Debug\Microsoft.Management.Infrastructure.dll
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-NETFramework\bin\Debug\ListFunctions.Engine.pdb
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-NETFramework\bin\Debug\System.Management.Automation.xml
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-NETFramework\obj\Debug\ListFunctions-NETFramework.csproj.AssemblyReference.cache
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-NETFramework\obj\Debug\ListFunctions-NETFramework.csproj.CoreCompileInputs.cache
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-NETFramework\obj\Debug\ListFunctions-NETFramework.csproj.CopyComplete
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-NETFramework\obj\Debug\ListFunctions.NETFramework.dll
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-NETFramework\obj\Debug\ListFunctions.NETFramework.pdb
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-NETFramework\bin\Debug\MG.Collections.dll
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-NETFramework\bin\Debug\MG.Collections.Resources.dll
+O:\Local_Repos\ListFunctions\src\engine\ListFunctions-NETFramework\bin\Debug\MG.Collections.xml
