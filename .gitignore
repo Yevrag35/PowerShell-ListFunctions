@@ -14,6 +14,10 @@
 
 src/engine/ListFunctions.Engine/[Oo]bj/
 src/engine/ListFunctions.Engine/[Bb]in/
+src/engine/ListFunctions-Next/[Oo]bj/
+src/engine/ListFunctions-Next/[Bb]in/
+src/engine/ListFunctions-NETFramework/[Oo]bj/
+src/engine/ListFunctions-NETFramework/[Bb]in/
 
 # Visual Studio 2015 cache/options directory
 src/engine/.vs/
