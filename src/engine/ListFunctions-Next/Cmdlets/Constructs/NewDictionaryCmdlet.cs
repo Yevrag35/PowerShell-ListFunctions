@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq.Expressions;
 using System.Management.Automation;
 using System.Reflection;
 
@@ -17,11 +18,14 @@ namespace ListFunctions.Cmdlets.Construct
     [OutputType(typeof(Dictionary<,>), typeof(Hashtable))]
     public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary>, IDynamicParameters
     {
+        const string CLONE_VALUES = "CloneValues";
+        const string STR_DICT = "StringDict";
+
         static readonly Type _baseType = typeof(Dictionary<,>);
-        RuntimeDefinedParameterDictionary _dict = null!;
-        RuntimeDefinedParameter _caseSensitive = null!;
+        bool _cloneValues;
 
         protected override Type BaseType => _baseType;
+        protected override string CaseSensitiveParameterSetName => STR_DICT;
 
         [Parameter]
         [ValidateRange(0, int.MaxValue)]
@@ -30,6 +34,14 @@ namespace ListFunctions.Cmdlets.Construct
         {
             get => base.Capacity;
             set => base.Capacity = value;
+        }
+
+        [Parameter(ParameterSetName = JUST_COPY)]
+        [Parameter(ParameterSetName = AND_COPY)]
+        public SwitchParameter CloneValues
+        {
+            get => _cloneValues;
+            set => _cloneValues = value;
         }
 
         [Parameter(Position = 0)]
@@ -41,16 +53,19 @@ namespace ListFunctions.Cmdlets.Construct
         [PSDefaultValue(Value = typeof(object))]
         public Type ValueType { get; set; } = null!;
 
-        [Parameter(ValueFromPipeline = true)]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = JUST_COPY)]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = AND_COPY)]
         [Alias("CopyFrom")]
         public Hashtable InputObject { get; set; } = null!;
 
         [Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
+        [Parameter(Mandatory = true, ParameterSetName = AND_COPY)]
         [ValidateScriptVariable(PSComparingVariable.X, PSComparingVariable.LEFT)]
         [ValidateScriptVariable(PSComparingVariable.Y, PSComparingVariable.RIGHT)]
         public ScriptBlock EqualityScript { get; set; } = null!;
 
         [Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
+        [Parameter(Mandatory = true, ParameterSetName = AND_COPY)]
         [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.THIS_NAME, PSThisVariable.PSITEM_NAME)]
         public ScriptBlock HashCodeScript { get; set; } = null!;
 
@@ -58,9 +73,26 @@ namespace ListFunctions.Cmdlets.Construct
         [PSDefaultValue(Value = ActionPreference.Stop)]
         public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.Stop;
 
-        protected override void Process(IDictionary collection)
+        protected override void Process(IDictionary collection, Type collectionType)
         {
-            return;
+            if (!(this.InputObject is null) && this.InputObject.Count > 0)
+            {
+                if (!this.HasAddMethod)
+                {
+                    this.AddMethod = collection is Hashtable
+                        ? GetHashtableAddMethod(x => x.Add(string.Empty, null))
+                        : GetAddMethod(collectionType);
+                }
+
+                object?[] args = new object?[2];
+                foreach (DictionaryEntry de in this.InputObject)
+                {
+                    args[0] = LanguagePrimitives.ConvertTo(de.Key, this.KeyType);
+                    args[1] = CloneValue(de.Value, _cloneValues);
+
+                    this.AddToCollection(collection, args, false);
+                }
+            }
         }
         protected override void End(IDictionary collection)
         {
@@ -68,6 +100,22 @@ namespace ListFunctions.Cmdlets.Construct
         }
 
         #region BACKEND
+        [return: NotNullIfNotNull(nameof(value))]
+        private static object? CloneValue(object? value, bool wantsCloning)
+        {
+            if (!wantsCloning)
+            {
+                return value;
+            }
+
+            return value switch
+            {
+                ICloneable cloneable => cloneable.Clone(),
+                PSObject pso => pso.Copy(),
+                _ => value,
+            };
+        }
+
         protected override IDictionary ConstructOnTypesMissing(IEqualityComparer? comparer)
         {
             comparer ??= StringComparer.InvariantCultureIgnoreCase;
@@ -95,32 +143,9 @@ namespace ListFunctions.Cmdlets.Construct
             return EqualityBlock.CreateBlock(genericType, hashBlock, this.EqualityScript, additional);
         }
 
-        public object? GetDynamicParameters()
-        {
-            if (typeof(string).Equals(this.KeyType))
-            {
-                _caseSensitive ??= new RuntimeDefinedParameter(CASE_SENSE, typeof(SwitchParameter),
-                    new Collection<Attribute>()
-                    {
-                        new ParameterAttribute()
-                        {
-                            Mandatory = true,
-                            ParameterSetName = "StringDictionary"
-                        }
-                    });
-
-                _dict ??= new RuntimeDefinedParameterDictionary();
-
-                _dict.TryAdd(CASE_SENSE, _caseSensitive);
-                return _dict;
-            }
-
-            return null;
-        }
-
         protected override Type GetEqualityForType()
         {
-            return this.KeyType;
+            return this.KeyType ?? typeof(object);
         }
         protected override Type[]? GetGenericTypes()
         {
@@ -133,8 +158,35 @@ namespace ListFunctions.Cmdlets.Construct
                 : null;
         }
 
-        //private static
+        //static readonly Type _kvpType = typeof(KeyValuePair<,>);
+        //[return: NotNullIfNotNull(nameof(item))]
+        //private static DictionaryEntry? GetKeyValuePair(object? item, Type keyType, Type valueType)
+        //{
+        //    if (item is null)
+        //    {
+        //        return null;
+        //    }
 
+        //    var kvpType = _kvpType.MakeGenericType(keyType, valueType);
+
+
+        //}
+
+        private static MethodInfo GetAddMethod(Type genericBaseType)
+        {
+            return genericBaseType.GetMethod(nameof(Dictionary<object, object>.Add),
+                bindingAttr: BindingFlags.Public | BindingFlags.Instance,
+                binder: null,
+                types: genericBaseType.GetGenericArguments(),
+                modifiers: null)!;
+        }
+
+        private static MethodInfo GetHashtableAddMethod(Expression<Action<Hashtable>> addExpression)
+        {
+            return addExpression.Body is MethodCallExpression methodCall
+                ? methodCall.Method
+                : throw new ArgumentException("What the hell? That's not a method call...");
+        }
 
         #endregion
     }

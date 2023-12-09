@@ -1,4 +1,5 @@
 ﻿using ListFunctions.Extensions;
+using ListFunctions.Modern;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -14,7 +15,9 @@ namespace ListFunctions.Cmdlets.Construct
     public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
     {
         protected const string CASE_SENSE = "CaseSensitive";
+        protected const string JUST_COPY = "JustCopy";
         protected const string WITH_CUSTOM_EQUALITY = "WithCustomEquality";
+        protected const string AND_COPY = WITH_CUSTOM_EQUALITY + "AndCopy";
         static readonly Type _defComparerType = typeof(EqualityComparer<>);
         static readonly Type _stringType = typeof(string);
         static readonly string _addName = nameof(ICollection<object>.Add);
@@ -22,7 +25,8 @@ namespace ListFunctions.Cmdlets.Construct
         private MethodInfo? _addMethod;
         private RuntimeDefinedParameter _caseSensitive = null!;
         private T _collection = default!;
-        private RuntimeDefinedParameterDictionary _dict = null!;
+        private Type _collectionType = null!;
+        private RuntimeDefinedParameterDictionary? _dict = null!;
         private Type[] _genericTypes = null!;
 
         protected MethodInfo? AddMethod
@@ -38,15 +42,33 @@ namespace ListFunctions.Cmdlets.Construct
 #if NET5_0_OR_GREATER
         [MemberNotNullWhen(true, nameof(_addMethod))]
 #endif
-        protected bool HasAddMethod { get; set; }
+        protected bool HasAddMethod { get; private set; }
+        private RuntimeDefinedParameterDictionary DynParamLib
+        {
+            get => _dict ??= new RuntimeDefinedParameterDictionary();
+        }
+        protected abstract string CaseSensitiveParameterSetName { get; }
+
         public virtual int Capacity { get; set; }
         protected bool CaseSensitive => RetrieveCaseSensitiveSetting(_caseSensitive);
         public virtual ActionPreference ScriptBlockErrorAction { get; set; }
 
-        protected virtual RuntimeDefinedParameterDictionary? GetDynamicCaseParam(Type genericType, string parameterSetName)
+        public object? GetDynamicParameters()
         {
-            RuntimeDefinedParameterDictionary? dict = null;
+            this.DynParamLib.Clear();
+            bool hasCase = this.TryGetDynamicCaseParam(this.GetEqualityForType(), this.CaseSensitiveParameterSetName);
 
+            return this.TryGetDynamicParameters(this.DynParamLib, hasCase)
+                ? this.DynParamLib
+                : null;
+        }
+        protected virtual bool TryGetDynamicParameters(RuntimeDefinedParameterDictionary paramDict, bool hasCaseSensitive)
+        {
+            return hasCaseSensitive;
+        }
+        private bool TryGetDynamicCaseParam(Type genericType, string parameterSetName)
+        {
+            bool returnLib = false;
             if (_stringType.Equals(genericType))
             {
                 _caseSensitive ??= new RuntimeDefinedParameter(CASE_SENSE, typeof(SwitchParameter),
@@ -59,19 +81,22 @@ namespace ListFunctions.Cmdlets.Construct
                         }
                     });
 
-                dict = _dict ??= new RuntimeDefinedParameterDictionary();
-
-                dict.TryAdd(CASE_SENSE, _caseSensitive);
+                returnLib = this.DynParamLib.TryAdd(CASE_SENSE, _caseSensitive);
             }
 
-            return dict;
+            return returnLib;
         }
 
-        protected void AddToCollection(T collection, object?[]? items)
+        protected void AddToCollection(T collection, object?[]? items, Func<object?, Type[], object?> conversion)
         {
-            if (_addMethod is null || items is null || items.Length < 2 || items[0] is null)
+            if (_addMethod is null || items is null || items.Length < 1 || items[0] is null)
             {
                 return;
+            }
+
+            for (int i = items.Length - 1; i >= 0; i--)
+            {
+                items[i] = conversion(items[i], _genericTypes);
             }
 
             try
@@ -99,17 +124,22 @@ namespace ListFunctions.Cmdlets.Construct
                 this.WriteError(e.ToRecord(ErrorCategory.InvalidOperation, item));
             }
         }
+
         private static MethodInfo? GetAddMethod(Type baseType, Type[] genericTypes)
         {
             try
             {
-                return baseType.GetMethod(
-                    _addName,
-                    BindingFlags.Instance | BindingFlags.Public,
-                    null,
-                    genericTypes,
-                    null);
+                return ReflectionResolver.GetAddMethod(baseType, genericTypes);
             }
+            //try
+            //{
+            //    return baseType.GetMethod(
+            //        _addName,
+            //        BindingFlags.Instance | BindingFlags.Public,
+            //        null,
+            //        genericTypes,
+            //        null);
+            //}
             catch (Exception e)
             {
                 Debug.Fail(e.Message);
@@ -132,7 +162,8 @@ namespace ListFunctions.Cmdlets.Construct
             }
 
             Guard.NotNull(_collection, "collection");
-            this.Begin(_collection, _collection.GetType());
+            _collectionType = _collection.GetType();
+            this.Begin(_collection, _collectionType);
         }
 
         private T ConstructCollection(Type[] genericTypes)
@@ -161,9 +192,9 @@ namespace ListFunctions.Cmdlets.Construct
 
         protected sealed override void ProcessRecord()
         {
-            this.Process(_collection);
+            this.Process(_collection, _collectionType);
         }
-        protected virtual void Process(T collection)
+        protected virtual void Process(T collection, Type collectionType)
         {
             return;
         }
@@ -212,6 +243,7 @@ namespace ListFunctions.Cmdlets.Construct
             Type genBaseType = this.BaseType.MakeGenericType(genericTypes);
 
             _addMethod = GetAddMethod(genBaseType, genericTypes);
+            this.HasAddMethod = true;
             return genBaseType;
         }
 

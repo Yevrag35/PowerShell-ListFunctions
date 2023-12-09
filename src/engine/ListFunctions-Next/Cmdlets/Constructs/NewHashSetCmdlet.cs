@@ -21,6 +21,7 @@ namespace ListFunctions.Cmdlets.Construct
         static readonly Type _hashType = typeof(HashSet<>);
 
         protected override Type BaseType => _hashType;
+        protected override string CaseSensitiveParameterSetName => DYN_PSET_NAME;
 
         [Parameter]
         [ValidateRange(0, int.MaxValue)]
@@ -48,11 +49,6 @@ namespace ListFunctions.Cmdlets.Construct
         [Parameter(ParameterSetName = WITH_CUSTOM_EQUALITY)]
         [PSDefaultValue(Value = ActionPreference.Stop)]
         public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.Stop;
-
-        public object? GetDynamicParameters()
-        {
-            return this.GetDynamicCaseParam(this.GenericType, DYN_PSET_NAME);
-        }
 
         protected override object[]? GetConstructorArguments(Type[] genericTypes, IEqualityComparer? comparer)
         {
@@ -86,14 +82,20 @@ namespace ListFunctions.Cmdlets.Construct
             return this.GenericType;
         }
 
-        protected override void Process(object collection)
+        protected override void Process(object collection, Type collectionType)
         {
             if (!this.HasAddMethod || this.InputObject is null)
             {
                 return;
             }
 
-            this.AddToCollection(collection, this.InputObject);
+            object?[] args = new object[1];
+            foreach (object? item in this.InputObject)
+            {
+                args[0] = item;
+                this.AddToCollection(collection, args, (x, types) => 
+                    LanguagePrimitives.ConvertTo(x, types[0]));
+            }
         }
 
         protected override void End(object collection)
