@@ -3,29 +3,52 @@ using ListFunctions.Internal;
 using ListFunctions.Modern.Variables;
 using MG.Collections;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Management.Automation;
+using System.Reflection;
 
 namespace ListFunctions.Modern
 {
-    public sealed class ScriptBlockEquality<T>
+    public abstract class ScriptBlockFilter
+    {
+        private protected ScriptBlockFilter()
+        {
+        }
+
+        protected abstract object MakePredicate();
+
+        public static ScriptBlockFilter Create(ScriptBlock scriptBlock, Type genericType, IEnumerable<PSVariable>? additionalVariables)
+        {
+            Type filterType = typeof(ScriptBlockFilter<>);
+            Type genFilter = filterType.MakeGenericType(genericType);
+
+            return (ScriptBlockFilter)Activator.CreateInstance(genFilter,
+                new object[] { scriptBlock, additionalVariables! });
+        }
+        public static object ToPredicate(ScriptBlockFilter genericScriptBlock)
+        {
+            return genericScriptBlock.MakePredicate();
+        }
+    }
+
+    public sealed class ScriptBlockFilter<T> : ScriptBlockFilter
     {
         static readonly IEqualityComparer<PSVariable> _equality = new PSVariableNameEquality();
 
         readonly IReadOnlySet<PSVariable> _additionalVariables;
         readonly bool _hasAdditionalVariables;
         readonly ScriptBlock _scriptBlock;
+        Predicate<T>? _predicate;
         readonly PSThisVariable<T> _thisVar;
         readonly List<PSVariable> _varList;
 
-        public ScriptBlockEquality(ScriptBlock scriptBlock)
+        public ScriptBlockFilter(ScriptBlock scriptBlock)
             : this(scriptBlock, null)
         {
         }
-        public ScriptBlockEquality(ScriptBlock scriptBlock, IEnumerable<PSVariable>? additionalVariables)
+        public ScriptBlockFilter(ScriptBlock scriptBlock, IEnumerable<PSVariable>? additionalVariables)
         {
             Guard.NotNull(scriptBlock, nameof(scriptBlock));
             _thisVar = new PSThisVariable<T>();
@@ -60,18 +83,22 @@ namespace ListFunctions.Modern
 
         public bool Any(IEnumerable<T>? collection)
         {
-            if (!(collection is null))
+            if (collection is null)
             {
-                foreach (T item in collection)
+                return false;
+            }
+
+            bool flag = false;
+            foreach (T item in collection)
+            {
+                if (this.IsTrue(item))
                 {
-                    if (this.IsTrue(item))
-                    {
-                        return true;
-                    }
+                    flag = true;
+                    break;
                 }
             }
 
-            return false;
+            return flag;
         }
 
         public bool All(IEnumerable<T>? collection)
@@ -111,7 +138,23 @@ namespace ListFunctions.Modern
             List<PSVariable> list = this.InitializeContext(value);
             Collection<PSObject> results = _scriptBlock.InvokeWithContext(null, list, Array.Empty<object>());
 
-            return results.GetFirstValue(x => Convert.ToBoolean(x));
+            return results.GetFirstValue(ConvertToBool);
         }
+
+        private Predicate<T> ToPredicate()
+        {
+            return _predicate ??= new Predicate<T>(x => this.IsTrue(x));
+        }
+        protected override object MakePredicate()
+        {
+            return this.ToPredicate();
+        }
+
+        public static implicit operator Predicate<T>(ScriptBlockFilter<T> filter)
+        {
+            return filter.ToPredicate();
+        }
+
+        private static bool ConvertToBool(object value) => Convert.ToBoolean(value);
     }
 }

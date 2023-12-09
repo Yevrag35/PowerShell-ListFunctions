@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Management.Automation;
 using System.Management.Automation.Language;
-using System.Runtime.Versioning;
 
 namespace ListFunctions.Validation
 {
@@ -37,17 +36,25 @@ namespace ListFunctions.Validation
                 return;
             }
 
-            Ast ast = block.Ast;
-            var allVars = ast.FindAll(x => x is VariableExpressionAst varAst && !varAst.IsConstantVariable() && !varAst.Splatted && varAst.VariablePath.IsVariable, true)
-                .OfType<VariableExpressionAst>()
-                .Select(x => x.VariablePath.UserPath);
+            IEnumerable<string> allVars = EnumerateAllVariablesInBlock(block);
 
             _names.UnionWith(allVars);
 
-             if (!_names.Overlaps(this.MustContainAny))
+            if (!_names.Overlaps(this.MustContainAny))
             {
                 throw new ValidationMetadataException($"At least one of the following variables must be included in the script block: ${string.Join(", $", this.MustContainAny)}");
             }
+        }
+
+        private static IEnumerable<string> EnumerateAllVariablesInBlock(ScriptBlock block)
+        {
+            return block.Ast.FindAll(x => 
+                x is VariableExpressionAst varAst 
+                && !varAst.IsConstantVariable() 
+                && !varAst.Splatted
+                && varAst.VariablePath.IsVariable, true)
+                    .OfType<VariableExpressionAst>()
+                    .Select(x => x.VariablePath.UserPath);
         }
     }
 }

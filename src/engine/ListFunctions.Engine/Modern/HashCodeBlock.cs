@@ -1,9 +1,11 @@
-﻿using ListFunctions.Internal;
+﻿using ListFunctions.Extensions;
+using ListFunctions.Internal;
 using ListFunctions.Modern.Exceptions;
 using ListFunctions.Modern.Variables;
 using MG.Collections;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
 using System.Reflection;
 
@@ -52,12 +54,12 @@ namespace ListFunctions.Modern
 
             var list = this.SetContextVariables(obj, additionalVariables);
 
-            if (!this.Script.TryInvokeWithContext(list, x => Convert.ToInt32(x), out int hashCode, out Exception? ex))
+            if (!this.Script.TryInvokeWithContext(list, x => x, out object? hashObj, out Exception? ex))
             {
                 throw HashCodeScriptException.FromBlockException(ex, in obj, this.SetContextVariables(obj, additionalVariables));
             }
 
-            return hashCode;
+            return hashObj?.GetHashCode() ?? this.ThrowNullHashCode(in obj, additionalVariables);
         }
 
         private List<PSVariable> SetContextVariables(T obj, IEnumerable<PSVariable> additionalVariables)
@@ -68,7 +70,23 @@ namespace ListFunctions.Modern
 
             return _varList;
         }
+        [DoesNotReturn]
+        private int ThrowNullHashCode(in T obj, IEnumerable<PSVariable> additionalVariables)
+        {
+            var baseEx = new ArgumentOutOfRangeException(nameof(obj), "The hash code script block returned a null value when an non-null one was expected.");
 
+            string objStr = obj!.ToString();
+            var rec = new ErrorRecord(baseEx, "NullObjHashCode", ErrorCategory.InvalidResult, obj);
+            rec.CategoryInfo.Activity = "GetHashCode(T obj, IEnumerable<PSVariable> additionalVariables)";
+            rec.CategoryInfo.Reason = "A hash code script block should never return a 'null' value.";
+            rec.CategoryInfo.TargetName = objStr;
+            rec.CategoryInfo.TargetType = typeof(T).GetTypeName();
+
+            var inner = new RuntimeException($"Unable to retrieve an integer hash code from object: \"{objStr}\" using the supplied script block.", baseEx, rec);
+
+            throw HashCodeScriptException.FromBlockException(inner, in obj, 
+                this.SetContextVariables(obj, additionalVariables));
+        }
         int IHashCodeBlock.GetHashCode(object obj, IEnumerable<PSVariable> additionalVariables)
         {
             T genObj;

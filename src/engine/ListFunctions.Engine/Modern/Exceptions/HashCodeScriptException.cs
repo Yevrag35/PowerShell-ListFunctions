@@ -7,9 +7,9 @@ using System.Runtime.Serialization;
 
 namespace ListFunctions.Modern.Exceptions
 {
-#if !NET8_0_OR_GREATER
+//#if !NET8_0_OR_GREATER
     [Serializable]
-#endif
+//#endif
     public sealed class HashCodeScriptException : ScriptBlockInvocationException
     {
         const string DEF_MSG = "An exception occurred trying to calculate the hash code of a specific object";
@@ -28,11 +28,12 @@ namespace ListFunctions.Modern.Exceptions
             this.HashCodeBlockType = blockType ?? typeof(object);
         }
 
-#if !NET8_0_OR_GREATER
+//#if !NET8_0_OR_GREATER
         private HashCodeScriptException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
-            this.HashCodeBlockType = (Type)info.GetValue(nameof(this.HashCodeBlockType), typeof(Type));
+            this.HashCodeBlockType = (Type?)info.GetValue(nameof(this.HashCodeBlockType), typeof(Type))
+                ?? typeof(object);
         }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
@@ -42,7 +43,7 @@ namespace ListFunctions.Modern.Exceptions
 
             base.GetObjectData(info, context);
         }
-#endif
+//#endif
 
         public static HashCodeScriptException FromBlockException<T>(Exception exception, [MaybeNull] in T obj)
         {

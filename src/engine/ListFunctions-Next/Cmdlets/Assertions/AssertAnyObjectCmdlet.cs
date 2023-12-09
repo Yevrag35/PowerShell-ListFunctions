@@ -96,7 +96,7 @@ namespace ListFunctions.Cmdlets.Assertions
                 return;
             }
 
-            ScriptBlockEquality<object> equality = new ScriptBlockEquality<object>(this.Condition!, EnumerateVariables(_errorPref));
+            ScriptBlockFilter<object> equality = new ScriptBlockFilter<object>(this.Condition!, EnumerateVariables(_errorPref));
             bool hasAny = equality.Any(_list!);
             this.WriteObject(hasAny);
         }

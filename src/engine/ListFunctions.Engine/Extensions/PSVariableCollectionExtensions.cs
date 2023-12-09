@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Management.Automation;
+using System.Management.Automation.Internal;
 
 namespace ListFunctions.Extensions
 {
@@ -13,14 +14,14 @@ namespace ListFunctions.Extensions
         [return: NotNullIfNotNull(nameof(defaultIfNull))]
         public static T GetFirstValue<T>(this Collection<PSObject>? collection, Func<object, T> convert, T defaultIfNull = default!)
         {
-            if (collection is null || collection.Count <= 0 || collection[0].ImmediateBaseObject is null)
+            if (collection is null || collection.Count <= 0 || !collection[0].TryGetBaseObject(out object? o))
             {
                 return defaultIfNull;
             }
 
             try
             {
-                return convert(PSObject.AsPSObject(collection[0].ImmediateBaseObject).ImmediateBaseObject);
+                return convert(o);
             }
             catch (Exception e)
             {

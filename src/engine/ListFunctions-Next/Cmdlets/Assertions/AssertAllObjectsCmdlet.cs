@@ -15,7 +15,6 @@ namespace ListFunctions.Cmdlets.Assertions
     [OutputType(typeof(bool))]
     public sealed class AssertAllObjectsCmdlet : ListFunctionCmdletBase
     {
-        ActionPreference _errorPref;
         List<object?> _list = null!;
 
         [Parameter(Mandatory = true, ValueFromPipeline = true)]
@@ -28,9 +27,11 @@ namespace ListFunctions.Cmdlets.Assertions
         [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.THIS_NAME, PSThisVariable.PSITEM_NAME)]
         public ScriptBlock Condition { get; set; } = null!;
 
+        [Parameter]
+        public ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.SilentlyContinue;
+
         protected override void BeginProcessing()
         {
-            _errorPref = this.GetErrorPreference();
             _list = new List<object?>();
         }
         protected override void ProcessRecord()
@@ -52,7 +53,7 @@ namespace ListFunctions.Cmdlets.Assertions
                 return;
             }
 
-            ScriptBlockEquality<object> equality = new ScriptBlockEquality<object>(this.Condition, EnumerateVariables(_errorPref));
+            ScriptBlockFilter<object> equality = new ScriptBlockFilter<object>(this.Condition, EnumerateVariables(this.ScriptBlockErrorAction));
 
             bool hasAll = equality.All(_list!);
             this.WriteObject(hasAll);

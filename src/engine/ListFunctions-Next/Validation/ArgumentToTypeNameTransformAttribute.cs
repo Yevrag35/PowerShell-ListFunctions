@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ListFunctions.Extensions;
+using System;
 using System.Management.Automation;
 using System.Management.Automation.Internal;
 using System.Management.Automation.Language;
@@ -11,7 +12,7 @@ namespace ListFunctions.Validation
 
         public override object? Transform(EngineIntrinsics engineIntrinsics, object? inputData)
         {
-            object? target = GetBase(inputData);
+            object? target = inputData.GetBaseObject();
 
             switch (target)
             {
@@ -29,21 +30,6 @@ namespace ListFunctions.Validation
             }
         }
 
-
-        internal static object? GetBase(object? obj)
-        {
-            if (!(obj is PSObject mshObj))
-            {
-                return obj;
-            }
-
-            if (mshObj == AutomationNull.Value)
-            {
-                return null;
-            }
-
-            return PSObject.AsPSObject(mshObj.ImmediateBaseObject).ImmediateBaseObject;
-        }
         private static Type ResolveFromAst(Ast ast, PSModuleInfo? runningModule)
         {
             try

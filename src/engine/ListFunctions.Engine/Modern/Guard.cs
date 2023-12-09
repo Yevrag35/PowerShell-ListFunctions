@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
 
-namespace ListFunctions.Internal
+namespace ListFunctions
 {
-    internal static class Guard
+    public static class Guard
     {
         /// <exception cref="ArgumentNullException"/>
-        internal static void NotNull<T>([NotNull] T? value, string? parameterName) where T : class
+        public static void NotNull<T>([NotNull] T? value, string? parameterName) where T : class
         {
             if (value is null)
             {
@@ -15,7 +15,7 @@ namespace ListFunctions.Internal
             }
         }
 
-        internal static void NotNull([NotNull] object? obj, string? parameterName)
+        public static void NotNull([NotNull] object? obj, string? parameterName)
         {
             if (obj is null)
             {
@@ -26,7 +26,7 @@ namespace ListFunctions.Internal
 
         /// <exception cref="ArgumentException"/>
         /// <exception cref="ArgumentNullException"/>
-        internal static void NotNullOrEmpty([NotNull] string? value, string? parameterName)
+        public static void NotNullOrEmpty([NotNull] string? value, string? parameterName)
         {
             parameterName ??= nameof(value);
             if (value is null)

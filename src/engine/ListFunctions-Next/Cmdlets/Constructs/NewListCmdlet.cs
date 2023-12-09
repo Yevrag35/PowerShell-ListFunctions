@@ -1,12 +1,14 @@
-﻿using ListFunctions.Validation;
+﻿using ListFunctions.Extensions;
+using ListFunctions.Validation;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Management.Automation;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
+using PSAllowNullAttribute = System.Management.Automation.AllowNullAttribute;
 
 namespace ListFunctions.Cmdlets.Construct
 {
@@ -14,10 +16,8 @@ namespace ListFunctions.Cmdlets.Construct
     [OutputType(typeof(List<>))]
     public sealed class NewListCmdlet : ListFunctionCmdletBase
     {
-        static readonly Type _type = typeof(List<>);
+        internal static readonly Type ListTypeNoT = typeof(List<>);
 
-        MethodInfo? _addMethod;
-        Type _listType = null!;
         IList _list = null!;
 
         [Parameter(Position = 1)]
@@ -32,7 +32,7 @@ namespace ListFunctions.Cmdlets.Construct
 
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "InitialAdd")]
         [AllowEmptyCollection]
-        [AllowNull]
+        [PSAllowNull]
         public object[] InputObject { get; set; } = null!;
 
         [Parameter(ParameterSetName = "InitialAdd")]
@@ -40,13 +40,14 @@ namespace ListFunctions.Cmdlets.Construct
 
         protected override void BeginProcessing()
         {
-            this.GenericType ??= typeof(object);
-            _list = CreateNewList(this.Capacity, this.GenericType, out _listType);
+            _list = this.GenericType is null
+                ? new List<object>(this.Capacity)
+                : CreateNewList(this.Capacity, this.GenericType);
         }
 
-        private static IList CreateNewList(int capacity, Type genericType, out Type listType)
+        private static IList CreateNewList(int capacity, Type genericType)
         {
-            listType = _type.MakeGenericType(genericType);
+            Type listType = ListTypeNoT.MakeGenericType(genericType);
             object[] args = new object[] { capacity };
 
             return (IList)Activator.CreateInstance(listType, args)!;
@@ -54,10 +55,12 @@ namespace ListFunctions.Cmdlets.Construct
 
         protected override void ProcessRecord()
         {
-            if (this.InputObject is null)
+            if (this.InputObject is null || this.InputObject.Length <= 0)
             {
                 return;
             }
+
+            Type genericType = this.GenericType;
 
             foreach (object? item in this.InputObject)
             {
@@ -65,20 +68,10 @@ namespace ListFunctions.Cmdlets.Construct
                 {
                     continue;
                 }
-
-                if (LanguagePrimitives.TryConvertTo(item, this.GenericType, out object? converted))
+                else if (this.TryConvertItem(item, genericType, out object? result))
                 {
-                    _ = _list.Add(converted);
+                    _list.Add(result);
                 }
-                else
-                {
-                    string type = item?.GetType().FullName ?? "null";
-
-                    this.WriteError(new ErrorRecord(
-                        new InvalidCastException($"Unable to convert item of type '{type}' to '{this.GenericType.FullName}'."),
-                        typeof(InvalidCastException).Name, ErrorCategory.InvalidData,
-                        item));
-                } 
             }
         }
         protected override void EndProcessing()

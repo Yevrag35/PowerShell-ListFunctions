@@ -1,4 +1,7 @@
-﻿using System.Management.Automation;
+﻿using ListFunctions.Extensions;
+using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Management.Automation;
 
 namespace ListFunctions.Cmdlets
 {
@@ -18,6 +21,37 @@ namespace ListFunctions.Cmdlets
             return errorObj is ActionPreference actionPref
                 ? actionPref
                 : default;
+        }
+
+        protected bool TryConvertItem(object? item, Type convertTo, [NotNullWhen(true)] out object? result)
+        {
+            try
+            {
+                result = LanguagePrimitives.ConvertTo(item, convertTo);
+                return !(result is null);
+            }
+            catch (PSInvalidCastException e)
+            {
+                this.WriteConversionError(e, item, convertTo);
+                result = null;
+                return false;
+            }
+        }
+
+        private void WriteConversionError(PSInvalidCastException thrownException, object? item, Type convertToType)
+        {
+            string type = item?.GetType().FullName ?? "null";
+            string? itemAsStr = item?.ToString();
+            string errorId = thrownException.GetType().GetTypeName();
+            ErrorCategory cat = ErrorCategory.InvalidType;
+
+            var castEx = new LFInvalidCastException(thrownException, convertToType, item);
+
+            this.WriteError(new ErrorRecord(
+                exception: castEx,
+                errorId: errorId,
+                errorCategory: cat,
+                targetObject: item));
         }
     }
 }
