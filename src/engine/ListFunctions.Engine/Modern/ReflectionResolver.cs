@@ -21,6 +21,11 @@ namespace ListFunctions.Modern
 
         public static MethodInfo GetAddMethod(Type collectionType, Type[] types)
         {
+            if (typeof(Hashtable).Equals(collectionType))
+            {
+                return GetHashtableAdd();
+            }
+
             Guard.NotNull(types, nameof(types));
             if (types.Length <= 0 || types.Length > 2)
             {
@@ -50,6 +55,12 @@ namespace ListFunctions.Modern
         public static MethodInfo GetCollectionAdd<TCol, TItem>() where TCol : ICollection<TItem>
         {
             return GetCollectionAddMethod<TCol>(col => col.Add(default!));
+        }
+
+        private static MethodInfo GetHashtableAdd()
+        {
+            Expression<Action<Hashtable>> exp = (x) => x.Add(default!, default!);
+            return ((MethodCallExpression)exp.Body).Method;
         }
 
         public static MethodInfo GetDictionaryAdd<TDict, TKey, TValue>()

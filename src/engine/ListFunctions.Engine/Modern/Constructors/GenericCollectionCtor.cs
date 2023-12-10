@@ -15,12 +15,10 @@ namespace ListFunctions.Modern.Constructors
     {
         public static readonly Type ObjectType = typeof(object);
 
-        readonly bool _hasNoTypes;
-
-        public Type ConstructingGenericType { get; }
+        public Type ConstructingGenericType { get; private set; }
         public Type GenericDefinitionType { get; }
-        public Type[] GenericArgumentTypes { get; }
-        public bool HasGenerics => !_hasNoTypes;
+        public Type[] GenericArgumentTypes { get; private set; }
+        public bool HasGenerics => this.GenericArgumentTypes.Length > 0;
 
         protected GenericCollectionCtor(Type genericDefinition, Type[]? genericTypes, CreateConstructingType? makeConstructingTypeCallback)
         {
@@ -28,7 +26,7 @@ namespace ListFunctions.Modern.Constructors
             GuardDefinition(genericDefinition);
 
             this.GenericDefinitionType = genericDefinition;
-            this.GenericArgumentTypes = SetGenericTypes(genericTypes, out _hasNoTypes);
+            this.GenericArgumentTypes = SetGenericTypes(genericTypes);
             this.ConstructingGenericType = makeConstructingTypeCallback is null
                 ? MakeConstructingType(genericDefinition, this.GenericArgumentTypes)
                 : makeConstructingTypeCallback(genericDefinition, this.GenericArgumentTypes);
@@ -38,7 +36,12 @@ namespace ListFunctions.Modern.Constructors
         {
             if (this.ShouldConstructDefault(this.GenericArgumentTypes))
             {
-                return this.ConstructDefault();
+                object defCol = this.ConstructDefault();
+                this.ConstructingGenericType = defCol.GetType();
+                this.GenericArgumentTypes = this.ConstructingGenericType.GetGenericArguments()
+                    ?? Array.Empty<Type>();
+
+                return defCol;
             }
 
             object?[]? ctorArgs = this.EnumerateCtorArguments(this.GenericArgumentTypes);
@@ -107,12 +110,10 @@ namespace ListFunctions.Modern.Constructors
             return genericTypeDefinition.MakeGenericType(genericTypes);
         }
         protected abstract bool ShouldConstructDefault(Type[] genericTypes);
-        private static Type[] SetGenericTypes(IReadOnlyList<Type>? types, out bool isEmpty)
+        private static Type[] SetGenericTypes(IReadOnlyList<Type>? types)
         {
-            isEmpty = false;
             if (types is null || types.Count <= 0)
             {
-                isEmpty = true;
                 return Array.Empty<Type>();
             }
 

@@ -53,7 +53,7 @@ namespace ListFunctions.Cmdlets.Construct
 
         protected override void Process(object collection, Type collectionType)
         {
-            if (!this.HasAddMethod || this.InputObject is null)
+            if (this.InputObject is null)
             {
                 return;
             }

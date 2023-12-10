@@ -76,13 +76,6 @@ namespace ListFunctions.Cmdlets.Construct
         {
             if (null != this.InputObject && this.InputObject.Count > 0)
             {
-                if (!this.HasAddMethod)
-                {
-                    this.AddMethod = collection is Hashtable
-                        ? GetHashtableAddMethod(x => x.Add(string.Empty, null))
-                        : GetAddMethod(collectionType);
-                }
-
                 object?[] args = new object?[2];
                 foreach (DictionaryEntry de in this.InputObject)
                 {

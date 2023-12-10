@@ -23,26 +23,15 @@ namespace ListFunctions.Cmdlets.Construct
         static readonly Type _stringType = typeof(string);
         static readonly string _addName = nameof(ICollection<object>.Add);
 
-        private MethodInfo? _addMethod;
+        private AddMethodInvoker _addMethod = null!;
         private RuntimeDefinedParameter _caseSensitive = null!;
         private T _collection = default!;
         private Type _collectionType = null!;
         private RuntimeDefinedParameterDictionary? _dict = null!;
         private Type[] _genericTypes = null!;
-
-        protected MethodInfo? AddMethod
-        {
-            get => _addMethod;
-            set
-            {
-                _addMethod = value;
-                this.HasAddMethod = !(_addMethod is null);
-            }
-        }
 #if NET5_0_OR_GREATER
         [MemberNotNullWhen(true, nameof(_addMethod))]
 #endif
-        protected bool HasAddMethod { get; private set; }
         private RuntimeDefinedParameterDictionary DynParamLib
         {
             get => _dict ??= new RuntimeDefinedParameterDictionary();
@@ -73,6 +62,9 @@ namespace ListFunctions.Cmdlets.Construct
             _collection = (T)ctor.Construct();
 
             _collectionType = ctor.ConstructingGenericType;
+            _genericTypes = ctor.GenericArgumentTypes;
+            _addMethod = new AddMethodInvoker(ctor);
+
             this.Begin(_collection, _collectionType);
         }
         protected virtual void Begin(T collection, Type genericBaseType)
@@ -130,7 +122,7 @@ namespace ListFunctions.Cmdlets.Construct
 
         protected void AddToCollection(T collection, object?[]? items, Func<object?, Type[], object?> conversion)
         {
-            if (_addMethod is null || items is null || items.Length < 1 || items[0] is null)
+            if (collection is null || items is null || items.Length < 1 || items[0] is null)
             {
                 return;
             }
@@ -140,42 +132,23 @@ namespace ListFunctions.Cmdlets.Construct
                 items[i] = conversion(items[i], _genericTypes);
             }
 
-            try
+            if (!_addMethod.TryInvoke(collection, items, false, out Exception? caughtEx))
             {
-                _addMethod.Invoke(collection, items);
-            }
-            catch (Exception e)
-            {
-                this.WriteError(e.ToRecord(ErrorCategory.InvalidOperation, items));
+                this.WriteError(caughtEx.ToRecord(ErrorCategory.InvalidOperation, items));
             }
         }
         protected void AddToCollection(T collection, object?[]? item, bool addIfNull)
         {
-            if (_addMethod is null || (item is null && !addIfNull))
+            if (collection is null || (item is null && !addIfNull))
             {
                 return;
             }
 
-            try
-            {
-                _addMethod.Invoke(collection, item);
-            }
-            catch (Exception e)
-            {
-                this.WriteError(e.ToRecord(ErrorCategory.InvalidOperation, item));
-            }
-        }
+            item ??= new object?[] { null };
 
-        private static MethodInfo? GetAddMethod(Type baseType, Type[] genericTypes)
-        {
-            try
+            if (!_addMethod.TryInvoke(collection, item, false, out Exception? caughtEx))
             {
-                return ReflectionResolver.GetAddMethod(baseType, genericTypes);
-            }
-            catch (Exception e)
-            {
-                Debug.Fail(e.Message);
-                return null;
+                this.WriteError(caughtEx.ToRecord(ErrorCategory.InvalidOperation, item));
             }
         }
         
