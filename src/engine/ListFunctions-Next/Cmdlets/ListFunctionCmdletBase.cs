@@ -7,6 +7,7 @@ namespace ListFunctions.Cmdlets
 {
     public abstract class ListFunctionCmdletBase : PSCmdlet
     {
+        protected const string WITH_CUSTOM_EQUALITY = "WithCustomEquality";
         const string PREFERENCE = "Preference";
         protected const string ERROR_ACTION = "ErrorAction";
         protected const string ERROR_ACTION_PREFERENCE = ERROR_ACTION + PREFERENCE;

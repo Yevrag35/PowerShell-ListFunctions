@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Management.Automation;
 
 namespace ListFunctions.Modern.Constructors
 {
@@ -22,11 +23,10 @@ namespace ListFunctions.Modern.Constructors
         }
         protected override HashSet<object> ConstructTDefault(IEqualityComparer comparer)
         {
-            IEqualityComparer<object> useComparer = comparer is IEqualityComparer<object> gc
-                ? gc
-                : EqualityComparer<object>.Default;
-
-            return new HashSet<object>(useComparer);
+            return new HashSet<object>(new ObjectEqualityComparer()
+            {
+                IgnoreCase = !this.IsCaseSensitive,
+            });
         }
         protected sealed override Type GetTypeForEquality()
         {
@@ -37,6 +37,38 @@ namespace ListFunctions.Modern.Constructors
             return ObjectType.Equals(_equalityType)
                    ||
                    base.ShouldConstructDefault(comparer, genericTypes);
+        }
+
+        private sealed class ObjectEqualityComparer : IEqualityComparer<object?>, IEqualityComparer
+        {
+            internal bool IgnoreCase { get; set; }
+
+            public new bool Equals(object? x, object? y)
+            {
+                return LanguagePrimitives.Equals(x, y, this.IgnoreCase);
+            }
+
+            public int GetHashCode(object? obj)
+            {
+                Guard.NotNull(obj, nameof(obj));
+
+                if (obj is string s)
+                {
+                    return this.IgnoreCase
+                        ? StringComparer.InvariantCultureIgnoreCase.GetHashCode(s)
+                        : StringComparer.InvariantCulture.GetHashCode(s);
+                }
+                else if (LanguagePrimitives.TryConvertTo(obj, out string? resStr))
+                {
+                    return this.IgnoreCase
+                        ? StringComparer.InvariantCultureIgnoreCase.GetHashCode(resStr)
+                        : StringComparer.InvariantCulture.GetHashCode(resStr);
+                }
+                else
+                {
+                    return obj.GetHashCode();
+                }
+            }
         }
     }
 }

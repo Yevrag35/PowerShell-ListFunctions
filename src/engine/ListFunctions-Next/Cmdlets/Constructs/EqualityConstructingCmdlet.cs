@@ -17,7 +17,6 @@ namespace ListFunctions.Cmdlets.Construct
     {
         protected const string CASE_SENSE = "CaseSensitive";
         protected const string JUST_COPY = "JustCopy";
-        protected const string WITH_CUSTOM_EQUALITY = "WithCustomEquality";
         protected const string AND_COPY = WITH_CUSTOM_EQUALITY + "AndCopy";
         
         static readonly Type _stringType = typeof(string);
