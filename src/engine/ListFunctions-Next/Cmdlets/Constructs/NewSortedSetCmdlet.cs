@@ -1,4 +1,7 @@
+using ListFunctions.Extensions;
+using ListFunctions.Modern;
 using ListFunctions.Modern.Constructors;
+using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
 using System;
 using System.Collections;
@@ -13,11 +16,21 @@ namespace ListFunctions.Cmdlets.Constructs
     [OutputType(typeof(SortedSet<>))]
     public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
     {
+        AddMethodInvoker _addMethod = null!;
+        object[] _arr = null!;
+        SortingCollectorCtor _ctor = null!;
+        object _set = null!;
+
         [Parameter(Mandatory = false, Position = 0)]
         [ArgumentToTypeTransform]
         [PSDefaultValue(Value = typeof(object))]
         [Alias("Type")]
         public Type GenericType { get; set; } = null!;
+
+        [Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
+        [ValidateScriptVariable(PSComparingVariable.X, PSComparingVariable.LEFT)]
+        [ValidateScriptVariable(PSComparingVariable.Y, PSComparingVariable.RIGHT)]
+        public ScriptBlock ComparingScript { get; set; } = null!;
 
         [Parameter(ValueFromPipeline = true)]
         public object[] InputObject { get; set; } = null!;
@@ -31,15 +44,45 @@ namespace ListFunctions.Cmdlets.Constructs
             this.GenericType ??= typeof(object);
             IComparer? comparer = this.GetCustomComparer(this.GenericType);
 
-            var ctor = new SortingCollectorCtor(this.GenericType, comparer);
+            _ctor = new SortingCollectorCtor(this.GenericType, comparer);
+            _set = _ctor.Construct();
+            
+        }
+        protected override void ProcessRecord()
+        {
+            if (null != this.InputObject && this.InputObject.Length > 0)
+            {
+                _addMethod ??= new AddMethodInvoker(_ctor);
+                _arr ??= new object[1];
 
-            object col = ctor.Construct();
-            this.WriteObject(col, false);
+                foreach (object? item in this.InputObject)
+                {
+                    if (null != item && LanguagePrimitives.TryConvertTo(item, this.GenericType, out object? result))
+                    {
+                        _arr[0] = result;
+                        if (!_addMethod.TryInvoke(_set, _arr, false, out Exception? caught))
+                        {
+                            this.WriteError(caught.ToRecord(ErrorCategory.InvalidType, item));
+                        }
+                    }
+                }
+            }
+        }
+        protected override void EndProcessing()
+        {
+            this.WriteObject(_set, false);
         }
 
         private IComparer? GetCustomComparer(Type genericType)
         {
-            return null;
+            return this.MyInvocation.BoundParameters.ContainsKey(nameof(this.ComparingScript))
+                ? ComparingBlock.Create(this.ComparingScript, genericType, this.GetAction())
+                : null;
+        }
+
+        private IEnumerable<PSVariable> GetAction()
+        {
+            yield return new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction);
         }
     }
 }

@@ -61,7 +61,11 @@ namespace ListFunctions.Modern.Constructors
         }
         protected override bool ShouldConstructDefault(Type[] genericTypes)
         {
-            return ObjectType.Equals(_sortedType);
+            return ObjectType.Equals(_sortedType)
+                   &&
+                   (_comparer is null
+                    ||
+                    !(_comparer is IComparingBlock));
         }
         private static Type[] ToTypeArray([NotNull] ref Type? genericType)
         {

@@ -49,7 +49,7 @@ namespace ListFunctions.Modern
     public sealed class EqualityBlock<T> : ComparingBase<T>, IEqualityBlock, IEqualityComparer<T>
     {
         readonly List<PSVariable> _varList;
-        readonly IEnumerable<PSVariable> _additionalVariables;
+        readonly PSVariable[] _additionalVariables;
         readonly IHashCodeBlock _hashCodeBlock;
         readonly PSComparingVariable<T> _left;
         readonly PSComparingVariable<T> _right;
@@ -73,7 +73,9 @@ namespace ListFunctions.Modern
             : base(scriptBlock, preValidated)
         {
             Guard.NotNull(hashCodeBlock, nameof(hashCodeBlock));
-            additionalVariables ??= Array.Empty<PSVariable>();
+            _additionalVariables = additionalVariables is null
+                ? Array.Empty<PSVariable>()
+                : additionalVariables.ToArray();
 
             _checksType = typeof(T);
             if (!typeof(T).Equals(hashCodeBlock.HashesType))
@@ -81,7 +83,6 @@ namespace ListFunctions.Modern
                 throw new ArgumentException($"{nameof(hashCodeBlock)} does not hash type '{typeof(T).FullName}'.");
             }
 
-            _additionalVariables = additionalVariables;
             _hashCodeBlock = hashCodeBlock;
             _varList = new List<PSVariable>(4);
             _left = PSComparingVariable<T>.Left();
@@ -104,7 +105,7 @@ namespace ListFunctions.Modern
             _right.AddToVarList(y, _varList);
             _varList.AddRange(_additionalVariables);
 
-            return this.Script.InvokeWithContext(_varList, x => Convert.ToBoolean(x));
+            return this.Script.InvokeWithContext(_varList, x => LanguagePrimitives.ConvertTo<bool>(x));
         }
         bool IEqualityComparer.Equals(object? x, object? y)
         {
