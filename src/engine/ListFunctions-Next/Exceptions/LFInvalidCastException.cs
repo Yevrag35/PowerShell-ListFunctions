@@ -5,7 +5,7 @@ using System.Linq;
 using System.Management.Automation;
 using System.Reflection;
 
-namespace ListFunctions
+namespace ListFunctions.Exceptions
 {
     public sealed class LFInvalidCastException : PSInvalidCastException
     {

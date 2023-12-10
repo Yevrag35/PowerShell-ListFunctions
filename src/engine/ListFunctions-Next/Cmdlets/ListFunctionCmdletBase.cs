@@ -1,4 +1,5 @@
-﻿using ListFunctions.Extensions;
+﻿using ListFunctions.Exceptions;
+using ListFunctions.Extensions;
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
