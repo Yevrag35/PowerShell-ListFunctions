@@ -1,5 +1,6 @@
 ﻿using ListFunctions.Extensions;
 using ListFunctions.Modern;
+using ListFunctions.Modern.Constructors;
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
 using System;
@@ -17,10 +18,8 @@ namespace ListFunctions.Cmdlets.Construct
     [OutputType(typeof(HashSet<>))]
     public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDynamicParameters
     {
-        private const string DYN_PSET_NAME = "StringSet";
-        static readonly Type _hashType = typeof(HashSet<>);
+        const string DYN_PSET_NAME = "StringSet";
 
-        protected override Type BaseType => _hashType;
         protected override string CaseSensitiveParameterSetName => DYN_PSET_NAME;
 
         [Parameter]
@@ -50,37 +49,7 @@ namespace ListFunctions.Cmdlets.Construct
         [PSDefaultValue(Value = ActionPreference.Stop)]
         public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.Stop;
 
-        protected override object[]? GetConstructorArguments(Type[] genericTypes, IEqualityComparer? comparer)
-        {
-            return new object[] { this.Capacity, comparer! };
-        }
-
-        protected override IEqualityComparer? GetCustomEqualityComparer(Type genericType)
-        {
-            if (!WITH_CUSTOM_EQUALITY.Equals(this.ParameterSetName, StringComparison.InvariantCultureIgnoreCase))
-            {
-                return base.GetCustomEqualityComparer(genericType); 
-            }
-
-            IHashCodeBlock hashBlock = HashCodeBlock.CreateBlock(genericType, this.HashCodeScript);
-            ActionPreference errorPreference = this.ScriptBlockErrorAction;
-
-            PSVariable[] additional = new PSVariable[] { 
-                new PSVariable(ERROR_ACTION_PREFERENCE, errorPreference) };
-
-            return EqualityBlock.CreateBlock(genericType, hashBlock, this.EqualityScript, additional);
-        }
-        protected override Type[]? GetGenericTypes()
-        {
-            this.GenericType ??= typeof(object);
-
-            return new Type[] { this.GenericType };
-        }
-
-        protected override Type GetEqualityForType()
-        {
-            return this.GenericType;
-        }
+        #region PROCESSING
 
         protected override void Process(object collection, Type collectionType)
         {
@@ -103,13 +72,44 @@ namespace ListFunctions.Cmdlets.Construct
             this.WriteObject(collection, false);
         }
 
-        protected override object ConstructOnTypesMissing(IEqualityComparer? comparer)
-        {
-            IEqualityComparer<object> genComparer = comparer is IEqualityComparer<object> gc
-                ? gc
-                : EqualityComparer<object>.Default;
+        #endregion
 
-            return new HashSet<object>(genComparer);
+        #region BACKEND
+        protected override EqualityCollectionCtor GetConstructor(IEqualityComparer? comparer, Type[]? genericTypes)
+        {
+            return new HashSetCtor(genericTypes is null || genericTypes.Length <= 0
+                ? typeof(object)
+                : genericTypes[0], comparer)
+            {
+                IsCaseSensitive = this.CaseSensitive,
+            };
         }
+        protected override IEqualityComparer? GetCustomEqualityComparer(Type genericType)
+        {
+            if (!this.ParameterSetName.StartsWith(WITH_CUSTOM_EQUALITY, StringComparison.OrdinalIgnoreCase))
+            {
+                return base.GetCustomEqualityComparer(genericType);
+            }
+
+            IHashCodeBlock hashBlock = HashCodeBlock.CreateBlock(genericType, this.HashCodeScript);
+            ActionPreference errorPreference = this.ScriptBlockErrorAction;
+
+            PSVariable[] additional = new PSVariable[] {
+                new PSVariable(ERROR_ACTION_PREFERENCE, errorPreference) };
+
+            return EqualityBlock.CreateBlock(genericType, hashBlock, this.EqualityScript, additional);
+        }
+        protected override Type GetEqualityForType()
+        {
+            return this.GenericType ??= typeof(object);
+        }
+        protected override Type[]? GetGenericTypes()
+        {
+            this.GenericType ??= typeof(object);
+
+            return new Type[] { this.GenericType };
+        }
+
+        #endregion
     }
 }

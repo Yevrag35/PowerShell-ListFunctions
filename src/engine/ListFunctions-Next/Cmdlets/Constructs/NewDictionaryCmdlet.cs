@@ -1,5 +1,6 @@
 ﻿using ListFunctions.Extensions;
 using ListFunctions.Modern;
+using ListFunctions.Modern.Constructors;
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
 using System;
@@ -21,10 +22,8 @@ namespace ListFunctions.Cmdlets.Construct
         const string CLONE_VALUES = "CloneValues";
         const string STR_DICT = "StringDict";
 
-        static readonly Type _baseType = typeof(Dictionary<,>);
         bool _cloneValues;
 
-        protected override Type BaseType => _baseType;
         protected override string CaseSensitiveParameterSetName => STR_DICT;
 
         [Parameter]
@@ -75,7 +74,7 @@ namespace ListFunctions.Cmdlets.Construct
 
         protected override void Process(IDictionary collection, Type collectionType)
         {
-            if (!(this.InputObject is null) && this.InputObject.Count > 0)
+            if (null != this.InputObject && this.InputObject.Count > 0)
             {
                 if (!this.HasAddMethod)
                 {
@@ -100,6 +99,14 @@ namespace ListFunctions.Cmdlets.Construct
         }
 
         #region BACKEND
+        protected override EqualityCollectionCtor GetConstructor(IEqualityComparer? comparer, Type[]? genericTypes)
+        {
+            return new DictionaryCtor(comparer, this.KeyType, this.ValueType)
+            {
+                IsCaseSensitive = this.CaseSensitive,
+            };
+        }
+
         [return: NotNullIfNotNull(nameof(value))]
         private static object? CloneValue(object? value, bool wantsCloning)
         {
@@ -116,17 +123,14 @@ namespace ListFunctions.Cmdlets.Construct
             };
         }
 
-        protected override IDictionary ConstructOnTypesMissing(IEqualityComparer? comparer)
+        private static MethodInfo GetAddMethod(Type genericBaseType)
         {
-            comparer ??= StringComparer.InvariantCultureIgnoreCase;
-
-            return new Hashtable(this.Capacity, comparer);
+            return genericBaseType.GetMethod(nameof(Dictionary<object, object>.Add),
+                bindingAttr: BindingFlags.Public | BindingFlags.Instance,
+                binder: null,
+                types: genericBaseType.GetGenericArguments(),
+                modifiers: null)!;
         }
-        protected override object[]? GetConstructorArguments(Type[] genericTypes, IEqualityComparer? comparer)
-        {
-            return new object[] { this.Capacity, comparer! };
-        }
-
         protected override IEqualityComparer? GetCustomEqualityComparer(Type genericType)
         {
             if (!WITH_CUSTOM_EQUALITY.Equals(this.ParameterSetName, StringComparison.InvariantCultureIgnoreCase))
@@ -145,7 +149,7 @@ namespace ListFunctions.Cmdlets.Construct
 
         protected override Type GetEqualityForType()
         {
-            return this.KeyType ?? typeof(object);
+            return this.KeyType ??= typeof(object);
         }
         protected override Type[]? GetGenericTypes()
         {
@@ -157,30 +161,6 @@ namespace ListFunctions.Cmdlets.Construct
                 ? new Type[] { this.KeyType, this.ValueType }
                 : null;
         }
-
-        //static readonly Type _kvpType = typeof(KeyValuePair<,>);
-        //[return: NotNullIfNotNull(nameof(item))]
-        //private static DictionaryEntry? GetKeyValuePair(object? item, Type keyType, Type valueType)
-        //{
-        //    if (item is null)
-        //    {
-        //        return null;
-        //    }
-
-        //    var kvpType = _kvpType.MakeGenericType(keyType, valueType);
-
-
-        //}
-
-        private static MethodInfo GetAddMethod(Type genericBaseType)
-        {
-            return genericBaseType.GetMethod(nameof(Dictionary<object, object>.Add),
-                bindingAttr: BindingFlags.Public | BindingFlags.Instance,
-                binder: null,
-                types: genericBaseType.GetGenericArguments(),
-                modifiers: null)!;
-        }
-
         private static MethodInfo GetHashtableAddMethod(Expression<Action<Hashtable>> addExpression)
         {
             return addExpression.Body is MethodCallExpression methodCall

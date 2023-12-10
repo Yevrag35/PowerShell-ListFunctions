@@ -1,5 +1,6 @@
 ﻿using ListFunctions.Extensions;
 using ListFunctions.Modern;
+using ListFunctions.Modern.Constructors;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -18,7 +19,7 @@ namespace ListFunctions.Cmdlets.Construct
         protected const string JUST_COPY = "JustCopy";
         protected const string WITH_CUSTOM_EQUALITY = "WithCustomEquality";
         protected const string AND_COPY = WITH_CUSTOM_EQUALITY + "AndCopy";
-        static readonly Type _defComparerType = typeof(EqualityComparer<>);
+        
         static readonly Type _stringType = typeof(string);
         static readonly string _addName = nameof(ICollection<object>.Add);
 
@@ -38,7 +39,6 @@ namespace ListFunctions.Cmdlets.Construct
                 this.HasAddMethod = !(_addMethod is null);
             }
         }
-        protected abstract Type BaseType { get; }
 #if NET5_0_OR_GREATER
         [MemberNotNullWhen(true, nameof(_addMethod))]
 #endif
@@ -62,6 +62,47 @@ namespace ListFunctions.Cmdlets.Construct
                 ? this.DynParamLib
                 : null;
         }
+
+        #region PROCESSING
+        protected sealed override void BeginProcessing()
+        {
+            Type[]? genericTypes = this.GetGenericTypes();
+            IEqualityComparer? comparer = this.GetCustomEqualityComparer(this.GetEqualityForType());
+
+            var ctor = this.GetConstructor(comparer, genericTypes);
+            _collection = (T)ctor.Construct();
+
+            _collectionType = ctor.ConstructingGenericType;
+            this.Begin(_collection, _collectionType);
+        }
+        protected virtual void Begin(T collection, Type genericBaseType)
+        {
+            return;
+        }
+
+        protected sealed override void ProcessRecord()
+        {
+            this.Process(_collection, _collectionType);
+        }
+        protected virtual void Process(T collection, Type collectionType)
+        {
+            return;
+        }
+
+        protected sealed override void EndProcessing()
+        {
+            this.End(_collection);
+        }
+        protected virtual void End(T collection)
+        {
+            return;
+        }
+
+        #endregion
+
+        #region BACKEND
+        protected abstract EqualityCollectionCtor GetConstructor(IEqualityComparer? comparer, Type[]? genericTypes);
+
         protected virtual bool TryGetDynamicParameters(RuntimeDefinedParameterDictionary paramDict, bool hasCaseSensitive)
         {
             return hasCaseSensitive;
@@ -69,7 +110,7 @@ namespace ListFunctions.Cmdlets.Construct
         private bool TryGetDynamicCaseParam(Type genericType, string parameterSetName)
         {
             bool returnLib = false;
-            if (_stringType.Equals(genericType))
+            if (EqualityCollectionCtor.IsTypeObjectOrString(genericType))
             {
                 _caseSensitive ??= new RuntimeDefinedParameter(CASE_SENSE, typeof(SwitchParameter),
                     new Collection<Attribute>()
@@ -114,7 +155,7 @@ namespace ListFunctions.Cmdlets.Construct
             {
                 return;
             }
-            
+
             try
             {
                 _addMethod.Invoke(collection, item);
@@ -131,100 +172,11 @@ namespace ListFunctions.Cmdlets.Construct
             {
                 return ReflectionResolver.GetAddMethod(baseType, genericTypes);
             }
-            //try
-            //{
-            //    return baseType.GetMethod(
-            //        _addName,
-            //        BindingFlags.Instance | BindingFlags.Public,
-            //        null,
-            //        genericTypes,
-            //        null);
-            //}
             catch (Exception e)
             {
                 Debug.Fail(e.Message);
                 return null;
             }
-        }
-
-        protected sealed override void BeginProcessing()
-        {
-            Type[]? genericTypes = this.GetGenericTypes();
-
-            if (genericTypes is null)
-            {
-                IEqualityComparer? comparer = this.GetCustomEqualityComparer(typeof(object));
-                _collection = this.ConstructOnTypesMissing(comparer);
-            }
-            else
-            {
-                _collection = this.ConstructCollection(genericTypes);
-            }
-
-            Guard.NotNull(_collection, "collection");
-            _collectionType = _collection.GetType();
-            this.Begin(_collection, _collectionType);
-        }
-
-        private T ConstructCollection(Type[] genericTypes)
-        {
-            Type genericBaseType = this.MakeGenericType(genericTypes);
-            Type equalityType = this.GetEqualityForType();
-            IEqualityComparer? comparer = this.GetCustomEqualityComparer(equalityType);
-            comparer ??= GetDefaultComparer(equalityType, this.CaseSensitive);
-
-            object[]? ctorArgs = this.GetConstructorArguments(genericTypes, comparer);
-            try
-            {
-                return (T)Activator.CreateInstance(genericBaseType, ctorArgs)!;
-            }
-            catch (Exception e)
-            {
-                this.ThrowTerminatingError(e.ToRecord(ErrorCategory.InvalidOperation, genericBaseType));
-                return default!; // this won't happen.
-            }
-        }
-
-        protected virtual void Begin(T collection, Type genericBaseType)
-        {
-            return;
-        }
-
-        protected sealed override void ProcessRecord()
-        {
-            this.Process(_collection, _collectionType);
-        }
-        protected virtual void Process(T collection, Type collectionType)
-        {
-            return;
-        }
-
-        protected sealed override void EndProcessing()
-        {
-            this.End(_collection);
-        }
-        protected virtual void End(T collection)
-        {
-            return;
-        }
-
-        protected abstract T ConstructOnTypesMissing(IEqualityComparer? comparer);
-        protected abstract object[]? GetConstructorArguments(Type[] genericTypes, IEqualityComparer? comparer);
-        protected static IEqualityComparer? GetDefaultComparer(Type genericType, bool caseSensitive)
-        {
-            if (typeof(string).Equals(genericType))
-            {
-                return !caseSensitive
-                    ? StringComparer.InvariantCultureIgnoreCase
-                    : StringComparer.InvariantCulture;
-            }
-
-            var genStaticType = _defComparerType.MakeGenericType(genericType);
-
-            PropertyInfo? defaultProp = genStaticType.GetProperty(
-                nameof(EqualityComparer<object>.Default), BindingFlags.Static | BindingFlags.Public);
-
-            return (IEqualityComparer?)defaultProp?.GetValue(null);
         }
         
         protected virtual IEqualityComparer? GetCustomEqualityComparer(Type genericType)
@@ -234,22 +186,11 @@ namespace ListFunctions.Cmdlets.Construct
         protected abstract Type[]? GetGenericTypes();
         protected abstract Type GetEqualityForType();
 
-        /// <exception cref="ArgumentNullException"/>
-        private Type MakeGenericType(Type[] genericTypes)
-        {
-            Guard.NotNull(genericTypes, nameof(genericTypes));
-
-            _genericTypes = genericTypes;
-            Type genBaseType = this.BaseType.MakeGenericType(genericTypes);
-
-            _addMethod = GetAddMethod(genBaseType, genericTypes);
-            this.HasAddMethod = true;
-            return genBaseType;
-        }
-
         private static bool RetrieveCaseSensitiveSetting(RuntimeDefinedParameter? parameter)
         {
             return !(parameter is null) && parameter.Value is SwitchParameter swParam && swParam.ToBool();
         }
+
+        #endregion
     }
 }
