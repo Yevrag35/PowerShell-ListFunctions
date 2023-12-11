@@ -2,6 +2,7 @@
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Management.Automation;
@@ -15,7 +16,8 @@ namespace ListFunctions.Cmdlets.Assertions
     [OutputType(typeof(bool))]
     public sealed class AssertAllObjectsCmdlet : ListFunctionCmdletBase
     {
-        List<object?> _list = null!;
+        ScriptBlockFilter<object> _equality = null!;
+        bool _stop;
 
         [Parameter(Mandatory = true, ValueFromPipeline = true)]
         [AllowEmptyCollection]
@@ -32,31 +34,18 @@ namespace ListFunctions.Cmdlets.Assertions
 
         protected override void BeginProcessing()
         {
-            _list = new List<object?>();
+            _equality = new ScriptBlockFilter<object>(this.Condition, EnumerateVariables(this.ScriptBlockErrorAction));
         }
         protected override void ProcessRecord()
         {
-            if (this.InputObject is null)
+            if (!_stop)
             {
-                _list.Add(null);
-            }
-            else
-            {
-                _list.AddRange(this.InputObject);
+                _stop = !_equality.All(this.InputObject);
             }
         }
         protected override void EndProcessing()
         {
-            if (_list.Count <= 0)
-            {
-                this.WriteObject(false);
-                return;
-            }
-
-            ScriptBlockFilter<object> equality = new ScriptBlockFilter<object>(this.Condition, EnumerateVariables(this.ScriptBlockErrorAction));
-
-            bool hasAll = equality.All(_list!);
-            this.WriteObject(hasAll);
+            this.WriteObject(_stop);
         }
 
         private static IEnumerable<PSVariable> EnumerateVariables(ActionPreference errorPref)

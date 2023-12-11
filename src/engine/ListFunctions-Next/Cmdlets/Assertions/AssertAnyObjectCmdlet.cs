@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Management.Automation;
 using ListFunctions.Modern;
 using ListFunctions.Modern.Variables;
@@ -17,7 +18,8 @@ namespace ListFunctions.Cmdlets.Assertions
         ActionPreference _errorPref;
         bool _hasCondition;
         bool _hasNonNull;
-        List<object?> _list = null!;
+        ScriptBlockFilter<object> _equality = null!;
+        bool _stop;
 
         [Parameter(Mandatory = true, ValueFromPipeline = true)]
         [AllowEmptyCollection]
@@ -45,7 +47,10 @@ namespace ListFunctions.Cmdlets.Assertions
         protected override void BeginProcessing()
         {
             _errorPref = this.GetErrorPreference();
-            _list = new List<object?>();
+            if (this.HasCondition)
+            {
+                _equality = new ScriptBlockFilter<object>(this.Condition!, EnumerateVariables(_errorPref));
+            }
         }
         protected override void ProcessRecord()
         {
@@ -58,8 +63,10 @@ namespace ListFunctions.Cmdlets.Assertions
 
                 return;
             }
-
-            ProcessWhenCondition(this.InputObject, ref _list);
+            else if (!_stop)
+            {
+                _stop = _equality.Any(this.InputObject);
+            }
         }
 
         private static void ProcessWhenCondition(object[]? inputObjects, ref List<object?> list)
@@ -95,10 +102,11 @@ namespace ListFunctions.Cmdlets.Assertions
                 this.WriteObject(_hasNonNull);
                 return;
             }
-
-            ScriptBlockFilter<object> equality = new ScriptBlockFilter<object>(this.Condition!, EnumerateVariables(_errorPref));
-            bool hasAny = equality.Any(_list!);
-            this.WriteObject(hasAny);
+            else
+            {
+                this.WriteObject(_stop);
+                return;
+            }
         }
 
         private static IEnumerable<PSVariable> EnumerateVariables(ActionPreference errorPref)
