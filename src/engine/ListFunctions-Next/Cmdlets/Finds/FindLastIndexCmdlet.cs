@@ -12,6 +12,7 @@ namespace ListFunctions.Cmdlets.Finds
 {
     [Cmdlet(VerbsCommon.Find, "LastIndexOf")]
     [Alias("Find-LastIndex", "LastIndexOf")]
+    [OutputType(typeof(int))]
     public sealed class FindLastIndexCmdlet : FindIndexCmdletBase
     {
         [Parameter(Mandatory = true, Position = 0)]

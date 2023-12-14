@@ -68,18 +68,6 @@ namespace ListFunctions.Cmdlets.Assertions
                 _stop = _equality.Any(this.InputObject);
             }
         }
-
-        private static void ProcessWhenCondition(object[]? inputObjects, ref List<object?> list)
-        {
-            if (inputObjects is null)
-            {
-                list.Add(null);
-            }
-            else if (inputObjects.Length > 0)
-            {
-                list.AddRange(inputObjects);
-            }
-        }
         private static void ProcessWhenNoCondition(object[]? inputObjects, ref bool hasNonNull)
         {
             if (!(inputObjects is null))
@@ -94,7 +82,6 @@ namespace ListFunctions.Cmdlets.Assertions
                 }
             }
         }
-
         protected override void EndProcessing()
         {
             if (!this.HasCondition)
