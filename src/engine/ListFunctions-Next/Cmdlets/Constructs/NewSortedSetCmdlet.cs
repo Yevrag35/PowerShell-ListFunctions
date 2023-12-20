@@ -50,21 +50,25 @@ namespace ListFunctions.Cmdlets.Constructs
         }
         protected override void ProcessRecord()
         {
-            if (null != this.InputObject && this.InputObject.Length > 0)
+            if (this.InputObject is null || this.InputObject.Length <= 0)
             {
-                _addMethod ??= new AddMethodInvoker(_ctor);
-                _arr ??= new object[1];
+                return;
+            }
 
-                foreach (object? item in this.InputObject)
+            _addMethod ??= new AddMethodInvoker(_ctor);
+            _arr ??= new object[1];
+
+            foreach (object? item in this.InputObject)
+            {
+                if (item is null || !LanguagePrimitives.TryConvertTo(item, this.GenericType, out object? result))
                 {
-                    if (null != item && LanguagePrimitives.TryConvertTo(item, this.GenericType, out object? result))
-                    {
-                        _arr[0] = result;
-                        if (!_addMethod.TryInvoke(_set, _arr, false, out Exception? caught))
-                        {
-                            this.WriteError(caught.ToRecord(ErrorCategory.InvalidType, item));
-                        }
-                    }
+                    continue;
+                }
+
+                _arr[0] = result;
+                if (!_addMethod.TryInvoke(_set, _arr, false, out Exception? caught))
+                {
+                    this.WriteError(caught.ToRecord(ErrorCategory.InvalidType, item));
                 }
             }
         }
@@ -73,16 +77,15 @@ namespace ListFunctions.Cmdlets.Constructs
             this.WriteObject(_set, false);
         }
 
+        private IEnumerable<PSVariable> GetAction()
+        {
+            yield return new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction);
+        }
         private IComparer? GetCustomComparer(Type genericType)
         {
             return this.MyInvocation.BoundParameters.ContainsKey(nameof(this.ComparingScript))
                 ? ComparingBlock.Create(this.ComparingScript, genericType, this.GetAction())
                 : null;
-        }
-
-        private IEnumerable<PSVariable> GetAction()
-        {
-            yield return new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction);
         }
     }
 }

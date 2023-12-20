@@ -4,7 +4,6 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
-[assembly: AssemblyDescription("A PowerShell module that provides functions to manipulate and search through Arrays, Collections, Lists, and Sets.")]
 [assembly: AssemblyMetadata("Author", "Mike Garvey")]
 [assembly: AssemblyMetadata("CompatiblePSEditions", "Core,Desktop")]
 [assembly: AssemblyMetadata("Guid", "731eae50-355d-4718-a2df-89d9beaae89e")]
@@ -14,6 +13,7 @@ using System.Runtime.CompilerServices;
 [assembly: AssemblyMetadata("PowerShellVersion", "5.1")]
 #if NET6_0_OR_GREATER
 [assembly: AssemblyMetadata("RootModule", "ListFunctions.Next.dll")]
+[assembly: AssemblyDescription("A PowerShell module that provides functions to manipulate and search through Arrays, Collections, Lists, and Sets.")]
 #else
 [assembly: AssemblyMetadata("RootModule", "ListFunctions.NETFramework.dll")]
 #endif
