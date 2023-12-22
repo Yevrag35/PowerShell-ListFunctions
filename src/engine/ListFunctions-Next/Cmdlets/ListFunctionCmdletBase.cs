@@ -42,8 +42,6 @@ namespace ListFunctions.Cmdlets
 
         private void WriteConversionError(PSInvalidCastException thrownException, object? item, Type convertToType)
         {
-            string type = item?.GetType().FullName ?? "null";
-            string? itemAsStr = item?.ToString();
             string errorId = thrownException.GetType().GetTypeName();
             ErrorCategory cat = ErrorCategory.InvalidType;
 

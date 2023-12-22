@@ -16,6 +16,8 @@ namespace ListFunctions.Exceptions
         readonly string? _itemAsStr;
         readonly string _message;
         readonly string? _stackTrace;
+
+        public override string Message => _message;
         public override string? StackTrace => _stackTrace ?? base.StackTrace;
         public override string? Source
         {
@@ -34,14 +36,39 @@ namespace ListFunctions.Exceptions
             this.ErrorRecord.CategoryInfo.TargetType = itemType ?? string.Empty;
             this.ErrorRecord.ErrorDetails = new ErrorDetails(_message)
             {
-                RecommendedAction = $"Validate that the object being passed can be converted to \"{convertingTo.GetTypeName()}\".",
+                RecommendedAction = ConstructRecommendedAction(convertingTo),
             };
 
             this.HResult = inner.HResult;
             this.HelpLink = inner.HelpLink;
         }
 
-        public override string Message => _message;
+#if NET6_0_OR_GREATER
+        const string RECOM_ACT = "Validate that the object being passed can be converted to \"";
+        private static string ConstructRecommendedAction(Type convertingTo)
+        {
+            string name = convertingTo.GetTypeName();
+            int length = RECOM_ACT.Length + name.Length + 2;
+
+            return string.Create(length, name, (chars, state) =>
+            {
+                RECOM_ACT.AsSpan().CopyTo(chars);
+                int pos = RECOM_ACT.Length;
+
+                state.AsSpan().CopyTo(chars.Slice(pos));
+                pos += state.Length;
+
+                chars[pos++] = '"';
+                chars[pos++] = '.';
+            });
+        }
+#else
+        const string RECOM_ACT = "Validate that the object being passed can be converted to \"{0}\".";
+        private static string ConstructRecommendedAction(Type convertingTo)
+        {
+            return string.Format(RECOM_ACT, convertingTo.GetTypeName());
+        }
+#endif  
 
         private static string FormatMessage(Exception inner, object? item, Type convertingTo, out string? itemAsStr, out string? itemType)
         {
