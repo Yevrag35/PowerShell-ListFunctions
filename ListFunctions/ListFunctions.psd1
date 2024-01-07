@@ -12,7 +12,7 @@
     RootModule        = 'ListFunctions.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '1.2.0'
+    ModuleVersion     = '2.0.0'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Desk', 'Core')
@@ -27,7 +27,7 @@
     CompanyName       = 'Yevrag35, LLC.'
 
     # Copyright statement for this module
-    Copyright         = 'Copyright (c) 2020-2022 Yevrag35, LLC.'
+    Copyright         = 'Copyright (c) 2020-2024 Yevrag35, LLC.'
 
     # Description of the functionality provided by this module
     Description       = 'A simple module that provides functions to manipulate and search through Arrays, Collections, Lists, and Sets.'
@@ -42,7 +42,7 @@
     # PowerShellHostVersion = ''
 
     # Minimum version of Microsoft .NET Framework required by this module. This prerequisite is valid for the PowerShell Desktop edition only.
-    # DotNetFrameworkVersion = ''
+    DotNetFrameworkVersion = '4.7.1'
 
     # Minimum version of the common language runtime (CLR) required by this module. This prerequisite is valid for the PowerShell Desktop edition only.
     # CLRVersion = ''
@@ -54,10 +54,10 @@
     # RequiredModules = @()
 
     # Assemblies that must be loaded prior to importing this module
-    RequiredAssemblies = @('assemblies\ListFunctions.Engine.dll')
+    # RequiredAssemblies = @()
 
     # Script files (.ps1) that are run in the caller's environment prior to importing this module.
-    #ScriptsToProcess  = @("private\ComparerBuilder.ps1")
+    # ScriptsToProcess  = @()
 
     # Type files (.ps1xml) to be loaded when importing this module
     # TypesToProcess = @()
@@ -69,32 +69,23 @@
     # NestedModules = @()
 
     # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-    FunctionsToExport = @(
-        "Assert-All",
-        "Assert-Any",
-        "Find-IndexOf",
-        "Find-LastIndexOf",
-        "New-HashSet",
-        "New-SortedSet",
-        "New-List",
-        "Remove-All",
-        "Remove-At"
-    )
+    FunctionsToExport = @()
 
     # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
-    CmdletsToExport   = @()
+    CmdletsToExport   = @(
+		'Assert-AllObject', 'Assert-AnyObject', 'Find-IndexOf', 
+        'Find-LastIndexOf', 'New-Dictionary', 'New-HashSet', 'New-List', 
+        'New-SortedSet'
+	)
 
     # Variables to export from this module
     VariablesToExport = @()
 
     # Aliases to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no aliases to export.
     AliasesToExport   = @(
-        "Any-Object", "Any",
-        "Assert-AllObjects", "All-Objects", "All",
-        "Find-Index", "IndexOf",
-        "Find-LastIndex", "LastIndexOf",
-        "RemoveAll",
-        "RemoveAt"
+        'All', 'All-Object', 'All-Objects', 'Any', 'Any-Object', 'Assert-All', 
+        'Assert-AllObjects', 'Assert-Any', 'Find-Index', 'Find-LastIndex', 
+        'IndexOf', 'LastIndexOf'
     )
 
     # DSC resources to export from this module
@@ -105,20 +96,18 @@
 
     # List of all files packaged with this module
     FileList = @(
-		'assemblies\ListFunctions.Engine.dll',
-		'ListFunctions.psd1',
-		'ListFunctions.psm1'
+		
 	)
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
     PrivateData       = @{
-
+		
         PSData = @{
 
             # Tags applied to this module. These help with module discovery in online galleries.
-            Tags         = @('List', "Array", "Modify", "Remove", "Condition", "Where", "Any", "All", "Find",
-                "Assert", "Test", "bool", "Predicate", "Collection", "index", "count", "Last", "Enumerable",
-                "Linq", 'HashSet', 'equality', 'compare', 'set', 'sort')
+            Tags         = @('All', 'Any', 'Array', 'Assert', 'bool', 'Collection', 'compare', 'Condition', 
+               'count', 'Enumerable', 'equality', 'Find', 'HashSet', 'index', 'Last', 'Linq', 
+               'List', 'Modify', 'Predicate', 'Remove', 'set', 'sort', 'Test', 'Where')
 
             # A URL to the license for this module.
             LicenseUri   = 'https://raw.githubusercontent.com/Yevrag35/PowerShell-ListFunctions/master/LICENSE'
@@ -132,7 +121,7 @@
             # Prerelease   = 'beta'
 
             # ReleaseNotes of this module
-            ReleaseNotes = 'Added precompiled Engine for better control; New function introduced - "New-SortedSet".'
+            ReleaseNotes = 'Overhaul of all cmdlets and moved to binary module for performance improvements.'
 
         } # End of PSData hashtable
 
