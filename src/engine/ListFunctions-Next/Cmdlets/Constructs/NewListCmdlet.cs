@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Management.Automation;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using PSAllowNullAttribute = System.Management.Automation.AllowNullAttribute;
 
 namespace ListFunctions.Cmdlets.Construct
@@ -19,6 +20,8 @@ namespace ListFunctions.Cmdlets.Construct
         internal static readonly Type ListTypeNoT = typeof(List<>);
 
         IList _list = null!;
+        bool _listIsNull;
+
 
         [Parameter(Position = 1)]
         [PSDefaultValue(Value = 0)]
@@ -42,20 +45,31 @@ namespace ListFunctions.Cmdlets.Construct
         {
             _list = this.GenericType is null
                 ? new List<object>(this.Capacity)
-                : CreateNewList(this.Capacity, this.GenericType);
+                : this.CreateNewList(this.Capacity, this.GenericType, out _listIsNull)!;
         }
 
-        private static IList CreateNewList(int capacity, Type genericType)
+        private IList? CreateNewList(int capacity, Type genericType, out bool listIsNull)
         {
             Type listType = ListTypeNoT.MakeGenericType(genericType);
             object[] args = new object[] { capacity };
-
-            return (IList)Activator.CreateInstance(listType, args)!;
+            listIsNull = false;
+            
+            try
+            {
+                return (IList)Activator.CreateInstance(listType, args)!;
+            }
+            catch (Exception e)
+            {
+                var rec = e.ToRecord(ErrorCategory.InvalidArgument, listType);
+                this.WriteError(rec);
+                listIsNull = true;
+                return null;
+            }
         }
 
         protected override void ProcessRecord()
         {
-            if (this.InputObject is null || this.InputObject.Length <= 0)
+            if (_listIsNull || this.InputObject is null || this.InputObject.Length <= 0)
             {
                 return;
             }
@@ -76,7 +90,10 @@ namespace ListFunctions.Cmdlets.Construct
         }
         protected override void EndProcessing()
         {
-            this.WriteObject(_list, false);
+            if (!_listIsNull)
+            {
+                this.WriteObject(_list, false);
+            }
         }
     }
 }
