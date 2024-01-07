@@ -56,6 +56,7 @@ Function New-HashSet() {
             The HashCodeScript must use '$_' in the scriptblock to properly identify
             the object whose hash code is retrieved.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "")]
     [CmdletBinding(DefaultParameterSetName = "None")]
     param (
         [Parameter(Mandatory = $false)]

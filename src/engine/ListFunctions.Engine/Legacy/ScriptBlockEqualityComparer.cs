@@ -5,19 +5,19 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Management.Automation;
 
-namespace ListFunctions
+namespace ListFunctions.Legacy
 {
-    public class ScriptBlockEqualityComparer<T> : BaseComparer<T>, IEqualityComparer<T>
+    public sealed class ScriptBlockEqualityComparer<T> : BaseComparer<T>, IEqualityComparer<T>
     {
         private readonly ComparingContext _eqContext;
         private readonly HashCodeContext _hcContext;
 
-        public ScriptBlock EqualityScript { get; set; }
-        public ScriptBlock HashCodeScript { get; set; }
+        public ScriptBlock? EqualityScript { get; set; }
+        public ScriptBlock? HashCodeScript { get; set; }
 
 
         #region CONSTRUCTORS
-        public ScriptBlockEqualityComparer(ScriptBlock equalityScript, ScriptBlock hashCodeScript)
+        public ScriptBlockEqualityComparer(ScriptBlock? equalityScript, ScriptBlock? hashCodeScript)
             : base()
         {
             // Equality Script assumes '$X' and '$Y' are being used to represent the two objects being compared.
@@ -31,10 +31,13 @@ namespace ListFunctions
         #endregion
 
         #region EQUALITY METHODS
+
         public bool Equals(T x, T y)
         {
             if (ReferenceEquals(x, y))
+            {
                 return true;
+            }
 
             return this.HasEqualityScript()
                 ? this.ExecuteEqualityScript(x, y)
@@ -45,7 +48,12 @@ namespace ListFunctions
             _eqContext[nameof(x)].Value = x;
             _eqContext[nameof(y)].Value = y;
 
-            Collection<PSObject> resultCol = this.EqualityScript.InvokeWithContext(null, _eqContext.GetList());
+            Collection<PSObject>? resultCol = this.EqualityScript?.InvokeWithContext(null, _eqContext.GetList());
+            if (null == resultCol)
+            {
+                return false;
+            }
+
             return GetFirstValue(resultCol, obj =>
             {
                 return Convert.ToBoolean(PSObject.AsPSObject(obj).ImmediateBaseObject);
@@ -58,7 +66,9 @@ namespace ListFunctions
         public int GetHashCode(T obj)
         {
             if (!this.IsValueType && null == obj)
+            {
                 return 0;
+            }
 
             return this.HasHashCodeScript()
                 ? this.ExecuteHashCodeScript(obj)
@@ -68,10 +78,14 @@ namespace ListFunctions
         private int ExecuteHashCodeScript(T obj)
         {
             _hcContext.Variable.Value = obj;
-            Collection<PSObject> resultCol;
+            Collection<PSObject>? resultCol;
             try
             {
-                resultCol = this.HashCodeScript.InvokeWithContext(null, _hcContext.GetList());
+                resultCol = this.HashCodeScript?.InvokeWithContext(null, _hcContext.GetList());
+                if (null == resultCol)
+                {
+                    return 0;
+                }
             }
             catch
             {

@@ -5,7 +5,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
 
-namespace ListFunctions
+namespace ListFunctions.Legacy
 {
     public abstract class BaseComparer<T>
     {
@@ -38,6 +38,7 @@ namespace ListFunctions
             [MaybeNull] TValue defaultValue = default)
         {
             TValue outVal;
+
             try
             {
                 outVal = collection.GetFirstValue(castFunction);

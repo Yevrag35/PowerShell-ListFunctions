@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+	<SignAssembly>true</SignAssembly>
+	<AssemblyOriginatorKeyFile>..\..\..\.local\devkey.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+	
+  <ItemGroup>
+	  <Using Include="System.Diagnostics" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Management.Automation" Version="7.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ListFunctions-Next\ListFunctions-Next.csproj" />
+  </ItemGroup>
+
+</Project>

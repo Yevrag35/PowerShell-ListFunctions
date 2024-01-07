@@ -4,7 +4,7 @@ using System.Collections.ObjectModel;
 using System.Management.Automation;
 using System.Text;
 
-namespace ListFunctions
+namespace ListFunctions.Legacy
 {
     public class ScriptBlockComparer<T> : BaseComparer<T>, IComparer<T>
     {

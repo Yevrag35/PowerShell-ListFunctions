@@ -51,6 +51,7 @@
 
             $set = $obj1, $obj2 | New-SortedSet -GenericType [string] -ComparingScript { $x.CompareTo($y) * -1 }
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "")]
     [CmdletBinding(DefaultParameterSetName = "None")]
     param (
         [Parameter(Mandatory = $false, Position = 0)]

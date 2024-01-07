@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Management.Automation;
 using System.Text;
 
-namespace ListFunctions
+namespace ListFunctions.Legacy
 {
     public class HashCodeContext
     {

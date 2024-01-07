@@ -58,7 +58,7 @@
     Begin {
         $result = $true
         $allAreNull = $true
-        $equality = [ListFunctions.ScriptBlockEquality]::Create($Condition, @(Get-Variable))
+        $equality = [ListFunctions.ScriptBlockEquality]::Create($Condition)
     }
     Process {
         
