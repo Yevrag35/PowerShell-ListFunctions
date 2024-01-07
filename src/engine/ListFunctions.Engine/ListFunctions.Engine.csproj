@@ -7,7 +7,7 @@
 	  <PackageId>ListFunctions.Engine</PackageId>
 	  <Authors>Mike Garvey</Authors>
 	  <Company>Yevrag35, LLC.</Company>
-	  <Copyright>Copyright © 2022-2023 Yevrag35, LLC.  All rights reserved.</Copyright>
+	  <Copyright>Copyright © 2022-2024 Yevrag35, LLC.  All rights reserved.</Copyright>
 	  <RepositoryUrl>https://github.com/Yevrag35/PowerShell-ListFunctions.git</RepositoryUrl>
 	  <RepositoryType>Git</RepositoryType>
 	  <PackageProjectUrl>https://github.com/Yevrag35/PowerShell-ListFunctions</PackageProjectUrl>
