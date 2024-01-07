@@ -53,7 +53,7 @@ if (-not ($array | All { $_ -is [int] })) {
 
 ## Collection Constructors
 
-These cmdlets provide easier ways of constructing the more nuanced, generic types within the <code>System.Collections.Generic</code> API namespace.
+These cmdlets provide easier ways of constructing the more nuanced, generic types within the `System.Collections.Generic` API namespace.
 
 ### New-List
 
@@ -72,4 +72,45 @@ $list = @(1, 2, '3') | New-List [int]
 # -or-
 $list = New-List [int] -InputObject @(3, '100', 56)
 
+```
+
+### New-HashSet
+
+Constructs and returns a list of type [`[System.Collections.Generic.HashSet[T]]`](https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.hashset-1#remarks "See MS Docs about HashSet[T]") where `T` is the generic type defined through the `-GenericType` parameter (defaults to `[object]`).
+
+This module makes utilizing a HashSet in PowerShell much easier through the use of "ScriptBlock equality comparers". With no pre-compiled or custom-defined `IEqualityComparer[T]` classes necessary, the `New-HashSet` cmdlet lets you define the equality comparison methods through normal PowerShell ScriptBlocks.
+
+Let's say you are importing a CSV where many values of a specific column are duplicates and you only need the first one of each:
+
+```csv
+"Id", "Name", "Job"
+"1", "John", "The Guy"
+"1", "John", "The Guy?"
+"2", "Jane", "[redacted]"
+```
+
+Using data like this, we can create a custom HashSet where as long as both the `Id` and `Name` columns are the same, the __entire__ object should be treated as the same.
+
+```powershell
+$csv = Import-Csv -Path .\Employees.csv
+
+# The equality scriptblock must return a [bool] (true/false) value.
+$equality = {   # $left and $right -or- $x and $y -- must be used.
+    $left.Name -eq $right.Name -and $left.Id -eq $right.Id
+}
+# The hashcode scriptblock must return an [int] value.
+$hashCode = {   # $_|$this|$psitem -- must be used.
+    $name = $_ | Select -ExpandProperty Name | % ToUpper
+    $id = ($_ | Select -ExpandProperty Id) -as [int]
+
+    [System.HashCode]::Combine($name, $id)
+}
+
+$set = New-HashSet -EqualityScript $equality -HashCodeScript $hashCode -Capacity 2
+
+$set.Add($csv[0])
+# Outputs 'true'
+
+$set.Add($csv[1])
+# Outputs 'false' and is not added to the set.
 ```
