@@ -2,9 +2,22 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using ZLinq;
 
 namespace ListFunctions.Internal
 {
+    internal static class SingleValueReadOnlySet
+    {
+        internal static SingleValueReadOnlySet<T> Create<T>(IEnumerable<T> collection, IEqualityComparer<T>? equalityComparer = null) where T : notnull
+        {
+            return new SingleValueReadOnlySet<T>(collection.AsValueEnumerable().First(), equalityComparer);
+        }
+        internal static SingleValueReadOnlySet<T> Create<T>(T value, IEqualityComparer<T>? equalityComparer = null) where T : notnull
+        {
+            return new SingleValueReadOnlySet<T>(value, equalityComparer);
+        }
+    }
+
     internal readonly struct SingleValueReadOnlySet<T> : IReadOnlySet<T> where T : notnull
     {
         readonly IEqualityComparer<T> _equality;

@@ -22,8 +22,10 @@ namespace ListFunctions.Modern
             Type filterType = typeof(ScriptBlockFilter<>);
             Type genFilter = filterType.MakeGenericType(genericType);
 
-            return (ScriptBlockFilter)Activator.CreateInstance(genFilter,
-                new object[] { scriptBlock, additionalVariables! });
+            return Activator.CreateInstance(genFilter,
+                new object[] { scriptBlock, additionalVariables! })
+                    as ScriptBlockFilter
+                    ?? throw new InvalidOperationException("Unable to create generic script block filter instance.");
         }
         public static object ToPredicate(ScriptBlockFilter genericScriptBlock)
         {
@@ -69,19 +71,19 @@ namespace ListFunctions.Modern
             if (collection is null || collection.TryGetCount(out int count) && count == 0)
             {
                 hasAdditional = false;
-                return Empty<PSVariable>.Set;
+                return Empty.Set<PSVariable>();
             }
             else if (count == 1)
             {
-                return new SingleValueReadOnlySet<PSVariable>(collection.First(), _equality);
+                return SingleValueReadOnlySet.Create(collection, _equality);
             }
 
-            return new ReadOnlySet<PSVariable>(collection, _equality);
+            return new ReadOnlySet<PSVariable>(new HashSet<PSVariable>(collection, _equality));
         }
 
         public bool Any(IEnumerable<T>? collection)
         {
-            if (collection is null)
+            if (collection is null || (collection.TryGetCount(out int count) && count <= 0))
             {
                 return false;
             }
@@ -101,7 +103,7 @@ namespace ListFunctions.Modern
 
         public bool All(IEnumerable<T>? collection)
         {
-            if (collection is null || collection.TryGetCount(out int count) && count <= 0)
+            if (collection is null || (collection.TryGetCount(out int count) && count <= 0))
             {
                 return false;
             }

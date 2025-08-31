@@ -3,20 +3,23 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.InteropServices;
+using ZLinq;
 
-namespace ListFunctions
+namespace ListFunctions.Internal
 {
-    public static class Empty<T>
+    public static class Empty
     {
-        public static IReadOnlyList<T> List => Array.Empty<T>();
-        public static IReadOnlySet<T> Set => ReadOnlyEmpty<object, T>.Default;
-    }
-    public static class Empty<TKey, TValue> where TKey : notnull
-    {
-        public static IReadOnlyDictionary<TKey, TValue> Dictionary => ReadOnlyEmpty<TKey, TValue>.Default;
-    }
+        public static IReadOnlySet<T> Set<T>() => EmptyHolder<object, T>.Default;
+        public static IReadOnlyDictionary<TKey, TValue> Dictionary<TKey, TValue>() where TKey : notnull => EmptyHolder<TKey, TValue>.Default;
 
-    internal readonly struct ReadOnlyEmpty<TKey, TValue> : IReadOnlyList<TValue>, IReadOnlySet<TValue>, IReadOnlyDictionary<TKey, TValue>
+        private static class EmptyHolder<TKey, TValue> where TKey : notnull
+        {
+            public static readonly ReadOnlyEmpty<TKey, TValue> Default = new();
+        }
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    internal sealed class ReadOnlyEmpty<TKey, TValue> : IReadOnlyList<TValue>, IReadOnlySet<TValue>, IReadOnlyDictionary<TKey, TValue>
         where TKey : notnull
     {
         TValue IReadOnlyDictionary<TKey, TValue>.this[TKey key]
@@ -31,10 +34,12 @@ namespace ListFunctions
         TValue IReadOnlyList<TValue>.this[int index] => default!;
 
         public int Count => 0;
-        IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue>.Keys => Enumerable.Empty<TKey>();
-        IEnumerable<TValue> IReadOnlyDictionary<TKey, TValue>.Values => Enumerable.Empty<TValue>();
+        IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue>.Keys => Array.Empty<TKey>();
+        IEnumerable<TValue> IReadOnlyDictionary<TKey, TValue>.Values => Array.Empty<TValue>();
 
-        internal static ReadOnlyEmpty<TKey, TValue> Default => default;
+        internal ReadOnlyEmpty()
+        {
+        }
 
         public bool Contains(TValue item)
         {
@@ -53,7 +58,7 @@ namespace ListFunctions
 
         public bool IsProperSubsetOf(IEnumerable<TValue> other)
         {
-            return other.Any();
+            return other.AsValueEnumerable().Any();
         }
 
         public bool IsProperSupersetOf(IEnumerable<TValue> other)
@@ -78,7 +83,7 @@ namespace ListFunctions
 
         public bool SetEquals(IEnumerable<TValue> other)
         {
-            return !other.Any();
+            return !other.AsValueEnumerable().Any();
         }
 
         public bool TryGetValue(TKey key, [NotNullWhen(true)] out TValue value)
