@@ -1,7 +1,5 @@
 using ListFunctions.Extensions;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace ListFunctions.Modern.Exceptions
 {

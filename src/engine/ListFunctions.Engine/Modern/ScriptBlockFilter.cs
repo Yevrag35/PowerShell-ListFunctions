@@ -1,13 +1,11 @@
 using ListFunctions.Extensions;
 using ListFunctions.Internal;
 using ListFunctions.Modern.Variables;
-using MG.Collections;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Management.Automation;
-using System.Reflection;
 
 namespace ListFunctions.Modern
 {

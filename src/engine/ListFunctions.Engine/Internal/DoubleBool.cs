@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace ListFunctions.Internal
+﻿namespace ListFunctions.Internal
 {
     internal ref struct DoubleBool
     {

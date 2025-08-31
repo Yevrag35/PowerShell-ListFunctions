@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net6.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net9.0</TargetFrameworks>
 	  <Nullable>enable</Nullable>
 	  <RootNamespace>ListFunctions</RootNamespace>
 	  <PackageId>ListFunctions.Engine</PackageId>
@@ -15,22 +15,29 @@
 	  <AssemblyName>ListFunctions.Engine</AssemblyName>
 	  <AssemblyVersion>2.0.0</AssemblyVersion>
 	  <FileVersion>2.0.0</FileVersion>
+	  <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	  <ImplicitUsings>false</ImplicitUsings>
   </PropertyGroup>
 
 	<PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' ">
 		<AssemblyTitle>ListFunctions.Engine - .NET Standard 2.0</AssemblyTitle>
 		<Product>ListFunctions.Engine - .NET Standard 2.0</Product>
-		<LangVersion>8.0</LangVersion>
+		<LangVersion>10.0</LangVersion>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(TargetFramework)' == 'net6.0' ">
 		<AssemblyTitle>ListFunctions.Engine - .NET 6</AssemblyTitle>
 		<Product>ListFunctions.Engine - .NET 6</Product>
-		<LangVersion>Latest</LangVersion>
+		<LangVersion>latest</LangVersion>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(TargetFramework)' == 'net8.0' ">
 		<AssemblyTitle>ListFunctions.Engine - .NET 8</AssemblyTitle>
 		<Product>ListFunctions.Engine - .NET 8</Product>
-		<LangVersion>Latest</LangVersion>
+		<LangVersion>latest</LangVersion>
+	</PropertyGroup>
+	<PropertyGroup Condition=" '$(TargetFramework)' == 'net9.0' ">
+		<AssemblyTitle>ListFunctions.Engine - .NET 9</AssemblyTitle>
+		<Product>ListFunctions.Engine - .NET 9</Product>
+		<LangVersion>preview</LangVersion>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)'=='Debug'">
@@ -56,13 +63,18 @@
     <None Include="Internal\VarList.cs" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="MG.Collections" Version="1.2.0" />
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
     <PackageReference Include="Nullable" Version="1.3.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="PowerShellStandard.Library" Version="5.1.1" />
   </ItemGroup>
+	<ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
+		<PackageReference Include="System.Management.Automation" Version="7.5.2" />
+	</ItemGroup>
+	<ItemGroup>
+	  <PackageReference Include="ZLinq" Version="1.5.2" />
+	</ItemGroup>
 
 </Project>

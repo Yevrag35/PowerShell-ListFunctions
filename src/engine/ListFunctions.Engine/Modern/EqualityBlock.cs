@@ -1,6 +1,5 @@
 ﻿using ListFunctions.Internal;
 using ListFunctions.Modern.Variables;
-using MG.Collections;
 using System;
 using System.Collections;
 using System.Collections.Generic;

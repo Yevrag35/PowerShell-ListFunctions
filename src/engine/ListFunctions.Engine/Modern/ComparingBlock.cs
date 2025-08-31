@@ -21,7 +21,8 @@ namespace ListFunctions.Modern
         public static IComparer Create(ScriptBlock scriptBlock, Type genericType, IEnumerable<PSVariable>? additionalVariables)
         {
             MethodInfo genMeth = _getInit.Value.MakeGenericMethod(genericType);
-            return (IComparer)genMeth.Invoke(null, new object[] { scriptBlock, additionalVariables! });
+            return genMeth.Invoke(null, new object[] { scriptBlock, additionalVariables! }) as IComparer
+                ?? throw new InvalidOperationException("Unable to create generic comparing block instance.");
         }
         public static ComparingBlock<T> Create<T>(ScriptBlock scriptBlock, IEnumerable<PSVariable>? additionalVariables)
         {

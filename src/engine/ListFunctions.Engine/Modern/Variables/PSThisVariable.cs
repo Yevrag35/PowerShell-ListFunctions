@@ -1,8 +1,5 @@
-﻿using ListFunctions.Internal;
-using MG.Collections;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Management.Automation;
 
 namespace ListFunctions.Modern.Variables
@@ -13,9 +10,10 @@ namespace ListFunctions.Modern.Variables
         public const string THIS_NAME = "this";
         public const string PSITEM_NAME = "psitem";
 
-        static readonly Lazy<IReadOnlySet<string>> _names = new Lazy<IReadOnlySet<string>>(GetThisNames);
+        static readonly Lazy<HashSet<string>> _names = new Lazy<HashSet<string>>(GetThisNames);
 
-        readonly PSVariable[] _allVars;
+        private readonly PSVariable[] _allVars;
+        private protected object? ObjValue { get; private set; }
         private protected PSThisVariable()
         {
             _allVars = new PSVariable[3];
@@ -40,29 +38,27 @@ namespace ListFunctions.Modern.Variables
         }
         private protected void SetValue(object? value)
         {
+            this.ObjValue = value;
             foreach (PSVariable v in _allVars)
             {
                 v.Value = value;
             }
         }
 
-        private static IReadOnlySet<string> GetThisNames()
+        private static HashSet<string> GetThisNames()
         {
-            return new ReadOnlySet<string>(EnumerateNames(), StringComparer.InvariantCultureIgnoreCase);
-        }
-        private static IEnumerable<string> EnumerateNames()
-        {
-            yield return UNDERSCORE_NAME;
-            yield return THIS_NAME;
-            yield return PSITEM_NAME;
+            return new(StringComparer.OrdinalIgnoreCase)
+            {
+                UNDERSCORE_NAME,
+                THIS_NAME,
+                PSITEM_NAME,
+            };
         }
     }
 
     internal sealed class PSThisVariable<T> : PSThisVariable
     {
-        T _value = default!;
-
-        internal T Value => _value;
+        internal T? Value => (T?)base.ObjValue;
 
         internal PSThisVariable()
             : base()

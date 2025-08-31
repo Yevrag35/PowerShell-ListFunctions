@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
 	  <Authors>Mike Garvey</Authors>
 	  <Company>Yevrag35, LLC.</Company>
 	  <Copyright>Copyright © Yevrag35, LLC. 2020-2023  All rights reserved.</Copyright>
@@ -12,7 +12,7 @@
     <RootNamespace>ListFunctions</RootNamespace>
 	  <Product>ListFunctions</Product>
 	  <AssemblyName>ListFunctions.Next</AssemblyName>
-    <ImplicitUsings>disable</ImplicitUsings>
+    <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 	  <Version>2.0.0</Version>
 	  <FileVersion>2.0.0</FileVersion>
@@ -30,7 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Management.Automation" Version="7.2.17" />
+    <PackageReference Include="System.Management.Automation" Version="7.5.2" />
   </ItemGroup>
 
   <ItemGroup>

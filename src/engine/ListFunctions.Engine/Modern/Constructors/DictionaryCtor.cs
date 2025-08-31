@@ -1,12 +1,8 @@
-using ListFunctions.Extensions;
-using ListFunctions.Modern.Exceptions;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Reflection;
 
 namespace ListFunctions.Modern.Constructors
 {
@@ -46,7 +42,7 @@ namespace ListFunctions.Modern.Constructors
             return base.ShouldConstructDefault(comparer, genericTypes)
                    ||
                    (
-                        !(comparer is IEqualityBlock)
+                        comparer is not IEqualityBlock
                         &&
                         genericTypes.All(x => ObjectType.Equals(x))
                    );
