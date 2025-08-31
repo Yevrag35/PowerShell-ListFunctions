@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Management.Automation;
+using ZLinq;
 
 namespace ListFunctions.Modern
 {
@@ -110,7 +111,7 @@ namespace ListFunctions.Modern
 
             bool result = true;
 
-            foreach (T item in collection)
+            foreach (T item in collection.AsValueEnumerable())
             {
                 if (!this.IsTrue(item))
                 {

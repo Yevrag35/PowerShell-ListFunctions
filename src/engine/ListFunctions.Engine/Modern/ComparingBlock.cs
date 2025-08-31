@@ -75,7 +75,7 @@ namespace ListFunctions.Modern
             _compareScript = scriptBlock;
         }
 
-        public int Compare(T left, T right)
+        public int Compare(T? left, T? right)
         {
             if (left is null && right is null)
             {

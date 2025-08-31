@@ -31,7 +31,7 @@ namespace ListFunctions.Internal
             }
 
             ReadOnlyCollection<StatementAst> statements = scriptAst.EndBlock.Statements;
-            if (statements.Count <= 0)
+            if (statements.Count == 0)
             {
                 return false;
             }

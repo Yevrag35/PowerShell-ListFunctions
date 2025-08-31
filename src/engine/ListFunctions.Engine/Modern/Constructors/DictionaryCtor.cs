@@ -22,8 +22,8 @@ namespace ListFunctions.Modern.Constructors
         protected override Hashtable ConstructTDefault(IEqualityComparer comparer)
         {
             var comp = this.IsCaseSensitive
-                ? StringComparer.InvariantCulture
-                : StringComparer.InvariantCultureIgnoreCase;
+                ? StringComparer.CurrentCulture
+                : StringComparer.OrdinalIgnoreCase;
 
             return new Hashtable(comp);
         }

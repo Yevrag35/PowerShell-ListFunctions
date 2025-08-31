@@ -33,13 +33,15 @@ namespace ListFunctions.Modern
             MethodInfo genMeth = _genMeth.MakeGenericMethod(type);
             object[] args = new object[] { hashCodeBlock, equalityScript, additionalVariables! };
 
-            return (IEqualityBlock)genMeth.Invoke(null, args);
+            return genMeth.Invoke(null, args) as IEqualityBlock
+                ?? throw new InvalidOperationException("Unable to create generic equality block instance.");
         }
-
+        
         static readonly MethodInfo _genMeth = typeof(EqualityBlock)
-            .GetMethod(nameof(CreateGenericBlock), BindingFlags.Static | BindingFlags.NonPublic);
+            .GetMethod(nameof(CreateGenericBlock), BindingFlags.Static | BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException("Unable to find generic method definition for CreateGenericBlock.");
 
-        private static IEqualityBlock CreateGenericBlock<T>(IHashCodeBlock hashCodeBlock, ScriptBlock equalityScript, IEnumerable<PSVariable>? additionalVariables)
+        private static EqualityBlock<T> CreateGenericBlock<T>(IHashCodeBlock hashCodeBlock, ScriptBlock equalityScript, IEnumerable<PSVariable>? additionalVariables)
         {
             return new EqualityBlock<T>(equalityScript, hashCodeBlock, additionalVariables);
         }
@@ -88,7 +90,7 @@ namespace ListFunctions.Modern
             _right = PSComparingVariable<T>.Right();
         }
 
-        public bool Equals(T x, T y)
+        public bool Equals([System.Diagnostics.CodeAnalysis.AllowNull] T x, [System.Diagnostics.CodeAnalysis.AllowNull] T y)
         {
             if (x is null && y is null)
             {
@@ -113,7 +115,7 @@ namespace ListFunctions.Modern
                 return true;
             }
 
-            if (TryConvert(x, out T isX) && TryConvert(y, out T isY))
+            if (TryConvert(x, out T? isX) && TryConvert(y, out T? isY))
             {
                 return this.Equals(isX, isY);
             }

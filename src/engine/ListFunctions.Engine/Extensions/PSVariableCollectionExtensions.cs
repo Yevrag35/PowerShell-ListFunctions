@@ -12,7 +12,7 @@ namespace ListFunctions.Extensions
         [return: NotNullIfNotNull(nameof(defaultIfNull))]
         public static T GetFirstValue<T>(this Collection<PSObject>? collection, Func<object, T> convert, T defaultIfNull = default!)
         {
-            if (collection is null || collection.Count <= 0 || !collection[0].TryGetBaseObject(out object? o))
+            if (collection is null || collection.Count == 0 || collection[0] is not PSObject pso || !pso.TryGetBaseObject(out object? o))
             {
                 return defaultIfNull;
             }
@@ -31,10 +31,10 @@ namespace ListFunctions.Extensions
         [return: MaybeNull]
         public static T GetLastValue<T>(this Collection<PSObject>? collection, Func<object, T> convert)
         {
-            if (collection is null || collection.Count <= 0)
+            if (collection is null || collection.Count == 0)
                 return default;
 
-            object? last = collection.LastOrDefault()?.ImmediateBaseObject;
+            object? last = collection[^1]?.ImmediateBaseObject;
             if (last is null)
                 return default;
 
