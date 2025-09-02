@@ -70,9 +70,6 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
-    <Reference Include="ZLinq, Version=1.5.2.0, Culture=neutral, PublicKeyToken=df4c250b14d82627, processorArchitecture=MSIL">
-      <HintPath>..\packages\ZLinq.1.5.2\lib\netstandard2.0\ZLinq.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Nullable\AllowNullAttribute.cs" />

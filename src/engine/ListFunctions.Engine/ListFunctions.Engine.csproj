@@ -72,9 +72,7 @@
   </ItemGroup>
 	<ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
 		<PackageReference Include="System.Management.Automation" Version="7.5.2" />
-	</ItemGroup>
-	<ItemGroup>
-	  <PackageReference Include="ZLinq" Version="1.5.2" />
+		<PackageReference Include="ZLinq" Version="1.5.2" />
 	</ItemGroup>
 
 </Project>

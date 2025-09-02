@@ -1,33 +1,37 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 
 namespace ListFunctions
 {
     public static class Guard
     {
-        /// <exception cref="ArgumentNullException"/>
-        public static void NotNull<T>([NotNull] T? value, string? parameterName) where T : class
-        {
-            if (value is null)
-            {
-                parameterName ??= nameof(value);
-                throw new ArgumentNullException(parameterName);
-            }
-        }
-
+#if NET5_0_OR_GREATER
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
         public static void NotNull([NotNull] object? obj, string? parameterName)
         {
+#if NET5_0_OR_GREATER
+            ArgumentNullException.ThrowIfNull(obj, parameterName);
+#else
             if (obj is null)
             {
                 parameterName ??= nameof(obj);
                 throw new ArgumentNullException(parameterName);
             }
+#endif
         }
 
         /// <exception cref="ArgumentException"/>
         /// <exception cref="ArgumentNullException"/>
+#if NET5_0_OR_GREATER
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
         public static void NotNullOrEmpty([NotNull] string? value, string? parameterName)
         {
+#if NET5_0_OR_GREATER
+            ArgumentException.ThrowIfNullOrEmpty(value, parameterName);
+#else
             parameterName ??= nameof(value);
             if (value is null)
             {
@@ -37,6 +41,7 @@ namespace ListFunctions
             {
                 throw new ArgumentException($"'{parameterName}' cannot be an empty string.", parameterName);
             }
+#endif
         }
     }
 }

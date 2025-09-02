@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using ZLinq;
+#if NET5_0_OR_GREATER
 using ZLinq.Linq;
 
 namespace ListFunctions.Extensions
@@ -21,3 +22,4 @@ namespace ListFunctions.Extensions
         }
     }
 }
+#endif

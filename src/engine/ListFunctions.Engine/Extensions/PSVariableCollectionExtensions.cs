@@ -34,7 +34,7 @@ namespace ListFunctions.Extensions
             if (collection is null || collection.Count == 0)
                 return default;
 
-            object? last = collection[^1]?.ImmediateBaseObject;
+            object? last = collection[collection.Count - 1]?.ImmediateBaseObject;
             if (last is null)
                 return default;
 
