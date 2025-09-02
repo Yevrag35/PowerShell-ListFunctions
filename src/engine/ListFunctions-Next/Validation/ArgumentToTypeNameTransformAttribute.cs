@@ -40,7 +40,7 @@ namespace ListFunctions.Validation
             }
             catch (ParseException e)
             {
-                if (!(runningModule is null) && PSREADLINE.Equals(runningModule.Name, StringComparison.InvariantCultureIgnoreCase))
+                if (!(runningModule is null) && PSREADLINE.Equals(runningModule.Name, StringComparison.OrdinalIgnoreCase))
                 {
                     return typeof(object);
                 }
@@ -63,7 +63,7 @@ namespace ListFunctions.Validation
             }
             catch (ParseException e)
             {
-                if (!(runningModule is null) && PSREADLINE.Equals(runningModule.Name, StringComparison.InvariantCultureIgnoreCase))
+                if (!(runningModule is null) && PSREADLINE.Equals(runningModule.Name, StringComparison.OrdinalIgnoreCase))
                 {
                     return typeof(object);
                 }
