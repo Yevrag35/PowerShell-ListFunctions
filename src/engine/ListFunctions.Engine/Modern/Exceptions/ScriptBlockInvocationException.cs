@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ListFunctions.Internal;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -149,7 +150,8 @@ namespace ListFunctions.Modern.Exceptions
         {
             if (variables is null || variables.Count <= 0)
             {
-                return Empty<string, object?>.Dictionary;
+                return Empty.Dictionary<string, object?>();
+                //return Empty<string, object?>.Dictionary;
             }
 
             var dict = new Dictionary<string, object?>(variables.Count, StringComparer.InvariantCultureIgnoreCase);

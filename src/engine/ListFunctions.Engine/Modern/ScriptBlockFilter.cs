@@ -90,7 +90,7 @@ namespace ListFunctions.Modern
             }
 
             bool flag = false;
-            foreach (T item in collection)
+            foreach (T item in collection.AsValueEnumerable())
             {
                 if (this.IsTrue(item))
                 {

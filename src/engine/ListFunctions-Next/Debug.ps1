@@ -15,7 +15,7 @@ param  (
 
 	[Parameter(Mandatory=$false)]
 	[string[]] $CopyToOutput = @(
-		'MG.Collections'
+		'ZLinq'
 	)
 )
 

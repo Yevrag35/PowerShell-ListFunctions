@@ -5,6 +5,7 @@ using System.Management.Automation;
 using ListFunctions.Modern;
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
+
 using PSAllowNullAttribute = System.Management.Automation.AllowNullAttribute;
 
 namespace ListFunctions.Cmdlets.Assertions
@@ -14,7 +15,7 @@ namespace ListFunctions.Cmdlets.Assertions
     [OutputType(typeof(bool))]
     public sealed class AssertAnyObjectCmdlet : ListFunctionCmdletBase
     {
-        ScriptBlock? _condition;
+        ScriptBlock _condition;
         ActionPreference _errorPref;
         bool _hasCondition;
         bool _hasNonNull;
@@ -24,12 +25,15 @@ namespace ListFunctions.Cmdlets.Assertions
         [Parameter(Mandatory = true, ValueFromPipeline = true)]
         [AllowEmptyCollection]
         [PSAllowNull]
+        [MaybeNull]
         public object[] InputObject { get; set; } = null!;
 
         [Parameter(Position = 0)]
         [Alias("ScriptBlock")]
+        [PSAllowNull]
+        [MaybeNull]
         [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.THIS_NAME, PSThisVariable.PSITEM_NAME)]
-        public ScriptBlock? Condition
+        public ScriptBlock Condition
         {
             get => _condition;
             set
@@ -68,11 +72,13 @@ namespace ListFunctions.Cmdlets.Assertions
                 _stop = _equality.Any(this.InputObject);
             }
         }
-        private static void ProcessWhenNoCondition(object[]? inputObjects, ref bool hasNonNull)
+        private static void ProcessWhenNoCondition(
+            [System.Diagnostics.CodeAnalysis.AllowNull] object[] inputObjects,
+            ref bool hasNonNull)
         {
             if (!(inputObjects is null))
             {
-                foreach (object? o in inputObjects)
+                foreach (object o in inputObjects)
                 {
                     if (!(o is null))
                     {
@@ -96,9 +102,9 @@ namespace ListFunctions.Cmdlets.Assertions
             }
         }
 
-        private static IEnumerable<PSVariable> EnumerateVariables(ActionPreference errorPref)
+        private static PSVariable[] EnumerateVariables(ActionPreference errorPref)
         {
-            yield return new PSVariable(ERROR_ACTION_PREFERENCE, errorPref);
+            return new[] { new PSVariable(ERROR_ACTION_PREFERENCE, errorPref) };
         }
     }
 }

@@ -1,8 +1,11 @@
-﻿using System;
+﻿using ListFunctions.Extensions;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Management.Automation;
 using System.Management.Automation.Language;
+using ZLinq;
+using ZLinq.Linq;
 
 namespace ListFunctions.Validation
 {
@@ -36,9 +39,9 @@ namespace ListFunctions.Validation
                 return;
             }
 
-            IEnumerable<string> allVars = EnumerateAllVariablesInBlock(block);
+            var allVars = EnumerateAllVariablesInBlock(block);
 
-            _names.UnionWith(allVars);
+            _names.UnionWithRef(ref allVars);
 
             if (!_names.Overlaps(this.MustContainAny))
             {
@@ -46,13 +49,14 @@ namespace ListFunctions.Validation
             }
         }
 
-        private static IEnumerable<string> EnumerateAllVariablesInBlock(ScriptBlock block)
+        private static ValueEnumerable<Select<OfType<FromEnumerable<Ast>, Ast, VariableExpressionAst>, VariableExpressionAst, string>, string> EnumerateAllVariablesInBlock(ScriptBlock block)
         {
             return block.Ast.FindAll(x => 
                 x is VariableExpressionAst varAst 
                 && !varAst.IsConstantVariable() 
                 && !varAst.Splatted
-                && varAst.VariablePath.IsVariable, true)
+                && varAst.VariablePath.IsVariable, searchNestedScriptBlocks: true)
+                    .AsValueEnumerable()
                     .OfType<VariableExpressionAst>()
                     .Select(x => x.VariablePath.UserPath);
         }

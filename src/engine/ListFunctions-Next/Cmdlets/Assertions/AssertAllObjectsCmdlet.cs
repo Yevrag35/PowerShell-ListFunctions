@@ -48,9 +48,9 @@ namespace ListFunctions.Cmdlets.Assertions
             this.WriteObject(_stop);
         }
 
-        private static IEnumerable<PSVariable> EnumerateVariables(ActionPreference errorPref)
+        private static PSVariable[] EnumerateVariables(ActionPreference errorPref)
         {
-            yield return new PSVariable(ERROR_ACTION_PREFERENCE, errorPref);
+            return new[] { new PSVariable(ERROR_ACTION_PREFERENCE, errorPref) };
         }
     }
 }
