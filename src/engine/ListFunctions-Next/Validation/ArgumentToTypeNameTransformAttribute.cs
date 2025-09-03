@@ -4,6 +4,8 @@ using System.Management.Automation;
 using System.Management.Automation.Internal;
 using System.Management.Automation.Language;
 
+#nullable enable
+
 namespace ListFunctions.Validation
 {
     internal sealed class ArgumentToTypeTransformAttribute : ArgumentTransformationAttribute

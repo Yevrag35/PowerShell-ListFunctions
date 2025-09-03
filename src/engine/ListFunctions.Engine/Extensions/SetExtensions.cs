@@ -5,7 +5,7 @@ using ZLinq;
 #if NET5_0_OR_GREATER
 using ZLinq.Linq;
 
-namespace ListFunctions.Extensions
+namespace ZLinq
 {
     public static class SetExtensions
     {

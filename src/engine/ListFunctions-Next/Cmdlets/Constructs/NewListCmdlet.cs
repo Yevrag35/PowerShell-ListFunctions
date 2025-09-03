@@ -43,7 +43,7 @@ namespace ListFunctions.Cmdlets.Construct
 
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "InitialAdd")]
         [AllowEmptyCollection, PSAllowNull, AllowEmptyString]
-        public IList? InputObject { get; set; }
+        public object?[]? InputObject { get; set; }
 
         [Parameter(ParameterSetName = "InitialAdd")]
         [Alias("IncludeNulls")]
@@ -98,23 +98,23 @@ namespace ListFunctions.Cmdlets.Construct
 
         protected override void ProcessRecord()
         {
-            if (_listIsNull || this.InputObject is null || this.InputObject.Count == 0)
+            if (_listIsNull || this.InputObject is null || this.InputObject.Length == 0)
             {
                 return;
             }
 
             if (_isObjectType)
             {
-                this.AddItemsToList(_list);
+                this.AddItemsToList(_list, this.InputObject);
             }
             else
             {
-                this.AddTypedItemsToList(_list);
+                this.AddTypedItemsToList(_list, this.InputObject, this.GenericType);
             }
         }
-        private void AddItemsToList(IList list)
+        private void AddItemsToList(IList list, object?[] items)
         {
-            foreach (object? item in list.AsValueEnumerable())
+            foreach (object? item in items.AsValueEnumerable())
             {
                 if (item is null && !this.IncludeNullElements)
                 {
@@ -124,17 +124,16 @@ namespace ListFunctions.Cmdlets.Construct
                 list.Add(item);
             }
         }
-        private void AddTypedItemsToList(IList list)
+        private void AddTypedItemsToList(IList list, object?[] items, Type type)
         {
-            Type genericType = this.GenericType;
-            foreach (object? item in list.AsValueEnumerable())
+            foreach (object? item in items.AsValueEnumerable())
             {
                 if (item is null && !this.IncludeNullElements)
                 {
                     continue;
                 }
                 
-                if (this.TryConvertItem(item, genericType, out object? result))
+                if (this.TryConvertItem(item, type, out object? result))
                 {
                     list.Add(result);
                 }
