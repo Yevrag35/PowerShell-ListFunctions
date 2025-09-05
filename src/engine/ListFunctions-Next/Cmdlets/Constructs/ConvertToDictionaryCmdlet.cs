@@ -36,7 +36,7 @@ namespace ListFunctions.Cmdlets.Constructs
 
         [Parameter(Mandatory = false)]
         [AllowNull]
-        public ScriptBlock ValueSelector { get; set; } = null!;
+        public ScriptBlock? ValueSelector { get; set; }
 
         private IDictionary _dictionary = null!;
         private Type _keyType = null!;
@@ -50,17 +50,9 @@ namespace ListFunctions.Cmdlets.Constructs
                 this.KeySelector = ScriptBlock.Create(string.Concat("$args[0].'", this.KeyPropertyName, "'"));
                 this.KeyPropertyName = string.Empty;
             }
-            else if (!(this.KeySelector?.Ast.Find(x => x is VariableExpressionAst variable && PSThisVariable.UNDERSCORE_NAME.Equals(variable.VariablePath.UserPath, StringComparison.Ordinal), searchNestedScriptBlocks: false) is null))
+            else
             {
-                string sc = this.KeySelector.ToString().Trim();
-                if ("$_".Equals(sc, StringComparison.Ordinal))
-                {
-                    throw new ArgumentException("When using a script block for the key selector, you cannot use '$_' as the entire script block. Use '$args[0]' or just reference properties directly.");
-                }
-                else
-                {
-                    this.KeySelector = ScriptBlock.Create(sc.Replace("$_", "$args[0]"));
-                }
+                this.KeySelector = this.KeySelector.ReplaceWithArgsZero();
             }
 
             if (!string.IsNullOrWhiteSpace(this.ValuePropertyName))
@@ -68,17 +60,9 @@ namespace ListFunctions.Cmdlets.Constructs
                 this.ValueSelector = ScriptBlock.Create(string.Concat("$args[0].'", this.ValuePropertyName, "'"));
                 this.ValuePropertyName = string.Empty;
             }
-            else if (!(this.ValueSelector?.Ast.Find(x => x is VariableExpressionAst variable && PSThisVariable.UNDERSCORE_NAME.Equals(variable.VariablePath.UserPath, StringComparison.Ordinal), searchNestedScriptBlocks: false) is null))
+            else
             {
-                string sc = this.ValueSelector.ToString().Trim();
-                if ("$_".Equals(sc, StringComparison.Ordinal))
-                {
-                    this.ValueSelector = null!;
-                }
-                else
-                {
-                    this.ValueSelector = ScriptBlock.Create(sc.Replace("$_", "$args[0]"));
-                }
+                this.ValueSelector = this.ValueSelector?.ReplaceWithArgsZero();
             }
 
             if (!(this.InputObject is null) && this.InputObject.Length > 0)
@@ -106,7 +90,7 @@ namespace ListFunctions.Cmdlets.Constructs
                 }
 
                 Type dictType = typeof(Dictionary<,>).MakeGenericType(_keyType, _valueType);
-                _dictionary = (IDictionary)Activator.CreateInstance(dictType, new object?[] { this.KeyComparer })!;
+                _dictionary = (IDictionary)Activator.CreateInstance(dictType, new[] { this.KeyComparer })!;
             }
 
             foreach (object item in this.InputObject.AsValueEnumerable().Where(x => !(x is null)))
@@ -119,7 +103,7 @@ namespace ListFunctions.Cmdlets.Constructs
 
                     key = LanguagePrimitives.ConvertTo(key, _keyType);
 
-                    object? value = !(this.ValueSelector is null) && this.ValueSelector.Invoke(item).FirstOrDefault()?.BaseObject is object o
+                    object? value = this.ValueSelector?.Invoke(item).FirstOrDefault()?.BaseObject is object o
                         ? LanguagePrimitives.ConvertTo(o, _valueType)
                         : item;
 

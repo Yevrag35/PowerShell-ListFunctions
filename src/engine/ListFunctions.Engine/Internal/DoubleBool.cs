@@ -13,6 +13,6 @@
 
         internal static DoubleBool InitializeNew() => new DoubleBool(false);
 
-        public static implicit operator bool(DoubleBool dub) => dub.Bool1 && dub.Bool2;
+        public static implicit operator bool(DoubleBool dub) => dub.Bool1 & dub.Bool2;
     }
 }

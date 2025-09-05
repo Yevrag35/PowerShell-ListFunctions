@@ -10,6 +10,8 @@ using System.Linq;
 using System.Management.Automation;
 using System.Reflection;
 
+#nullable enable
+
 namespace ListFunctions.Cmdlets.Constructs
 {
     [Cmdlet(VerbsCommon.New, "SortedSet", DefaultParameterSetName = "None")]

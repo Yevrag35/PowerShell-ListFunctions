@@ -52,7 +52,8 @@ namespace ListFunctions.Modern.Constructors
             }
 
             var genMeth = _getComparerMethod.Value.MakeGenericMethod(_sortedType);
-            return (IComparer)genMeth.Invoke(null, null);
+            return genMeth.Invoke(null, null) as IComparer
+                ?? throw new InvalidOperationException("Failed to get default comparer.");
         }
         protected override IEnumerable<object?>? GetConstructorArguments(Type[] genericTypes)
         {
