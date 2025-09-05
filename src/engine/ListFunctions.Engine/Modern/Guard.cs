@@ -43,5 +43,21 @@ namespace ListFunctions
             }
 #endif
         }
+
+#if NET5_0_OR_GREATER
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
+        public static void ThrowIfGreaterThanOrEqual(int value, int other, string? parameterName)
+        {
+#if NET5_0_OR_GREATER
+            ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(value, other, parameterName);
+#else
+            if (value >= other)
+            {
+                parameterName ??= nameof(value);
+                throw new ArgumentOutOfRangeException(parameterName, value, $"'{parameterName}' must be less than {other}.");
+            }
+#endif
+        }
     }
 }

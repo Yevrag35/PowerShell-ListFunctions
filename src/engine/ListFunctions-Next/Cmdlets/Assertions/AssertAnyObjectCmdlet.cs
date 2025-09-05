@@ -6,6 +6,9 @@ using ListFunctions.Modern;
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
 
+#nullable enable
+
+using AllowsNull = System.Diagnostics.CodeAnalysis.AllowNullAttribute;
 using PSAllowNullAttribute = System.Management.Automation.AllowNullAttribute;
 
 namespace ListFunctions.Cmdlets.Assertions
@@ -15,25 +18,22 @@ namespace ListFunctions.Cmdlets.Assertions
     [OutputType(typeof(bool))]
     public sealed class AssertAnyObjectCmdlet : ListFunctionCmdletBase
     {
-        ScriptBlock _condition;
-        ActionPreference _errorPref;
-        bool _hasCondition;
-        bool _hasNonNull;
-        ScriptBlockFilter<object> _equality = null!;
-        bool _stop;
+        private ScriptBlock? _condition;
+        private ActionPreference _errorPref;
+        private ScriptBlockFilter<object> _equality = null!;
+        private bool _hasCondition;
+        private bool _hasNonNull;
+        private bool _stop;
 
         [Parameter(Mandatory = true, ValueFromPipeline = true)]
-        [AllowEmptyCollection]
-        [PSAllowNull]
-        [MaybeNull]
+        [AllowEmptyCollection, PSAllowNull, MaybeNull]
         public object[] InputObject { get; set; } = null!;
 
         [Parameter(Position = 0)]
         [Alias("ScriptBlock")]
         [PSAllowNull]
-        [MaybeNull]
         [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.THIS_NAME, PSThisVariable.PSITEM_NAME)]
-        public ScriptBlock Condition
+        public ScriptBlock? Condition
         {
             get => _condition;
             set
