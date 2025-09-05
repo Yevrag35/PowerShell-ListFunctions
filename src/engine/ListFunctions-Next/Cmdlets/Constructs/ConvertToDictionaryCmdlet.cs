@@ -32,7 +32,7 @@ namespace ListFunctions.Cmdlets.Constructs
         [Parameter(Mandatory = false, Position = 1)]
         [Alias("ValueName", "Value")]
         [AllowEmptyString, AllowNull]
-        public string ValuePropertyName { get; set; } = string.Empty;
+        public object? ValuePropertyName { get; set; }
 
         [Parameter(Mandatory = false)]
         [AllowNull]
@@ -55,14 +55,18 @@ namespace ListFunctions.Cmdlets.Constructs
                 this.KeySelector = this.KeySelector.ReplaceWithArgsZero();
             }
 
-            if (!string.IsNullOrWhiteSpace(this.ValuePropertyName))
+            if (this.ValuePropertyName is string s && !string.IsNullOrWhiteSpace(s))
             {
                 this.ValueSelector = ScriptBlock.Create(string.Concat("$args[0].'", this.ValuePropertyName, "'"));
                 this.ValuePropertyName = string.Empty;
             }
             else
             {
-                this.ValueSelector = this.ValueSelector?.ReplaceWithArgsZero();
+                this.ValueSelector = this.ValueSelector is null
+                    ? this.ValuePropertyName is ScriptBlock valSc
+                        ? valSc.ReplaceWithArgsZero()
+                        : null
+                    : this.ValueSelector.ReplaceWithArgsZero();
             }
 
             if (!(this.InputObject is null) && this.InputObject.Length > 0)

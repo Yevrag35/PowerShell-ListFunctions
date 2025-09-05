@@ -17,22 +17,25 @@ namespace ListFunctions.Extensions
         {
             Guard.NotNull(scriptBlock, nameof(scriptBlock));
 
-            string sc = scriptBlock.ToString();
-#if NETCOREAPP
-            string newScript = ReplaceDefaultNames().Replace(sc, "$args[0]$1");
-#else
-            string newScript = Regex.Replace(sc, @"\$(?:(?:_|PSItem|this)(\s|\;|$|\.))", "$args[0]$1", RegexOptions.IgnoreCase);
-#endif
+            string script = scriptBlock.ToString();
+            string newScript = ReplaceString(script);
 
-            return !string.Equals(sc, newScript, StringComparison.OrdinalIgnoreCase)
+            return !string.Equals(script, newScript, StringComparison.OrdinalIgnoreCase)
                 ? ScriptBlock.Create(newScript)
                 : scriptBlock;
         }
 
-#if NETCOREAPP
+        private static string ReplaceString(string script)
+        {
+#if !NETCOREAPP
+            return Regex.Replace(script, @"\$(?:(?:_|PSItem|this)(\s|\;|$|\.))", "$args[0]$1", RegexOptions.IgnoreCase);
+        }
+#else
+            return ReplaceDefaultNames().Replace(script, "$args[0]$1");
+        }
+
         [GeneratedRegex(@"\$(?:(?:_|PSItem|this)(\s|\;|$|\.))", RegexOptions.IgnoreCase, "en-US")]
         private static partial Regex ReplaceDefaultNames();
-
 #endif
     }
 }
