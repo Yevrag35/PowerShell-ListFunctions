@@ -4,7 +4,7 @@ using System.Management.Automation;
 
 namespace ListFunctions.Modern.Variables
 {
-    public class PSThisVariable
+    public class PSThisVariable : IResettable
     {
         public const string UNDERSCORE_NAME = "_";
         public const string THIS_NAME = "this";
@@ -53,6 +53,13 @@ namespace ListFunctions.Modern.Variables
                 THIS_NAME,
                 PSITEM_NAME,
             };
+        }
+
+        public bool TryReset()
+        {
+            Array.ForEach(_allVars, v => v.Value = null);
+            this.ObjValue = null;
+            return true;
         }
     }
 

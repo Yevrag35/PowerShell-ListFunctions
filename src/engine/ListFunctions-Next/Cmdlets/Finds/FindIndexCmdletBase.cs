@@ -1,6 +1,6 @@
 using ListFunctions.Extensions;
 using ListFunctions.Internal;
-using ListFunctions.Modern;
+using ListFunctions.Modern.Pools;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -15,13 +15,7 @@ namespace ListFunctions.Cmdlets.Finds
 {
     public abstract class FindIndexCmdletBase : ListFunctionCmdletBase
     {
-        //protected static readonly Type PredicateType = typeof(Predicate<>);
-
-        //private bool _wasList;
         private List<object?> _list = null!;
-        //Type _genType = null!;
-        //IList _list = null!;
-        //MethodInfo _method = null!;
 
         public abstract ScriptBlock Condition { get; set; }
         public abstract object?[]? InputObject { get; set; }
@@ -31,34 +25,61 @@ namespace ListFunctions.Cmdlets.Finds
         {
             _list = ListPool.Rent();
 
-            //if (!(this.InputObject is null))
-            //{
-            //    Type listType = this.InputObject.GetType();
-            //    _genType = listType.GetGenericArguments().First();
-            //    _method = this.GetFindIndexMethod(listType, _genType);
-            //    _list = this.InputObject;
-            //    _wasList = true;
-            //}
+            try
+            {
+                this.Begin(_list);
+            }
+            catch
+            {
+                this.CleanupCore();
+                throw;
+            }
+        }
+        protected virtual void Begin(List<object?> list)
+        {
         }
         protected sealed override void ProcessRecord()
         {
-            if (this.InputObject is null || this.InputObject.Length == 0)
-                return;
-
-            foreach (object? obj in this.InputObject)
+            if (!(this.InputObject is null || this.InputObject.Length == 0))
             {
-                _list.Add(obj);
+                foreach (object? obj in this.InputObject)
+                {
+                    _list.Add(obj);
+                }
+            }
+
+            try
+            {
+                this.Process(_list);
+            }
+            catch
+            {
+                this.CleanupCore();
+                throw;
             }
         }
-        protected override void StopProcessing()
+        protected virtual void Process(List<object?> list)
         {
-            ListPool.Return(_list);
-            _list = null!;
+        }
+        protected sealed override void StopProcessing()
+        {
+            this.CleanupCore();
             base.StopProcessing();
         }
         protected sealed override void EndProcessing()
         {
-            PSVariable[] variables = this.EnumerateVariables();
+            PSVariable errorAction = new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction);
+            List<PSVariable> varList = ListPool<PSVariable>.Rent();
+            try
+            {
+                this.End(_list, errorAction, varList);
+            }
+            catch
+            {
+                this.CleanupCore();
+                ListPool<PSVariable>.Return(varList);
+                throw;
+            }
 
             //var filter = ScriptBlockFilter.Create(this.Condition, _genType, this.EnumerateVariables());
             //object predicate = ScriptBlockFilter.ToPredicate(filter);
@@ -74,58 +95,58 @@ namespace ListFunctions.Cmdlets.Finds
             //}
 
             //this.WriteObject(index);
-            ListPool.Return(_list);
-            _list = null!;
+            this.CleanupCore();
+            ListPool<PSVariable>.Return(varList);
             base.EndProcessing();
         }
-        protected abstract MethodInfo GetFindIndexMethod(Type listType, Type genericType);
+        protected abstract void End(List<object?> list, PSVariable scriptErrorAction, List<PSVariable> varList);
 
-        private static void AddListToList(ref IList inputObject, ref List<object?> list)
+        //protected abstract MethodInfo GetFindIndexMethod(Type listType, Type genericType);
+
+        //private static void AddListToList(IList inputObject, List<object?> list)
+        //{
+        //    foreach (object? item in inputObject)
+        //    {
+        //        list.Add(item);
+        //    }
+        //}
+        private void CleanupCore()
         {
-            if (inputObject is PipelineItem pi)
-            {
-                list.Add(pi.Value);
-            }
-            else
-            {
-                foreach (object? item in inputObject)
-                {
-                    list.Add(item);
-                }
-            }
+            ListPool.Return(_list);
+            _list = null!;
+            this.Cleanup();
         }
-        private PSVariable[] EnumerateVariables()
+        protected virtual void Cleanup()
         {
-            return new PSVariable[] { new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction) };
         }
-        private IList GetListAndGeneric(IList inputObject)
-        {
-            IList returnList;
-            Type listType;
-            Type genType;
+        //private IList GetListAndGeneric(IList inputObject)
+        //{
+        //    IList returnList;
+        //    Type listType;
+        //    Type genType;
 
-            if (inputObject.IsFixedSize)
-            {
-                genType = typeof(object);
-                var list = new List<object?>(inputObject.Count);
-                AddListToList(ref inputObject, ref list);
+        //    if (inputObject.IsFixedSize)
+        //    {
+        //        genType = typeof(object);
+        //        var list = new List<object?>(inputObject.Count);
+        //        AddListToList(ref inputObject, ref list);
 
-                returnList = list;
-                listType = list.GetType();
-            }
-            else
-            {
-                listType = inputObject.GetType();
-                genType = listType.GetGenericArguments().First();
-                returnList = inputObject;
-            }
+        //        returnList = list;
+        //        listType = list.GetType();
+        //    }
+        //    else
+        //    {
+        //        listType = inputObject.GetType();
+        //        genType = listType.GetGenericArguments().First();
+        //        returnList = inputObject;
+        //    }
 
-            _genType = genType;
-            _method = this.GetFindIndexMethod(listType, _genType);
-            return returnList;
-        }
+        //    _genType = genType;
+        //    _method = this.GetFindIndexMethod(listType, _genType);
+        //    return returnList;
+        //}
 
-        private static bool TryGetEnumerable(object? obj, [NotNullWhen(true)] out IEnumerable? collection)
+        protected static bool TryGetEnumerable(object? obj, [NotNullWhen(true)] out IEnumerable? collection)
         {
             collection = LanguagePrimitives.GetEnumerable(obj);
             return !(collection is null);

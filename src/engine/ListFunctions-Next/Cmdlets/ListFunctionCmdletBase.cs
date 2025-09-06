@@ -4,6 +4,8 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
 
+#nullable enable
+
 namespace ListFunctions.Cmdlets
 {
     public abstract class ListFunctionCmdletBase : PSCmdlet
