@@ -4,7 +4,7 @@ using System.Management.Automation;
 
 namespace ListFunctions.Modern.Variables
 {
-    public abstract class PSThisVariable
+    public class PSThisVariable
     {
         public const string UNDERSCORE_NAME = "_";
         public const string THIS_NAME = "this";
@@ -13,8 +13,8 @@ namespace ListFunctions.Modern.Variables
         static readonly Lazy<HashSet<string>> _names = new Lazy<HashSet<string>>(GetThisNames);
 
         private readonly PSVariable[] _allVars;
-        private protected object? ObjValue { get; private set; }
-        private protected PSThisVariable()
+        internal object? ObjValue { get; private set; }
+        internal PSThisVariable()
         {
             _allVars = new PSVariable[3];
             _allVars[0] = new PSVariable(UNDERSCORE_NAME, null);
@@ -36,7 +36,7 @@ namespace ListFunctions.Modern.Variables
             Guard.NotNull(variable, nameof(variable));
             return _names.Value.Contains(variable.Name);
         }
-        private protected void SetValue(object? value)
+        internal void SetValue(object? value)
         {
             this.ObjValue = value;
             foreach (PSVariable v in _allVars)

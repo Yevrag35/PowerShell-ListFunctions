@@ -82,15 +82,15 @@ namespace ListFunctions.Modern
             return new ReadOnlySet<PSVariable>(new HashSet<PSVariable>(collection, _equality));
         }
 
-        public bool Any(IEnumerable<T>? collection)
+        public bool Any(IEnumerable? collection)
         {
-            if (collection is null || (collection.TryGetCount(out int count) && count <= 0))
+            if (collection is null)
             {
                 return false;
             }
 
             bool flag = false;
-            foreach (T item in collection.AsValueEnumerable())
+            foreach (object? item in collection)
             {
                 if (this.IsTrue(item))
                 {
@@ -123,7 +123,7 @@ namespace ListFunctions.Modern
             return result;
         }
 
-        private List<PSVariable> InitializeContext(T value)
+        private List<PSVariable> InitializeContext(object? value)
         {
             _varList.Clear();
             _thisVar.AddToVarList(value, _varList);
@@ -134,7 +134,7 @@ namespace ListFunctions.Modern
 
             return _varList;
         }
-        public bool IsTrue(T value)
+        public bool IsTrue(object? value)
         {
             List<PSVariable> list = this.InitializeContext(value);
             Collection<PSObject> results = _scriptBlock.InvokeWithContext(null, list, Array.Empty<object>());

@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Management.Automation;
 using System.Reflection;
+using ZLinq;
 
 namespace ListFunctions.Modern
 {
@@ -47,7 +48,7 @@ namespace ListFunctions.Modern
         }
     }
 
-    public sealed class EqualityBlock<T> : ComparingBase<T>, IEqualityBlock, IEqualityComparer<T>
+    public sealed class EqualityBlock<T> : ComparingBase, IEqualityBlock, IEqualityComparer<T>
     {
         readonly List<PSVariable> _varList;
         readonly PSVariable[] _additionalVariables;
@@ -76,7 +77,7 @@ namespace ListFunctions.Modern
             Guard.NotNull(hashCodeBlock, nameof(hashCodeBlock));
             _additionalVariables = additionalVariables is null
                 ? Array.Empty<PSVariable>()
-                : additionalVariables.ToArray();
+                : additionalVariables.AsValueEnumerable().ToArray();
 
             _checksType = typeof(T);
             if (!typeof(T).Equals(hashCodeBlock.HashesType))
@@ -86,8 +87,8 @@ namespace ListFunctions.Modern
 
             _hashCodeBlock = hashCodeBlock;
             _varList = new List<PSVariable>(4);
-            _left = PSComparingVariable<T>.Left();
-            _right = PSComparingVariable<T>.Right();
+            _left = PSComparingVariable.Left<T>();
+            _right = PSComparingVariable.Right<T>();
         }
 
         public bool Equals([System.Diagnostics.CodeAnalysis.AllowNull] T x, [System.Diagnostics.CodeAnalysis.AllowNull] T y)

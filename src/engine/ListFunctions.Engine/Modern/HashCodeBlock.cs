@@ -28,7 +28,7 @@ namespace ListFunctions.Modern
             return new HashCodeBlock<T>(scriptBlock);
         }
     }
-    public sealed class HashCodeBlock<T> : ComparingBase<T>, IHashCodeBlock
+    public sealed class HashCodeBlock<T> : ComparingBase, IHashCodeBlock
     {
         readonly PSThisVariable<T> _thisVar;
         readonly List<PSVariable> _varList;

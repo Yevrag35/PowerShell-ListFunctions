@@ -8,6 +8,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Management.Automation;
 using System.Reflection;
+using ZLinq;
 
 namespace ListFunctions.Modern
 {
@@ -37,16 +38,15 @@ namespace ListFunctions.Modern
         }
     }
 
-    public sealed class ComparingBlock<T> : ComparingBase<T>, IComparer<T>, IComparingBlock
+    public sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparingBlock
     {
         readonly PSVariable[] _additionalVariables;
-        readonly Type _checkingType;
         readonly ScriptBlock _compareScript;
         readonly PSComparingVariable<T> _left;
         readonly PSComparingVariable<T> _right;
         readonly List<PSVariable> _varList;
 
-        Type IComparingBlock.ChecksType => _checkingType;
+        Type IComparingBlock.ChecksType => typeof(T);
 
         public T CurrentLeft => _left.Value;
         public T CurrentRight => _right.Value;
@@ -66,12 +66,11 @@ namespace ListFunctions.Modern
         {
             _additionalVariables = additionalVariables is null
                 ? Array.Empty<PSVariable>()
-                : additionalVariables.ToArray();
+                : additionalVariables.AsValueEnumerable().ToArray();
 
-            _checkingType = typeof(T);
             _varList = new List<PSVariable>(4);
-            _left = PSComparingVariable<T>.Left();
-            _right = PSComparingVariable<T>.Right();
+            _left = PSComparingVariable.Left<T>();
+            _right = PSComparingVariable.Right<T>();
             _compareScript = scriptBlock;
         }
 

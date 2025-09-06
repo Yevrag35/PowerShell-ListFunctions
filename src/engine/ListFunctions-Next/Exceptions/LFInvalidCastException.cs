@@ -43,32 +43,11 @@ namespace ListFunctions.Exceptions
             this.HelpLink = inner.HelpLink;
         }
 
-#if NET6_0_OR_GREATER
-        const string RECOM_ACT = "Validate that the object being passed can be converted to \"";
-        private static string ConstructRecommendedAction(Type convertingTo)
-        {
-            string name = convertingTo.GetTypeName();
-            int length = RECOM_ACT.Length + name.Length + 2;
-
-            return string.Create(length, name, (chars, state) =>
-            {
-                RECOM_ACT.AsSpan().CopyTo(chars);
-                int pos = RECOM_ACT.Length;
-
-                state.AsSpan().CopyTo(chars.Slice(pos));
-                pos += state.Length;
-
-                chars[pos++] = '"';
-                chars[pos++] = '.';
-            });
-        }
-#else
         const string RECOM_ACT = "Validate that the object being passed can be converted to \"{0}\".";
         private static string ConstructRecommendedAction(Type convertingTo)
         {
             return string.Format(RECOM_ACT, convertingTo.GetTypeName());
         }
-#endif  
 
         private static string FormatMessage(Exception inner, object? item, Type convertingTo, out string? itemAsStr, out string? itemType)
         {

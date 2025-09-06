@@ -4,7 +4,7 @@ using System.Management.Automation;
 
 namespace ListFunctions.Modern
 {
-    public abstract class ComparingBase<T>
+    public abstract class ComparingBase
     {
         public ScriptBlock Script { get; }
 
