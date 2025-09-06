@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 
 namespace ListFunctions.Modern.Variables
 {
-    public abstract class PSComparingVariable
+    public abstract class PSComparingVariable : IPoolable
     {
         public const string X = "x";
         public const string Y = "y";
@@ -21,6 +21,9 @@ namespace ListFunctions.Modern.Variables
         private protected PSComparingVariable()
         {
         }
+
+        public abstract void Initialize();
+        public abstract bool TryReset();
 
         internal static PSComparingVariable<T> Left<T>()
         {

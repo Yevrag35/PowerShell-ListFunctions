@@ -23,7 +23,7 @@ namespace ListFunctions.Cmdlets.Finds
 
         protected sealed override void BeginProcessing()
         {
-            _list = ListPool.Rent();
+            _list = ListPool<object?>.Rent();
 
             try
             {
@@ -65,6 +65,10 @@ namespace ListFunctions.Cmdlets.Finds
         {
             this.CleanupCore();
             base.StopProcessing();
+        }
+        protected virtual void Stop(List<object?> list)
+        {
+
         }
         protected sealed override void EndProcessing()
         {

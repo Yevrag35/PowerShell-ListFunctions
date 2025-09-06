@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace ListFunctions.Modern.Pools
 {
-    public static class ListPool<T> where T : class
+    public static class ListPool<T> where T : class?
     {
         private const int DEFAULT_LIST_CAPACITY = 50;
         private static List<T>[] CreateLists(int count)
