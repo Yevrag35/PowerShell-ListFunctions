@@ -12,7 +12,7 @@
     RootModule        = 'ListFunctions.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '2.0.0'
+    ModuleVersion     = '3.0.0'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Desk', 'Core')
@@ -27,13 +27,13 @@
     CompanyName       = 'Yevrag35, LLC.'
 
     # Copyright statement for this module
-    Copyright         = 'Copyright (c) 2020-2024 Yevrag35, LLC.'
+    Copyright         = 'Copyright (c) 2020-2025 Yevrag35, LLC.'
 
     # Description of the functionality provided by this module
     Description       = 'A simple module that provides functions to manipulate, search, and create Arrays, Collections, Lists, and Sets.'
 
     # Minimum version of the Windows PowerShell engine required by this module
-    PowerShellVersion = '5.1'
+    PowerShellVersion = '5.0'
 
     # Name of the Windows PowerShell host required by this module
     # PowerShellHostName = ''

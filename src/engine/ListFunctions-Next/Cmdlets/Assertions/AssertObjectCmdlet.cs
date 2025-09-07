@@ -40,7 +40,6 @@ namespace ListFunctions.Cmdlets.Assertions
 #endif
         protected private bool HasCondition { get; set; }
 
-
         protected sealed override void BeginCore()
         {
             base.BeginCore();
@@ -65,8 +64,8 @@ namespace ListFunctions.Cmdlets.Assertions
         protected sealed override bool ProcessCore()
         {
             return this.HasCondition
-                ? this.Process(this.Filter!)
-                : this.ProcessWhenNoCondition();
+                ? !this.Process(this.Filter!)
+                : !this.ProcessWhenNoCondition();
         }
         protected abstract bool Process(ScriptBlockFilter filter);
         protected abstract bool ProcessWhenNoCondition();

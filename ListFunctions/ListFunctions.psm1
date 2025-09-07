@@ -4,15 +4,9 @@
     default { throw "Incompatible PowerShell Version" }
 }
 
-$script:assFolder = Split-Path -Path $script:dllPath -Parent
-$script:loadThese = @(
-    'MG.Collections.dll',
-    'ListFunctions.Engine.dll'
-)
+# foreach ($script:assName in $script:loadThese) {
 
-foreach ($script:assName in $script:loadThese) {
-
-    Import-Module "$($script:assFolder)\$($script:assName)"
-}
+    # Import-Module "$($script:assFolder)\$($script:assName)"
+# }
 
 Import-Module $script:dllPath -ErrorAction Stop
