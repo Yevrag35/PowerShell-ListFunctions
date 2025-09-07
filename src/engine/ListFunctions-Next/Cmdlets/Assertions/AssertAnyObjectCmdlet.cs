@@ -71,19 +71,5 @@ namespace ListFunctions.Cmdlets.Assertions
         {
             this.WriteObject(scriptResult);
         }
-        //protected override void EndProcessing()
-        //{
-
-        //    //if (!this.HasCondition)
-        //    //{
-        //    //    this.WriteObject(_hasNonNull);
-        //    //    return;
-        //    //}
-        //    //else
-        //    //{
-        //    //    this.WriteObject(_stop);
-        //    //    return;
-        //    //}
-        //}
     }
 }
