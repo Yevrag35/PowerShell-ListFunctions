@@ -31,10 +31,15 @@ namespace ListFunctions.Cmdlets.Finds
         [Parameter]
         public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.SilentlyContinue;
 
-        protected override void End(List<object?> list, PSVariable scriptErrorAction
+        protected override void End(List<object?> list, PSVariable scriptErrorAction, List<PSVariable> varList)
         {
-            
+            throw new NotImplementedException();
         }
+
+        //protected override void End(List<object?> list, PSVariable scriptErrorAction)
+        //{
+
+        //}
 
         //static readonly Lazy<Dictionary<Type, MethodInfo>> _indexMethods = 
         //    new Lazy<Dictionary<Type, MethodInfo>>(BuildMethodCache);

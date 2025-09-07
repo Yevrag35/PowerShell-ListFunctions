@@ -1,161 +1,121 @@
-using ListFunctions.Extensions;
 using ListFunctions.Internal;
+using ListFunctions.Modern.Pools;
 using ListFunctions.Modern.Variables;
 using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
+using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
 using ZLinq;
 
+#nullable enable
+
 namespace ListFunctions.Modern
 {
-    public abstract class ScriptBlockFilter
+    public sealed class ScriptBlockFilter : IDisposable
     {
-        private protected ScriptBlockFilter()
-        {
-        }
+        private bool _disposed;
+        private PSThisVariable _constants;
+        private List<PSVariable> _extraVariables;
+        private readonly ScriptBlock _scriptBlock;
+        private List<PSVariable> _variables;
 
-        protected abstract object MakePredicate();
-
-        public static ScriptBlockFilter Create(ScriptBlock scriptBlock, Type genericType, IEnumerable<PSVariable>? additionalVariables)
-        {
-            Type filterType = typeof(ScriptBlockFilter<>);
-            Type genFilter = filterType.MakeGenericType(genericType);
-
-            return Activator.CreateInstance(genFilter,
-                new object[] { scriptBlock, additionalVariables! })
-                    as ScriptBlockFilter
-                    ?? throw new InvalidOperationException("Unable to create generic script block filter instance.");
-        }
-        public static object ToPredicate(ScriptBlockFilter genericScriptBlock)
-        {
-            return genericScriptBlock.MakePredicate();
-        }
-    }
-
-    public sealed class ScriptBlockFilter<T> : ScriptBlockFilter
-    {
-        static readonly IEqualityComparer<PSVariable> _equality = new PSVariableNameEquality();
-
-        readonly IReadOnlySet<PSVariable> _additionalVariables;
-        readonly bool _hasAdditionalVariables;
-        readonly ScriptBlock _scriptBlock;
-        Predicate<T>? _predicate;
-        readonly PSThisVariable<T> _thisVar;
-        readonly List<PSVariable> _varList;
-
-        public ScriptBlockFilter(ScriptBlock scriptBlock)
-            : this(scriptBlock, null)
-        {
-        }
-        public ScriptBlockFilter(ScriptBlock scriptBlock, IEnumerable<PSVariable>? additionalVariables)
+        public ScriptBlockFilter(ScriptBlock scriptBlock, params
+#if NET9_0_OR_GREATER
+                ReadOnlySpan<PSVariable>
+#else
+                PSVariable[]
+#endif
+                additionalVariables)
         {
             Guard.NotNull(scriptBlock, nameof(scriptBlock));
-            _thisVar = new PSThisVariable<T>();
-
             _scriptBlock = scriptBlock;
-            int count = 1;
-            if (!(additionalVariables is null) && additionalVariables.TryGetCount(out int enumCount))
-            {
-                count += enumCount;
-            }
-
-            _varList = new List<PSVariable>(count);
-            _additionalVariables = GetAdditionalVariables(additionalVariables, out bool hasAdditional);
-            _hasAdditionalVariables = hasAdditional;
-        }
-
-        private static IReadOnlySet<PSVariable> GetAdditionalVariables(IEnumerable<PSVariable>? collection, out bool hasAdditional)
-        {
-            hasAdditional = true;
-            if (collection is null || collection.TryGetCount(out int count) && count == 0)
-            {
-                hasAdditional = false;
-                return Empty.Set<PSVariable>();
-            }
-            else if (count == 1)
-            {
-                return SingleValueReadOnlySet.Create(collection, _equality);
-            }
-
-            return new ReadOnlySet<PSVariable>(new HashSet<PSVariable>(collection, _equality));
-        }
-
-        public bool Any(IEnumerable? collection)
-        {
-            if (collection is null)
-            {
-                return false;
-            }
-
-            bool flag = false;
-            foreach (object? item in collection)
-            {
-                if (this.IsTrue(item))
-                {
-                    flag = true;
-                    break;
-                }
-            }
-
-            return flag;
-        }
-
-        public bool All(IEnumerable<T>? collection)
-        {
-            if (collection is null || (collection.TryGetCount(out int count) && count <= 0))
-            {
-                return false;
-            }
-
-            bool result = true;
-
-            foreach (T item in collection.AsValueEnumerable())
-            {
-                if (!this.IsTrue(item))
-                {
-                    result = false;
-                    break;
-                }
-            }
-
-            return result;
+            _extraVariables = ListPool<PSVariable>.Rent();
+            _extraVariables.AddRange(additionalVariables
+#if !NET9_0_OR_GREATER
+                ?? Array.Empty<PSVariable>()
+                #endif
+            );
+            _variables = ListPool<PSVariable>.Rent();
+            _constants = ObjPool<PSThisVariable>.Rent();
         }
 
         private List<PSVariable> InitializeContext(object? value)
         {
-            _varList.Clear();
-            _thisVar.AddToVarList(value, _varList);
-            if (_hasAdditionalVariables)
+            _variables.Clear();
+            _constants.SetValue(value);
+            _constants.InsertIntoList(_variables);
+            _variables.AddRange(_extraVariables);
+            return _variables;
+        }
+
+        public bool All(ICollection? collection)
+        {
+            if (collection is null || collection.Count == 0)
+                return false;
+
+            foreach (object? item in collection)
             {
-                _varList.AddRange(_additionalVariables);
+                if (!this.IsTrue(item))
+                    return false;
             }
 
-            return _varList;
+            return true;
+        }
+        public bool Any(ICollection? collection)
+        {
+            if (collection is null || collection.Count == 0)
+                return false;
+
+            foreach (object? item in collection)
+            {
+                if (this.IsTrue(item))
+                    return true;
+            }
+
+            return false;
         }
         public bool IsTrue(object? value)
         {
-            List<PSVariable> list = this.InitializeContext(value);
-            Collection<PSObject> results = _scriptBlock.InvokeWithContext(null, list, Array.Empty<object>());
+            List<PSVariable> variables = this.InitializeContext(value);
 
-            return results.GetFirstValue(ConvertToBool);
+            return _scriptBlock.InvokeWithContext(
+                variables: variables,
+                selectAs: LanguagePrimitives.IsTrue);
         }
 
-        private Predicate<T> ToPredicate()
+        public void Dispose()
         {
-            return _predicate ??= new Predicate<T>(x => this.IsTrue(x));
+            this.Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
-        protected override object MakePredicate()
+        private void Dispose(bool disposing)
         {
-            return this.ToPredicate();
-        }
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    if (!(_constants is null))
+                    {
+                        ObjPool<PSThisVariable>.Return(_constants);
+                        _constants = null!;
+                    }
 
-        public static implicit operator Predicate<T>(ScriptBlockFilter<T> filter)
-        {
-            return filter.ToPredicate();
-        }
+                    if (!(_extraVariables is null))
+                    {
+                        ListPool<PSVariable>.Return(_extraVariables);
+                        _extraVariables = null!;
+                    }
 
-        private static bool ConvertToBool(object value) => Convert.ToBoolean(value);
+                    if (!(_variables is null))
+                    {
+                        ListPool<PSVariable>.Return(_variables);
+                        _variables = null!;
+                    }
+                }
+
+                _disposed = true;
+            }
+        }
     }
 }

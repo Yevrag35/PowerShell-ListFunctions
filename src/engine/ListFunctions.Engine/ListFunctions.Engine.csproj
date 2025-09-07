@@ -11,10 +11,10 @@
 	  <RepositoryUrl>https://github.com/Yevrag35/PowerShell-ListFunctions.git</RepositoryUrl>
 	  <RepositoryType>Git</RepositoryType>
 	  <PackageProjectUrl>https://github.com/Yevrag35/PowerShell-ListFunctions</PackageProjectUrl>
-	  <Version>2.0.0</Version>
+	  <Version>3.0.0</Version>
 	  <AssemblyName>ListFunctions.Engine</AssemblyName>
-	  <AssemblyVersion>2.0.0</AssemblyVersion>
-	  <FileVersion>2.0.0</FileVersion>
+	  <AssemblyVersion>3.0.0</AssemblyVersion>
+	  <FileVersion>3.0.0</FileVersion>
 	  <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	  <ImplicitUsings>false</ImplicitUsings>
   </PropertyGroup>
@@ -48,6 +48,15 @@
 	<PropertyGroup Condition="'$(Configuration)'=='Release'">
 		<DebugType>portable</DebugType>
 	</PropertyGroup>
+
+	<ItemGroup>
+		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+			<_Parameter1>ListFunctions-Next</_Parameter1>
+		</AssemblyAttribute>
+		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+			<_Parameter1>ListFunctions.NETFramework</_Parameter1>
+		</AssemblyAttribute>
+	</ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)'=='Debug'">
     <Content Include="Debug.ps1">

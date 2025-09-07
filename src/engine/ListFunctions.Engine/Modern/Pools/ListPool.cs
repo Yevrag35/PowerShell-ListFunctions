@@ -7,21 +7,11 @@ using System.Linq;
 
 namespace ListFunctions.Modern.Pools
 {
-    public static class ListPool<T> where T : class?
+    internal static class ListPool<T> where T : class?
     {
-        private const int DEFAULT_LIST_CAPACITY = 50;
-        private static List<T>[] CreateLists(int count)
-        {
-            var array = new List<T>[count];
-            for (int i = 0; i < count; i++)
-            {
-                array[i] = new List<T>(DEFAULT_LIST_CAPACITY);
-            }
-
-            return array;
-        }
+        private const int DEFAULT_LIST_CAPACITY = 10;
         private static readonly Lazy<ConcurrentBag<List<T>>> _bag = new(
-            () => new ConcurrentBag<List<T>>(CreateLists(count: 2)));
+            () => new ConcurrentBag<List<T>>() { new List<T>(DEFAULT_LIST_CAPACITY) });
 
         public static List<T> Rent()
         {

@@ -1,110 +1,103 @@
-﻿using System.Collections.Generic;
+﻿using ListFunctions.Modern;
+using ListFunctions.Modern.Variables;
+using ListFunctions.Validation;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Management.Automation;
-using ListFunctions.Modern;
-using ListFunctions.Modern.Variables;
-using ListFunctions.Validation;
+using AllowsNull = System.Diagnostics.CodeAnalysis.AllowNullAttribute;
+using PSAllowNull = System.Management.Automation.AllowNullAttribute;
 
 #nullable enable
 
-using AllowsNull = System.Diagnostics.CodeAnalysis.AllowNullAttribute;
-using PSAllowNullAttribute = System.Management.Automation.AllowNullAttribute;
 
 namespace ListFunctions.Cmdlets.Assertions
 {
     [Cmdlet(VerbsLifecycle.Assert, "AnyObject")]
     [Alias("Assert-Any", "Any-Object", "Any")]
     [OutputType(typeof(bool))]
-    public sealed class AssertAnyObjectCmdlet : ListFunctionCmdletBase
+    public sealed class AssertAnyObjectCmdlet : AssertObjectCmdlet
     {
-        private ScriptBlock? _condition;
-        private ActionPreference _errorPref;
-        private ScriptBlockFilter<object> _equality = null!;
-        private bool _hasCondition;
-        private bool _hasNonNull;
-        private bool _stop;
+        //private ScriptBlock? _condition;
+        //private ActionPreference _errorPref;
+        //private ScriptBlockFilter _equality = null!;
+        
+        //private bool _hasNonNull;
+        //private bool _stop;
 
         [Parameter(Mandatory = true, ValueFromPipeline = true)]
-        [AllowEmptyCollection, PSAllowNull, MaybeNull]
-        public object[] InputObject { get; set; } = null!;
+        [AllowEmptyCollection, PSAllowNull, AllowEmptyString]
+        public object?[]? InputObject { get; set; }
 
         [Parameter(Position = 0)]
-        [Alias("ScriptBlock")]
-        [PSAllowNull]
+        [Alias("ScriptBlock", "FilterScript")]
+        [PSAllowNull, AllowEmptyString, MaybeNull, AllowsNull]
         [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.THIS_NAME, PSThisVariable.PSITEM_NAME)]
-        public ScriptBlock? Condition
+        public override ScriptBlock Condition
         {
-            get => _condition;
-            set
-            {
-                _condition = value;
-                _hasCondition = !(_condition is null);
-            }
+            get => base.Condition;
+            set => base.Condition = value;
         }
+        [Parameter, Alias("ScriptErrorAction")]
+        public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.SilentlyContinue;
 
-#if NET5_0_OR_GREATER
-        [MemberNotNullWhen(true, nameof(Condition), nameof(_condition))]
-#endif
-        internal bool HasCondition => _hasCondition;
-
-        protected override void BeginProcessing()
+        //protected override void BeginProcessing()
+        //{
+        //    //if (this.HasCondition)
+        //    //{
+        //    //    _equality = new ScriptBlockFilter(this.Condition!, new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction));
+        //    //}
+        //}
+        protected override bool Process(ScriptBlockFilter filter)
         {
-            _errorPref = this.GetErrorPreference();
-            if (this.HasCondition)
-            {
-                _equality = new ScriptBlockFilter<object>(this.Condition!, EnumerateVariables(_errorPref));
-            }
+            return filter.Any(this.InputObject);
         }
-        protected override void ProcessRecord()
+        protected override bool ProcessWhenNoCondition()
         {
-            if (!this.HasCondition)
+            if (!(this.InputObject is null))
             {
-                if (!_hasNonNull)
+                foreach (object? item in this.InputObject)
                 {
-                    ProcessWhenNoCondition(this.InputObject, ref _hasNonNull);
-                }
-
-                return;
-            }
-            else if (!_stop)
-            {
-                _stop = _equality.Any(this.InputObject);
-            }
-        }
-        private static void ProcessWhenNoCondition(
-            [System.Diagnostics.CodeAnalysis.AllowNull] object[] inputObjects,
-            ref bool hasNonNull)
-        {
-            if (!(inputObjects is null))
-            {
-                foreach (object o in inputObjects)
-                {
-                    if (!(o is null))
+                    if (!(item is null))
                     {
-                        hasNonNull = true;
-                        break;
+                        return true;
                     }
                 }
             }
-        }
-        protected override void EndProcessing()
-        {
-            if (!this.HasCondition)
-            {
-                this.WriteObject(_hasNonNull);
-                return;
-            }
-            else
-            {
-                this.WriteObject(_stop);
-                return;
-            }
-        }
 
-        private static PSVariable[] EnumerateVariables(ActionPreference errorPref)
-        {
-            return new[] { new PSVariable(ERROR_ACTION_PREFERENCE, errorPref) };
+            return false;
+            //if (!_hasNonNull)
+            //{
+            //    ProcessWhenNoCondition(this.InputObject, ref _hasNonNull);
+            //}
+            //if (!this.HasCondition)
+            //{
+
+
+            //    return;
+            //}
+            //else if (!_stop)
+            //{
+            //    _stop = _equality.Any(this.InputObject);
+            //}
         }
+        protected override void End(bool scriptResult)
+        {
+            this.WriteObject(scriptResult);
+        }
+        //protected override void EndProcessing()
+        //{
+
+        //    //if (!this.HasCondition)
+        //    //{
+        //    //    this.WriteObject(_hasNonNull);
+        //    //    return;
+        //    //}
+        //    //else
+        //    //{
+        //    //    this.WriteObject(_stop);
+        //    //    return;
+        //    //}
+        //}
     }
 }

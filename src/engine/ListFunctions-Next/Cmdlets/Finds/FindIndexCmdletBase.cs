@@ -116,7 +116,7 @@ namespace ListFunctions.Cmdlets.Finds
         //}
         private void CleanupCore()
         {
-            ListPool.Return(_list);
+            ListPool<object?>.Return(_list);
             _list = null!;
             this.Cleanup();
         }

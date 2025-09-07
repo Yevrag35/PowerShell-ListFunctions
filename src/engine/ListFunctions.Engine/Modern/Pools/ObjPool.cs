@@ -6,9 +6,12 @@ using System.Collections.Generic;
 
 namespace ListFunctions.Modern.Pools
 {
-    public static class ObjPool<T> where T : class, IPoolable, new()
+    internal static class ObjPool<T> where T : class, IPoolable, new()
     {
-        private static readonly Lazy<ConcurrentBag<T>> _bag = new();
+        private static readonly Lazy<ConcurrentBag<T>> _bag = new(() =>
+        {
+            return new ConcurrentBag<T>() { new T() };
+        });
 
         public static T Rent()
         {

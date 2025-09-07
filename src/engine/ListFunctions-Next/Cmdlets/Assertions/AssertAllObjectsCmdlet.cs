@@ -6,8 +6,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Management.Automation;
-using System.Text;
-using System.Threading.Tasks;
+
+#nullable enable
 
 namespace ListFunctions.Cmdlets.Assertions
 {
@@ -16,25 +16,24 @@ namespace ListFunctions.Cmdlets.Assertions
     [OutputType(typeof(bool))]
     public sealed class AssertAllObjectsCmdlet : ListFunctionCmdletBase
     {
-        ScriptBlockFilter<object> _equality = null!;
+        ScriptBlockFilter _equality = null!;
         bool _stop;
-
-        [Parameter(Mandatory = true, ValueFromPipeline = true)]
-        [AllowEmptyCollection]
-        [AllowNull]
-        public object[] InputObject { get; set; } = null!;
 
         [Parameter(Mandatory = true, Position = 0)]
         [Alias("ScriptBlock")]
         [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.THIS_NAME, PSThisVariable.PSITEM_NAME)]
         public ScriptBlock Condition { get; set; } = null!;
 
+        [Parameter(Mandatory = true, ValueFromPipeline = true)]
+        [AllowNull, AllowEmptyCollection, AllowEmptyString]
+        public object?[]? InputObject { get; set; }
+
         [Parameter]
         public ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.SilentlyContinue;
 
         protected override void BeginProcessing()
         {
-            _equality = new ScriptBlockFilter<object>(this.Condition, EnumerateVariables(this.ScriptBlockErrorAction));
+            _equality = new ScriptBlockFilter(this.Condition, new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction));
         }
         protected override void ProcessRecord()
         {
@@ -46,11 +45,6 @@ namespace ListFunctions.Cmdlets.Assertions
         protected override void EndProcessing()
         {
             this.WriteObject(_stop);
-        }
-
-        private static PSVariable[] EnumerateVariables(ActionPreference errorPref)
-        {
-            return new[] { new PSVariable(ERROR_ACTION_PREFERENCE, errorPref) };
         }
     }
 }

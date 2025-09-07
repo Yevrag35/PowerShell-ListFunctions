@@ -12,6 +12,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
 using System.Reflection;
 
+#nullable enable
+
 namespace ListFunctions.Cmdlets.Construct
 {
     [Cmdlet(VerbsCommon.New, "HashSet", DefaultParameterSetName = "None")]
@@ -53,7 +55,7 @@ namespace ListFunctions.Cmdlets.Construct
 
         protected override void Process(object collection, Type collectionType)
         {
-            if (this.InputObject is null)
+            if (this.InputObject is null || this.InputObject.Length == 0)
             {
                 return;
             }

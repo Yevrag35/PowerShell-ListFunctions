@@ -82,7 +82,7 @@ $otherDll = "$PSScriptRoot\ListFunctions.Engine.dll"
 if (-not (Test-Path -Path $otherDll -PathType Leaf)) {
 	throw "The specified module DLL was not found -> `"$otherDll`""
 }
-Import-Module $otherDll -ErrorAction Stop
+Import-Module $otherDll -ErrorAction Stop -Force
 
 $dllPath = "$PSScriptRoot\$LibraryName.dll"
 if (-not (Test-Path -Path $dllPath -PathType Leaf)) {
@@ -91,7 +91,7 @@ if (-not (Test-Path -Path $dllPath -PathType Leaf)) {
 
 if ($PSCmdlet.ShouldProcess($dllPath, "Importing Module")) {
 
-	Import-Module $dllPath -ErrorAction Stop
+	Import-Module $dllPath -ErrorAction Stop -Force
 	Push-Location $myDesktop
 }
 

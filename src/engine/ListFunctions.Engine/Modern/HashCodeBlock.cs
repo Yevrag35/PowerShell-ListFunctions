@@ -30,7 +30,7 @@ namespace ListFunctions.Modern
     }
     public sealed class HashCodeBlock<T> : ComparingBase, IHashCodeBlock
     {
-        readonly PSThisVariable<T> _thisVar;
+        readonly PSThisVariable _thisVar;
         readonly List<PSVariable> _varList;
         readonly Type _hashesType;
 
@@ -40,7 +40,7 @@ namespace ListFunctions.Modern
             : base(scriptBlock, preValidated: false)
         {
             _hashesType = typeof(T);
-            _thisVar = new PSThisVariable<T>();
+            _thisVar = new PSThisVariable();
             _varList = new();
         }
 
@@ -65,7 +65,9 @@ namespace ListFunctions.Modern
         private List<PSVariable> SetContextVariables(T obj, IEnumerable<PSVariable>? additionalVariables)
         {
             _varList.Clear();
-            _thisVar.AddToVarList(obj, _varList);
+            //_thisVar.AddToVarList(obj, _varList);
+            _thisVar.SetValue(obj);
+            _thisVar.InsertIntoList(_varList);
 
             if (additionalVariables is not null)
                 _varList.AddRange(additionalVariables);

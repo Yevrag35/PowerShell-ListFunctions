@@ -4,7 +4,7 @@ using System.Management.Automation;
 
 namespace ListFunctions.Modern.Variables
 {
-    public class PSThisVariable : IResettable
+    public class PSThisVariable : IPoolable
     {
         public const string UNDERSCORE_NAME = "_";
         public const string THIS_NAME = "this";
@@ -13,8 +13,8 @@ namespace ListFunctions.Modern.Variables
         static readonly Lazy<HashSet<string>> _names = new Lazy<HashSet<string>>(GetThisNames);
 
         private readonly PSVariable[] _allVars;
-        internal object? ObjValue { get; private set; }
-        internal PSThisVariable()
+        public object? ObjValue { get; private set; }
+        public PSThisVariable()
         {
             _allVars = new PSVariable[3];
             _allVars[0] = new PSVariable(UNDERSCORE_NAME, null);
@@ -22,7 +22,7 @@ namespace ListFunctions.Modern.Variables
             _allVars[2] = new PSVariable(PSITEM_NAME, null);
         }
 
-        private protected void InsertIntoList(List<PSVariable> list)
+        public void InsertIntoList(List<PSVariable> list)
         {
             list.InsertRange(0, _allVars);
         }
@@ -36,7 +36,7 @@ namespace ListFunctions.Modern.Variables
             Guard.NotNull(variable, nameof(variable));
             return _names.Value.Contains(variable.Name);
         }
-        internal void SetValue(object? value)
+        public void SetValue(object? value)
         {
             this.ObjValue = value;
             foreach (PSVariable v in _allVars)
@@ -55,6 +55,9 @@ namespace ListFunctions.Modern.Variables
             };
         }
 
+        void IPoolable.Initialize()
+        {
+        }
         public bool TryReset()
         {
             Array.ForEach(_allVars, v => v.Value = null);
@@ -63,19 +66,19 @@ namespace ListFunctions.Modern.Variables
         }
     }
 
-    internal sealed class PSThisVariable<T> : PSThisVariable
-    {
-        internal T? Value => (T?)base.ObjValue;
+    //internal sealed class PSThisVariable<T> : PSThisVariable
+    //{
+    //    internal T? Value => (T?)base.ObjValue;
 
-        internal PSThisVariable()
-            : base()
-        {
-        }
+    //    internal PSThisVariable()
+    //        : base()
+    //    {
+    //    }
 
-        internal void AddToVarList(T value, List<PSVariable> variables)
-        {
-            this.SetValue(value);
-            this.InsertIntoList(variables);
-        }
-    }
+    //    internal void AddToVarList(T value, List<PSVariable> variables)
+    //    {
+    //        this.SetValue(value);
+    //        this.InsertIntoList(variables);
+    //    }
+    //}
 }
