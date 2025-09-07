@@ -54,7 +54,7 @@ namespace ListFunctions.Cmdlets.Construct
         }
 
         #region PROCESSING
-        protected sealed override void BeginProcessing()
+        protected sealed override void BeginCore()
         {
             Type[]? genericTypes = this.GetGenericTypes();
             IEqualityComparer? comparer = this.GetCustomEqualityComparer(this.GetEqualityForType());
@@ -73,20 +73,17 @@ namespace ListFunctions.Cmdlets.Construct
             return;
         }
 
-        protected sealed override void ProcessRecord()
+        protected sealed override bool ProcessCore()
         {
-            this.Process(_collection, _collectionType);
+            return this.Process(_collection, _collectionType);
         }
-        protected virtual void Process(T collection, Type collectionType)
-        {
-            return;
-        }
+        protected abstract bool Process(T collection, Type collectionType);
 
-        protected sealed override void EndProcessing()
+        protected sealed override void EndCore(bool wantsToStop)
         {
-            this.End(_collection);
+            this.End(_collection, wantsToStop);
         }
-        protected virtual void End(T collection)
+        protected virtual void End(T collection, bool wantsToStop)
         {
             return;
         }

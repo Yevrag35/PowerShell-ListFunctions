@@ -1,6 +1,7 @@
 ﻿using ListFunctions.Exceptions;
 using ListFunctions.Extensions;
 using System;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
 
@@ -14,6 +15,82 @@ namespace ListFunctions.Cmdlets
         const string PREFERENCE = "Preference";
         protected const string ERROR_ACTION = "ErrorAction";
         protected const string ERROR_ACTION_PREFERENCE = ERROR_ACTION + PREFERENCE;
+
+        private bool _wantsToStop;
+
+        protected sealed override void BeginProcessing()
+        {
+            try
+            {
+                this.BeginCore();
+            }
+            catch
+            {
+                this.CleanupCore();
+                _wantsToStop = true;
+                throw;
+            }
+        }
+        protected sealed override void ProcessRecord()
+        {
+            if (_wantsToStop)
+                return;
+
+            try
+            {
+                _wantsToStop = !this.ProcessCore();
+            }
+            catch
+            {
+                try
+                {
+                    this.StopProcessing();
+                }
+                catch
+                {
+                    throw;
+                }
+                finally
+                {
+                    this.CleanupCore();
+                    _wantsToStop = true;
+                }
+            }
+        }
+        protected sealed override void EndProcessing()
+        {
+            try
+            {
+                this.EndCore(_wantsToStop);
+            }
+            finally
+            {
+                this.CleanupCore();
+            }
+        }
+        protected virtual void BeginCore()
+        {
+        }
+        protected abstract bool ProcessCore();
+        protected virtual void EndCore(bool wantsToStop)
+        {
+        }
+        
+        private void CleanupCore()
+        {
+            try
+            {
+                this.Cleanup();
+            }
+            catch (Exception e)
+            {
+                Debug.Fail(e.Message);
+            }
+        }
+        protected virtual void Cleanup()
+        {
+            // Override to implement custom cleanup logic
+        }
 
         protected ActionPreference GetErrorPreference()
         {

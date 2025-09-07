@@ -6,7 +6,12 @@ using System.Collections.Generic;
 
 namespace ListFunctions.Modern.Pools
 {
-    internal static class ObjPool<T> where T : class, IPoolable, new()
+#if !NETCOREAPP
+    public
+#else
+    internal 
+#endif
+        static class ObjPool<T> where T : class, IPoolable, new()
     {
         private static readonly Lazy<ConcurrentBag<T>> _bag = new(() =>
         {

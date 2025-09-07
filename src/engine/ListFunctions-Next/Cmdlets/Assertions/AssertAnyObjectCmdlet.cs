@@ -18,13 +18,6 @@ namespace ListFunctions.Cmdlets.Assertions
     [OutputType(typeof(bool))]
     public sealed class AssertAnyObjectCmdlet : AssertObjectCmdlet
     {
-        //private ScriptBlock? _condition;
-        //private ActionPreference _errorPref;
-        //private ScriptBlockFilter _equality = null!;
-        
-        //private bool _hasNonNull;
-        //private bool _stop;
-
         [Parameter(Mandatory = true, ValueFromPipeline = true)]
         [AllowEmptyCollection, PSAllowNull, AllowEmptyString]
         public object?[]? InputObject { get; set; }
@@ -41,13 +34,6 @@ namespace ListFunctions.Cmdlets.Assertions
         [Parameter, Alias("ScriptErrorAction")]
         public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.SilentlyContinue;
 
-        //protected override void BeginProcessing()
-        //{
-        //    //if (this.HasCondition)
-        //    //{
-        //    //    _equality = new ScriptBlockFilter(this.Condition!, new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction));
-        //    //}
-        //}
         protected override bool Process(ScriptBlockFilter filter)
         {
             return filter.Any(this.InputObject);

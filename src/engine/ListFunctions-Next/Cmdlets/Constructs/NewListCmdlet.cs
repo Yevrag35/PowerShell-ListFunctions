@@ -49,7 +49,7 @@ namespace ListFunctions.Cmdlets.Construct
         [Alias("IncludeNulls")]
         public SwitchParameter IncludeNullElements { get; set; }
 
-        protected override void BeginProcessing()
+        protected override void BeginCore()
         {
             _list = _genericType is null
                 ? new List<object?>(this.Capacity > 0 ? this.Capacity : 4)
@@ -96,20 +96,31 @@ namespace ListFunctions.Cmdlets.Construct
             return type;
         }
 
-        protected override void ProcessRecord()
+        protected override bool ProcessCore()
         {
+            bool flag = true;
             if (_listIsNull || this.InputObject is null || this.InputObject.Length == 0)
             {
-                return;
+                return flag;
             }
 
-            if (_isObjectType)
+            try
             {
-                this.AddItemsToList(_list, this.InputObject);
+                if (_isObjectType)
+                {
+                    this.AddItemsToList(_list, this.InputObject);
+                }
+                else
+                {
+                    this.AddTypedItemsToList(_list, this.InputObject, this.GenericType);
+                }
+
+                return flag;
             }
-            else
+            catch
             {
-                this.AddTypedItemsToList(_list, this.InputObject, this.GenericType);
+                flag = false;
+                throw;
             }
         }
         private void AddItemsToList(IList list, object?[] items)
@@ -140,9 +151,9 @@ namespace ListFunctions.Cmdlets.Construct
             }
         }
 
-        protected override void EndProcessing()
+        protected override void EndCore(bool wantsToStop)
         {
-            if (!_listIsNull)
+            if (!wantsToStop && !_listIsNull)
             {
                 this.WriteObject(_list, false);
             }

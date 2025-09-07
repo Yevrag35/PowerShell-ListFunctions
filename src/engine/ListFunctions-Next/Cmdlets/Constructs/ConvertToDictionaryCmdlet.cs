@@ -16,8 +16,8 @@ namespace ListFunctions.Cmdlets.Constructs
     public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
     {
         [Parameter(Mandatory = true, ValueFromPipeline = true)]
-        [AllowEmptyCollection, AllowNull]
-        public object[] InputObject { get; set; } = null!;
+        [AllowEmptyCollection, AllowNull, AllowEmptyString]
+        public object?[]? InputObject { get; set; }
 
         [Parameter(Mandatory = false)]
         public IEqualityComparer? KeyComparer { get; set; }
@@ -35,15 +35,14 @@ namespace ListFunctions.Cmdlets.Constructs
         public object? ValuePropertyName { get; set; }
 
         [Parameter(Mandatory = false)]
-        [AllowNull]
+        [AllowNull, AllowEmptyString]
         public ScriptBlock? ValueSelector { get; set; }
 
         private IDictionary _dictionary = null!;
         private Type _keyType = null!;
-        private IEqualityComparer _keyComparer = null!;
         private Type _valueType = null!;
 
-        protected override void BeginProcessing()
+        protected override void BeginCore()
         {
             if (this.ParameterSetName.StartsWith("KeyProperty", StringComparison.Ordinal))
             {
@@ -75,10 +74,11 @@ namespace ListFunctions.Cmdlets.Constructs
                 _valueType = GetTypeForElement(this.InputObject, this.ValueSelector);
             }
         }
-        protected override void ProcessRecord()
+        protected override bool ProcessCore()
         {
+            bool flag = true;
             if (this.InputObject is null || this.InputObject.Length == 0)
-                return;
+                return flag;
 
             if (_dictionary is null)
             {
@@ -97,7 +97,7 @@ namespace ListFunctions.Cmdlets.Constructs
                 _dictionary = (IDictionary)Activator.CreateInstance(dictType, new[] { this.KeyComparer })!;
             }
 
-            foreach (object item in this.InputObject.AsValueEnumerable().Where(x => !(x is null)))
+            foreach (object item in this.InputObject.AsValueEnumerable().Where(x => !(x is null))!)
             {
                 try
                 {
@@ -113,15 +113,26 @@ namespace ListFunctions.Cmdlets.Constructs
 
                     _dictionary.Add(key, value);
                 }
-                catch (Exception e)
+                catch (PSInvalidCastException e)
                 {
                     var rec = e.ToRecord(ErrorCategory.InvalidArgument, item);
                     this.WriteError(rec);
                 }
+                catch (Exception e)
+                {
+                    var rec = e.ToRecord(ErrorCategory.InvalidOperation, item);
+                    this.ThrowTerminatingError(rec);
+                    return false;
+                }
             }
+
+            return flag;
         }
-        protected override void EndProcessing()
+        protected override void EndCore(bool wantsToStop)
         {
+            if (wantsToStop)
+                return;
+
             if (_dictionary is null)
             {
                 this.WriteObject(new Hashtable(StringComparer.OrdinalIgnoreCase));

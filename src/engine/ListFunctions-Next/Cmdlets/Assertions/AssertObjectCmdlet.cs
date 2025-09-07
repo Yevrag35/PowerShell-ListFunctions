@@ -19,7 +19,6 @@ namespace ListFunctions.Cmdlets.Assertions
     {
         private ScriptBlock? _condition;
         private bool _disposed;
-        //private bool _hasNonNull;
         private bool _stopRequested;
 
         [MaybeNull, AllowsNull]
@@ -42,76 +41,43 @@ namespace ListFunctions.Cmdlets.Assertions
         protected private bool HasCondition { get; set; }
 
 
-        protected sealed override void BeginProcessing()
+        protected sealed override void BeginCore()
         {
-            base.BeginProcessing();
+            base.BeginCore();
 
             if (this.HasCondition)
             {
                 this.Filter = new ScriptBlockFilter(_condition!, new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction));
             }
 
-            try
-            {
-                this.Begin();
-            }
-            catch
-            {
-                this.Cleanup();
-                throw;
-            }
-        }
-        protected virtual void Begin()
-        {
+            // # Maybe in the future.
+            //try
+            //{
+            //    this.Begin();
+            //}
+            //catch
+            //{
+            //    this.Cleanup();
+            //    throw;
+            //}
         }
 
-        protected sealed override void ProcessRecord()
+        protected sealed override bool ProcessCore()
         {
-            base.ProcessRecord();
-            if (_stopRequested)
-                return;
-
-            try
-            {
-                _stopRequested = this.HasCondition
-                    ? this.Process(this.Filter!)
-                    : this.ProcessWhenNoCondition();
-            }
-            catch
-            {
-                this.Cleanup();
-                throw;
-            }
+            return this.HasCondition
+                ? this.Process(this.Filter!)
+                : this.ProcessWhenNoCondition();
         }
         protected abstract bool Process(ScriptBlockFilter filter);
         protected abstract bool ProcessWhenNoCondition();
 
-        protected sealed override void StopProcessing()
+        protected sealed override void EndCore(bool wantsToStop)
         {
-            try
-            {
-                base.StopProcessing();
-                throw new PipelineStoppedException();
-            }
-            finally
-            {
-                this.Cleanup();
-            }
-        }
-        protected sealed override void EndProcessing()
-        {
-            try
-            {
-                this.End(_stopRequested);
-            }
-            finally
-            {
-                this.Cleanup();
-            }
+            this.End(wantsToStop);
         }
         protected abstract void End(bool scriptResult);
 
-        private void Cleanup()
+        protected override void Cleanup()
         {
             this.Dispose();
         }

@@ -7,7 +7,12 @@ using System.Linq;
 
 namespace ListFunctions.Modern.Pools
 {
-    internal static class ListPool<T> where T : class?
+#if !NETCOREAPP
+    public
+#else
+    internal 
+#endif
+        static class ListPool<T> where T : class?
     {
         private const int DEFAULT_LIST_CAPACITY = 10;
         private static readonly Lazy<ConcurrentBag<List<T>>> _bag = new(

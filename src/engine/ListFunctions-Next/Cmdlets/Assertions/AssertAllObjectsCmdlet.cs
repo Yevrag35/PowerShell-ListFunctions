@@ -14,37 +14,55 @@ namespace ListFunctions.Cmdlets.Assertions
     [Cmdlet(VerbsLifecycle.Assert, "AllObject")]
     [Alias("Assert-AllObjects", "Assert-All", "All", "All-Object", "All-Objects")]
     [OutputType(typeof(bool))]
-    public sealed class AssertAllObjectsCmdlet : ListFunctionCmdletBase
+    public sealed class AssertAllObjectsCmdlet : AssertObjectCmdlet
     {
-        ScriptBlockFilter _equality = null!;
-        bool _stop;
-
         [Parameter(Mandatory = true, Position = 0)]
-        [Alias("ScriptBlock")]
+        [Alias("ScriptBlock", "FilterScript")]
+        [AllowNull, AllowEmptyString]
         [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.THIS_NAME, PSThisVariable.PSITEM_NAME)]
-        public ScriptBlock Condition { get; set; } = null!;
+        public override ScriptBlock? Condition
+        {
+            get => base.Condition;
+            set => base.Condition = value;
+        }
 
         [Parameter(Mandatory = true, ValueFromPipeline = true)]
         [AllowNull, AllowEmptyCollection, AllowEmptyString]
         public object?[]? InputObject { get; set; }
 
         [Parameter]
-        public ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.SilentlyContinue;
+        public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.SilentlyContinue;
 
-        protected override void BeginProcessing()
+        protected override bool Process(ScriptBlockFilter filter)
         {
-            _equality = new ScriptBlockFilter(this.Condition, new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction));
+            return !filter.All(this.InputObject);
         }
-        protected override void ProcessRecord()
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0009:Member access should be qualified.", Justification = "Used in nameof()")]
+        protected override bool ProcessWhenNoCondition()
         {
-            if (!_stop)
-            {
-                _stop = !_equality.All(this.InputObject);
-            }
+            throw new ArgumentException("Asserting an all-true condition requires a condition to be specified.", nameof(Condition));
         }
-        protected override void EndProcessing()
+
+        protected override void End(bool scriptResult)
         {
-            this.WriteObject(_stop);
+            this.WriteObject(!scriptResult);
         }
+
+        //protected override void BeginProcessing()
+        //{
+        //    _equality = new ScriptBlockFilter(this.Condition, new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction));
+        //}
+        //protected override void ProcessRecord()
+        //{
+        //    if (!_stop)
+        //    {
+        //        _stop = !_equality.All(this.InputObject);
+        //    }
+        //}
+        //protected override void EndProcessing()
+        //{
+        //    this.WriteObject(_stop);
+        //}
     }
 }

@@ -74,7 +74,7 @@ namespace ListFunctions.Cmdlets.Construct
         [PSDefaultValue(Value = ActionPreference.Stop)]
         public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.Stop;
 
-        protected override void Process(IDictionary collection, Type collectionType)
+        protected override bool Process(IDictionary collection, Type collectionType)
         {
             if (null != this.InputObject && this.InputObject.Count > 0)
             {
@@ -87,9 +87,14 @@ namespace ListFunctions.Cmdlets.Construct
                     this.AddToCollection(collection, args, false);
                 }
             }
+
+            return true;
         }
-        protected override void End(IDictionary collection)
+        protected override void End(IDictionary collection, bool wantsToStop)
         {
+            if (wantsToStop)
+                return;
+
             this.WriteObject(collection, false);
         }
 
