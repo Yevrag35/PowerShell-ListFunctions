@@ -20,15 +20,17 @@
 	  <AssemblyVersion>3.0.0</AssemblyVersion>
   </PropertyGroup>
 
-  <ItemGroup>
-    <None Remove="Debug.ps1" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="Debug.ps1">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
+	<ItemGroup Condition="'$(Configuration)' != 'Release'">
+		<Content Include="Debug.ps1">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+	<ItemGroup Condition="'$(Configuration)' == 'Release'">
+		<Content Include="Debug.ps1">
+			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
+			<CopyToPublishDirectory>Never</CopyToPublishDirectory>
+		</Content>
+	</ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="System.Management.Automation" Version="7.5.2" />
