@@ -11,6 +11,8 @@ using System.Linq;
 using System.Management.Automation;
 using System.Reflection;
 
+#nullable enable
+
 namespace ListFunctions.Cmdlets.Construct
 {
     public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
@@ -38,7 +40,7 @@ namespace ListFunctions.Cmdlets.Construct
         protected abstract string CaseSensitiveParameterSetName { get; }
 
         public virtual int Capacity { get; set; }
-        protected bool CaseSensitive => RetrieveCaseSensitiveSetting(_caseSensitive);
+        protected bool CaseSensitive => IsParameterValueCaseSensitive(_caseSensitive);
         public virtual ActionPreference ScriptBlockErrorAction { get; set; }
 
         public object? GetDynamicParameters()
@@ -52,7 +54,7 @@ namespace ListFunctions.Cmdlets.Construct
         }
 
         #region PROCESSING
-        protected sealed override void BeginProcessing()
+        protected sealed override void BeginCore()
         {
             Type[]? genericTypes = this.GetGenericTypes();
             IEqualityComparer? comparer = this.GetCustomEqualityComparer(this.GetEqualityForType());
@@ -71,20 +73,17 @@ namespace ListFunctions.Cmdlets.Construct
             return;
         }
 
-        protected sealed override void ProcessRecord()
+        protected sealed override bool ProcessCore()
         {
-            this.Process(_collection, _collectionType);
+            return this.Process(_collection, _collectionType);
         }
-        protected virtual void Process(T collection, Type collectionType)
-        {
-            return;
-        }
+        protected abstract bool Process(T collection, Type collectionType);
 
-        protected sealed override void EndProcessing()
+        protected sealed override void EndCore(bool wantsToStop)
         {
-            this.End(_collection);
+            this.End(_collection, wantsToStop);
         }
-        protected virtual void End(T collection)
+        protected virtual void End(T collection, bool wantsToStop)
         {
             return;
         }
@@ -153,14 +152,19 @@ namespace ListFunctions.Cmdlets.Construct
         
         protected virtual IEqualityComparer? GetCustomEqualityComparer(Type genericType)
         {
-            return null;
+            if (!typeof(string).Equals(genericType))
+                return null;
+
+            return IsParameterValueCaseSensitive(_caseSensitive)
+                ? StringComparer.CurrentCulture
+                : StringComparer.OrdinalIgnoreCase;
         }
         protected abstract Type[]? GetGenericTypes();
         protected abstract Type GetEqualityForType();
 
-        private static bool RetrieveCaseSensitiveSetting(RuntimeDefinedParameter? parameter)
+        private static bool IsParameterValueCaseSensitive(RuntimeDefinedParameter? parameter)
         {
-            return !(parameter is null) && parameter.Value is SwitchParameter swParam && swParam.ToBool();
+            return LanguagePrimitives.IsTrue(parameter?.Value);
         }
 
         #endregion

@@ -13,6 +13,8 @@ using System.Linq.Expressions;
 using System.Management.Automation;
 using System.Reflection;
 
+#nullable enable
+
 namespace ListFunctions.Cmdlets.Construct
 {
     [Cmdlet(VerbsCommon.New, "Dictionary", DefaultParameterSetName = "None")]
@@ -26,7 +28,7 @@ namespace ListFunctions.Cmdlets.Construct
 
         protected override string CaseSensitiveParameterSetName => STR_DICT;
 
-        [Parameter]
+        [Parameter, Alias("Size")]
         [ValidateRange(0, int.MaxValue)]
         [PSDefaultValue(Value = 0)]
         public override int Capacity
@@ -45,12 +47,12 @@ namespace ListFunctions.Cmdlets.Construct
 
         [Parameter(Position = 0)]
         [ArgumentToTypeTransform]
-        public Type KeyType { get; set; } = null!;
+        public Type? KeyType { get; set; } = null!;
 
         [Parameter(Position = 1)]
         [ArgumentToTypeTransform]
         [PSDefaultValue(Value = typeof(object))]
-        public Type ValueType { get; set; } = null!;
+        public Type? ValueType { get; set; } = null!;
 
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = JUST_COPY)]
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = AND_COPY)]
@@ -72,7 +74,7 @@ namespace ListFunctions.Cmdlets.Construct
         [PSDefaultValue(Value = ActionPreference.Stop)]
         public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.Stop;
 
-        protected override void Process(IDictionary collection, Type collectionType)
+        protected override bool Process(IDictionary collection, Type collectionType)
         {
             if (null != this.InputObject && this.InputObject.Count > 0)
             {
@@ -85,9 +87,14 @@ namespace ListFunctions.Cmdlets.Construct
                     this.AddToCollection(collection, args, false);
                 }
             }
+
+            return true;
         }
-        protected override void End(IDictionary collection)
+        protected override void End(IDictionary collection, bool wantsToStop)
         {
+            if (wantsToStop)
+                return;
+
             this.WriteObject(collection, false);
         }
 

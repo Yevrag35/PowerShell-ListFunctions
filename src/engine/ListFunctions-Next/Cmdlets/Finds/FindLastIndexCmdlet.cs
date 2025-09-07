@@ -1,4 +1,6 @@
 using ListFunctions.Extensions;
+using ListFunctions.Modern;
+using ListFunctions.Modern.Pools;
 using ListFunctions.Validation;
 using System;
 using System.Collections;
@@ -8,62 +10,74 @@ using System.Linq;
 using System.Management.Automation;
 using System.Reflection;
 
+#nullable enable
+
 namespace ListFunctions.Cmdlets.Finds
 {
     [Cmdlet(VerbsCommon.Find, "LastIndexOf")]
     [Alias("Find-LastIndex", "LastIndexOf")]
     [OutputType(typeof(int))]
-    public sealed class FindLastIndexCmdlet : FindIndexCmdletBase
+    public sealed class FindLastIndexCmdlet : ListFunctionCmdletBase
     {
+        private ScriptBlockFilter _filter = null!;
+        private List<object?> _list = null!;
+
         [Parameter(Mandatory = true, Position = 0)]
         [Alias("ScriptBlock")]
-        public override ScriptBlock Condition { get; set; } = null!;
+        public ScriptBlock Condition { get; set; } = null!;
 
         [Parameter(Mandatory = true, ValueFromPipeline = true)]
         [Alias("List")]
-        [AllowEmptyCollection]
-        [ValidateNotNull]
-        [ListTransform]
-        public override IList InputObject { get; set; } = null!;
+        [AllowEmptyCollection, AllowNull, AllowEmptyString]
+        public object?[]? InputObject { get; set; }
 
         [Parameter]
-        public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.SilentlyContinue;
+        public ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.SilentlyContinue;
 
-        static readonly Lazy<Dictionary<Type, MethodInfo>> _indexMethods =
-            new Lazy<Dictionary<Type, MethodInfo>>(BuildMethodCache);
-
-        protected override MethodInfo GetFindIndexMethod(Type listType, Type genericType)
+        protected override void BeginCore()
         {
-            if (_indexMethods.IsValueCreated
-                &&
-                _indexMethods.Value.TryGetValue(genericType, out MethodInfo? info))
+            _filter = new ScriptBlockFilter(this.Condition, new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction));
+            _list = ListPool<object?>.Rent();
+        }
+        protected override bool ProcessCore()
+        {
+            if (!(this.InputObject is null))
             {
-                return info;
+                _list.AddRange(this.InputObject);
             }
 
-            info = GetIndexMethodDefinition(listType, genericType);
+            return true;
+        }
+        protected override void EndCore(bool wantsToStop)
+        {
+            if (wantsToStop)
+                return;
 
-            Debug.Assert(!(info is null));
-            _indexMethods.Value.TryAdd(genericType, info);
+            for (int i = _list.Count - 1; i >= 0; i--)
+            {
+                if (_filter.IsTrue(_list[i]))
+                {
+                    this.WriteObject(i);
+                    return;
+                }
+            }
 
-            return info;
+            this.WriteObject(-1);
         }
 
-        private static MethodInfo GetIndexMethodDefinition(Type listType, Type genericType)
+        protected override void Cleanup()
         {
-            Type genPred = PredicateType.MakeGenericType(genericType);
+            if (!(_filter is null))
+            {
+                _filter.Dispose();
+                _filter = null!;
+            }
 
-            return listType.GetMethod(
-                name: nameof(List<object>.FindLastIndex),
-                bindingAttr: BindingFlags.Instance | BindingFlags.Public,
-                binder: null,
-                types: new Type[] { genPred },
-                modifiers: null)!;
-        }
-
-        private static Dictionary<Type, MethodInfo> BuildMethodCache()
-        {
-            return new Dictionary<Type, MethodInfo>(3);
+            if (!(_list is null))
+            {
+                ListPool<object?>.Return(_list);
+                _list = null!;
+            }
         }
     }
 }

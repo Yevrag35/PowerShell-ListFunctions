@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -15,8 +14,10 @@ namespace ListFunctions.Modern
         static ReflectionResolver()
         {
             Type type = typeof(ReflectionResolver);
-            _colAddMethod = type.GetMethod(nameof(GetCollectionAdd));
-            _dictAddMethod = type.GetMethod(nameof(GetDictionaryAdd));
+            _colAddMethod = type.GetMethod(nameof(GetCollectionAdd))
+                ?? throw new InvalidOperationException("Unable to find method definition for GetCollectionAdd.");
+            _dictAddMethod = type.GetMethod(nameof(GetDictionaryAdd))
+                ?? throw new InvalidOperationException("Unable to find method definition for GetDictionaryAdd.");
         }
 
         public static MethodInfo GetAddMethod(Type collectionType, Type[] types)
@@ -49,7 +50,7 @@ namespace ListFunctions.Modern
                 throw new ArgumentException("Type argument exception.");
             }
 
-            return (MethodInfo)getAdd.Invoke(null, null);
+            return getAdd.Invoke(null, null) as MethodInfo ?? throw new InvalidOperationException("Unable to get Add method.");
         }
 
         public static MethodInfo GetCollectionAdd<TCol, TItem>() where TCol : ICollection<TItem>

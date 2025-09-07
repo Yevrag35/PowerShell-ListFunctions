@@ -12,7 +12,7 @@
     RootModule        = 'ListFunctions.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '2.0.0'
+    ModuleVersion     = '3.0.0'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Desk', 'Core')
@@ -27,7 +27,7 @@
     CompanyName       = 'Yevrag35, LLC.'
 
     # Copyright statement for this module
-    Copyright         = 'Copyright (c) 2020-2024 Yevrag35, LLC.'
+    Copyright         = 'Copyright (c) 2020-2025 Yevrag35, LLC.'
 
     # Description of the functionality provided by this module
     Description       = 'A simple module that provides functions to manipulate, search, and create Arrays, Collections, Lists, and Sets.'
@@ -75,7 +75,7 @@
     CmdletsToExport   = @(
 		'Assert-AllObject', 'Assert-AnyObject', 'Find-IndexOf', 
         'Find-LastIndexOf', 'New-Dictionary', 'New-HashSet', 'New-List', 
-        'New-SortedSet'
+        'New-SortedSet', 'ConvertTo-Dictionary'
 	)
 
     # Variables to export from this module
@@ -99,12 +99,9 @@
         'ListFunctions.psm1',
         'Core\ListFunctions.Engine.dll',
         'Core\ListFunctions.Next.dll',
-        'Core\MG.Collections.dll',
-        'Core\MG.Collections.Resources.dll',
+		'Core\ZLinq.dll',
         'Desk\ListFunctions.Engine.dll',
-        'Desk\ListFunctions.NETFramework.dll',
-        'Desk\MG.Collections.dll',
-        'Desk\MG.Collections.Resources.dll'
+        'Desk\ListFunctions.NETFramework.dll'
 	)
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
@@ -115,7 +112,7 @@
             # Tags applied to this module. These help with module discovery in online galleries.
             Tags         = @('All', 'Any', 'Array', 'Assert', 'bool', 'Collection', 'compare', 'Condition', 
                'count', 'Enumerable', 'equality', 'Find', 'HashSet', 'index', 'Last', 'Linq', 
-               'List', 'Modify', 'Predicate', 'Remove', 'set', 'sort', 'Test', 'Where')
+               'List', 'Modify', 'Predicate', 'Remove', 'set', 'sort', 'Test', 'Where', 'Convert', 'ConvertTo')
 
             # A URL to the license for this module.
             LicenseUri   = 'https://raw.githubusercontent.com/Yevrag35/PowerShell-ListFunctions/master/LICENSE'
@@ -129,7 +126,7 @@
             # Prerelease   = 'beta'
 
             # ReleaseNotes of this module
-            ReleaseNotes = 'Overhaul of all cmdlets and moved to binary module for performance improvements.'
+            ReleaseNotes = 'Refactoring work to improve performance and reduce overhead. Utilizes ZLinq library for PowerShell 7 version for further gains.'
 
         } # End of PSData hashtable
 

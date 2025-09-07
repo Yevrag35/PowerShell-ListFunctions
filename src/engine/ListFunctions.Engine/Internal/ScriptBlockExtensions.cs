@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Management.Automation.Language;
 using System.Management.Automation;
-using System.Runtime.CompilerServices;
 using ListFunctions.Extensions;
 using System.Diagnostics.CodeAnalysis;
 
@@ -32,7 +31,7 @@ namespace ListFunctions.Internal
             }
 
             ReadOnlyCollection<StatementAst> statements = scriptAst.EndBlock.Statements;
-            if (statements.Count <= 0)
+            if (statements.Count == 0)
             {
                 return false;
             }

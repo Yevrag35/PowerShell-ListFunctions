@@ -1,5 +1,4 @@
-﻿using ListFunctions.Internal;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
@@ -28,7 +27,7 @@ namespace ListFunctions.Modern.Exceptions
             this.HashCodeBlockType = blockType ?? typeof(object);
         }
 
-//#if !NET8_0_OR_GREATER
+#if !NET8_0_OR_GREATER
         private HashCodeScriptException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
@@ -43,7 +42,7 @@ namespace ListFunctions.Modern.Exceptions
 
             base.GetObjectData(info, context);
         }
-//#endif
+#endif
 
         public static HashCodeScriptException FromBlockException<T>(Exception exception, [MaybeNull] in T obj)
         {

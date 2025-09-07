@@ -5,7 +5,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Management.Automation;
 using System.Reflection;
-using System.Text;
 
 namespace ListFunctions.Modern.Constructors
 {
@@ -53,7 +52,8 @@ namespace ListFunctions.Modern.Constructors
             }
 
             var genMeth = _getComparerMethod.Value.MakeGenericMethod(_sortedType);
-            return (IComparer)genMeth.Invoke(null, null);
+            return genMeth.Invoke(null, null) as IComparer
+                ?? throw new InvalidOperationException("Failed to get default comparer.");
         }
         protected override IEnumerable<object?>? GetConstructorArguments(Type[] genericTypes)
         {

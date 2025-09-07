@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace ListFunctions.Internal
+﻿namespace ListFunctions.Internal
 {
     internal ref struct DoubleBool
     {
@@ -15,6 +13,6 @@ namespace ListFunctions.Internal
 
         internal static DoubleBool InitializeNew() => new DoubleBool(false);
 
-        public static implicit operator bool(DoubleBool dub) => dub.Bool1 && dub.Bool2;
+        public static implicit operator bool(DoubleBool dub) => dub.Bool1 & dub.Bool2;
     }
 }

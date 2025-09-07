@@ -12,6 +12,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
 using System.Reflection;
 
+#nullable enable
+
 namespace ListFunctions.Cmdlets.Construct
 {
     [Cmdlet(VerbsCommon.New, "HashSet", DefaultParameterSetName = "None")]
@@ -51,24 +53,44 @@ namespace ListFunctions.Cmdlets.Construct
 
         #region PROCESSING
 
-        protected override void Process(object collection, Type collectionType)
+        protected override bool Process(object collection, Type collectionType)
         {
-            if (this.InputObject is null)
+            bool flag = true;
+            if (this.InputObject is null || this.InputObject.Length == 0)
             {
-                return;
+                return flag;
             }
 
             object?[] args = new object[1];
             foreach (object? item in this.InputObject)
             {
-                args[0] = item;
-                this.AddToCollection(collection, args, (x, types) => 
-                    LanguagePrimitives.ConvertTo(x, types[0]));
+                try
+                {
+                    args[0] = item;
+                    this.AddToCollection(collection, args, (x, types) =>
+                        LanguagePrimitives.ConvertTo(x, types[0]));
+                }
+                catch (PSInvalidCastException e)
+                {
+                    var rec = e.ToRecord(ErrorCategory.InvalidArgument, item);
+                    this.WriteError(rec);
+                }
+                catch (Exception e)
+                {
+                    var rec = e.ToRecord(ErrorCategory.InvalidOperation, item);
+                    this.WriteError(rec);
+                    flag = false;
+                }
             }
+
+            return flag;
         }
 
-        protected override void End(object collection)
+        protected override void End(object collection, bool wantsToStop)
         {
+            if (wantsToStop)
+                return;
+
             this.WriteObject(collection, false);
         }
 

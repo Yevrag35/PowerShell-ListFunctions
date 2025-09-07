@@ -4,8 +4,17 @@ using System.Management.Automation;
 using System.Management.Automation.Internal;
 using System.Management.Automation.Language;
 
+#nullable enable
+
 namespace ListFunctions.Validation
 {
+    /// <summary>
+    /// Provides a mechanism to transform an input argument into a .NET <see cref="Type"/> object.
+    /// </summary>
+    /// <remarks>This attribute is used to convert various input formats, such as <see cref="Type"/>,  <see
+    /// cref="System.Management.Automation.ScriptBlock"/>, or <see cref="string"/>, into a  corresponding <see
+    /// cref="Type"/> instance. If the input cannot be resolved to a valid type,  the transformation defaults to <see
+    /// cref="object"/>.</remarks>
     internal sealed class ArgumentToTypeTransformAttribute : ArgumentTransformationAttribute
     {
         const string PSREADLINE = "PSReadLine";
@@ -40,7 +49,7 @@ namespace ListFunctions.Validation
             }
             catch (ParseException e)
             {
-                if (!(runningModule is null) && PSREADLINE.Equals(runningModule.Name, StringComparison.InvariantCultureIgnoreCase))
+                if (!(runningModule is null) && PSREADLINE.Equals(runningModule.Name, StringComparison.OrdinalIgnoreCase))
                 {
                     return typeof(object);
                 }
@@ -63,7 +72,7 @@ namespace ListFunctions.Validation
             }
             catch (ParseException e)
             {
-                if (!(runningModule is null) && PSREADLINE.Equals(runningModule.Name, StringComparison.InvariantCultureIgnoreCase))
+                if (!(runningModule is null) && PSREADLINE.Equals(runningModule.Name, StringComparison.OrdinalIgnoreCase))
                 {
                     return typeof(object);
                 }

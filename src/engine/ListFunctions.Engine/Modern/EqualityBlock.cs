@@ -1,6 +1,5 @@
 ﻿using ListFunctions.Internal;
 using ListFunctions.Modern.Variables;
-using MG.Collections;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -8,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Management.Automation;
 using System.Reflection;
+using ZLinq;
 
 namespace ListFunctions.Modern
 {
@@ -34,19 +34,21 @@ namespace ListFunctions.Modern
             MethodInfo genMeth = _genMeth.MakeGenericMethod(type);
             object[] args = new object[] { hashCodeBlock, equalityScript, additionalVariables! };
 
-            return (IEqualityBlock)genMeth.Invoke(null, args);
+            return genMeth.Invoke(null, args) as IEqualityBlock
+                ?? throw new InvalidOperationException("Unable to create generic equality block instance.");
         }
-
+        
         static readonly MethodInfo _genMeth = typeof(EqualityBlock)
-            .GetMethod(nameof(CreateGenericBlock), BindingFlags.Static | BindingFlags.NonPublic);
+            .GetMethod(nameof(CreateGenericBlock), BindingFlags.Static | BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException("Unable to find generic method definition for CreateGenericBlock.");
 
-        private static IEqualityBlock CreateGenericBlock<T>(IHashCodeBlock hashCodeBlock, ScriptBlock equalityScript, IEnumerable<PSVariable>? additionalVariables)
+        private static EqualityBlock<T> CreateGenericBlock<T>(IHashCodeBlock hashCodeBlock, ScriptBlock equalityScript, IEnumerable<PSVariable>? additionalVariables)
         {
             return new EqualityBlock<T>(equalityScript, hashCodeBlock, additionalVariables);
         }
     }
 
-    public sealed class EqualityBlock<T> : ComparingBase<T>, IEqualityBlock, IEqualityComparer<T>
+    public sealed class EqualityBlock<T> : ComparingBase, IEqualityBlock, IEqualityComparer<T>
     {
         readonly List<PSVariable> _varList;
         readonly PSVariable[] _additionalVariables;
@@ -75,7 +77,7 @@ namespace ListFunctions.Modern
             Guard.NotNull(hashCodeBlock, nameof(hashCodeBlock));
             _additionalVariables = additionalVariables is null
                 ? Array.Empty<PSVariable>()
-                : additionalVariables.ToArray();
+                : additionalVariables.AsValueEnumerable().ToArray();
 
             _checksType = typeof(T);
             if (!typeof(T).Equals(hashCodeBlock.HashesType))
@@ -85,11 +87,11 @@ namespace ListFunctions.Modern
 
             _hashCodeBlock = hashCodeBlock;
             _varList = new List<PSVariable>(4);
-            _left = PSComparingVariable<T>.Left();
-            _right = PSComparingVariable<T>.Right();
+            _left = PSComparingVariable.Left<T>();
+            _right = PSComparingVariable.Right<T>();
         }
 
-        public bool Equals(T x, T y)
+        public bool Equals([System.Diagnostics.CodeAnalysis.AllowNull] T x, [System.Diagnostics.CodeAnalysis.AllowNull] T y)
         {
             if (x is null && y is null)
             {
@@ -114,7 +116,7 @@ namespace ListFunctions.Modern
                 return true;
             }
 
-            if (TryConvert(x, out T isX) && TryConvert(y, out T isY))
+            if (TryConvert(x, out T? isX) && TryConvert(y, out T? isY))
             {
                 return this.Equals(isX, isY);
             }

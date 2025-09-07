@@ -1,12 +1,10 @@
 ﻿using ListFunctions.Internal;
 using System;
-using System.Collections.Generic;
 using System.Management.Automation;
-using System.Text;
 
 namespace ListFunctions.Modern
 {
-    public abstract class ComparingBase<T>
+    public abstract class ComparingBase
     {
         public ScriptBlock Script { get; }
 

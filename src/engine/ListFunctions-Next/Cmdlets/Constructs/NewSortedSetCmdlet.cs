@@ -10,6 +10,8 @@ using System.Linq;
 using System.Management.Automation;
 using System.Reflection;
 
+#nullable enable
+
 namespace ListFunctions.Cmdlets.Constructs
 {
     [Cmdlet(VerbsCommon.New, "SortedSet", DefaultParameterSetName = "None")]
@@ -39,7 +41,7 @@ namespace ListFunctions.Cmdlets.Constructs
         [PSDefaultValue(Value = ActionPreference.Stop)]
         public ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.Stop;
 
-        protected override void BeginProcessing()
+        protected override void BeginCore()
         {
             this.GenericType ??= typeof(object);
             IComparer? comparer = this.GetCustomComparer(this.GenericType);
@@ -48,11 +50,12 @@ namespace ListFunctions.Cmdlets.Constructs
             _set = _ctor.Construct();
             
         }
-        protected override void ProcessRecord()
+        protected override bool ProcessCore()
         {
-            if (this.InputObject is null || this.InputObject.Length <= 0)
+            bool flag = true;
+            if (this.InputObject is null || this.InputObject.Length == 0)
             {
-                return;
+                return flag;
             }
 
             _addMethod ??= new AddMethodInvoker(_ctor);
@@ -71,10 +74,15 @@ namespace ListFunctions.Cmdlets.Constructs
                     this.WriteError(caught.ToRecord(ErrorCategory.InvalidType, item));
                 }
             }
+
+            return flag;
         }
-        protected override void EndProcessing()
+        protected override void EndCore(bool wantsToStop)
         {
-            this.WriteObject(_set, false);
+            if (!wantsToStop)
+            {
+                this.WriteObject(_set);
+            }
         }
 
         private IEnumerable<PSVariable> GetAction()

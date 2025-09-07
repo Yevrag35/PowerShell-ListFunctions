@@ -1,160 +1,121 @@
-using ListFunctions.Extensions;
 using ListFunctions.Internal;
+using ListFunctions.Modern.Pools;
 using ListFunctions.Modern.Variables;
-using MG.Collections;
 using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
+using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
-using System.Reflection;
+using ZLinq;
+
+#nullable enable
 
 namespace ListFunctions.Modern
 {
-    public abstract class ScriptBlockFilter
+    public sealed class ScriptBlockFilter : IDisposable
     {
-        private protected ScriptBlockFilter()
-        {
-        }
+        private bool _disposed;
+        private PSThisVariable _constants;
+        private List<PSVariable> _extraVariables;
+        private readonly ScriptBlock _scriptBlock;
+        private List<PSVariable> _variables;
 
-        protected abstract object MakePredicate();
-
-        public static ScriptBlockFilter Create(ScriptBlock scriptBlock, Type genericType, IEnumerable<PSVariable>? additionalVariables)
-        {
-            Type filterType = typeof(ScriptBlockFilter<>);
-            Type genFilter = filterType.MakeGenericType(genericType);
-
-            return (ScriptBlockFilter)Activator.CreateInstance(genFilter,
-                new object[] { scriptBlock, additionalVariables! });
-        }
-        public static object ToPredicate(ScriptBlockFilter genericScriptBlock)
-        {
-            return genericScriptBlock.MakePredicate();
-        }
-    }
-
-    public sealed class ScriptBlockFilter<T> : ScriptBlockFilter
-    {
-        static readonly IEqualityComparer<PSVariable> _equality = new PSVariableNameEquality();
-
-        readonly IReadOnlySet<PSVariable> _additionalVariables;
-        readonly bool _hasAdditionalVariables;
-        readonly ScriptBlock _scriptBlock;
-        Predicate<T>? _predicate;
-        readonly PSThisVariable<T> _thisVar;
-        readonly List<PSVariable> _varList;
-
-        public ScriptBlockFilter(ScriptBlock scriptBlock)
-            : this(scriptBlock, null)
-        {
-        }
-        public ScriptBlockFilter(ScriptBlock scriptBlock, IEnumerable<PSVariable>? additionalVariables)
+        public ScriptBlockFilter(ScriptBlock scriptBlock, params
+#if NET9_0_OR_GREATER
+                ReadOnlySpan<PSVariable>
+#else
+                PSVariable[]
+#endif
+                additionalVariables)
         {
             Guard.NotNull(scriptBlock, nameof(scriptBlock));
-            _thisVar = new PSThisVariable<T>();
-
             _scriptBlock = scriptBlock;
-            int count = 1;
-            if (!(additionalVariables is null) && additionalVariables.TryGetCount(out int enumCount))
-            {
-                count += enumCount;
-            }
-
-            _varList = new List<PSVariable>(count);
-            _additionalVariables = GetAdditionalVariables(additionalVariables, out bool hasAdditional);
-            _hasAdditionalVariables = hasAdditional;
+            _extraVariables = ListPool<PSVariable>.Rent();
+            _extraVariables.AddRange(additionalVariables
+#if !NET9_0_OR_GREATER
+                ?? Array.Empty<PSVariable>()
+                #endif
+            );
+            _variables = ListPool<PSVariable>.Rent();
+            _constants = ObjPool<PSThisVariable>.Rent();
         }
 
-        private static IReadOnlySet<PSVariable> GetAdditionalVariables(IEnumerable<PSVariable>? collection, out bool hasAdditional)
+        private List<PSVariable> InitializeContext(object? value)
         {
-            hasAdditional = true;
-            if (collection is null || collection.TryGetCount(out int count) && count == 0)
-            {
-                hasAdditional = false;
-                return Empty<PSVariable>.Set;
-            }
-            else if (count == 1)
-            {
-                return new SingleValueReadOnlySet<PSVariable>(collection.First(), _equality);
-            }
-
-            return new ReadOnlySet<PSVariable>(collection, _equality);
+            _variables.Clear();
+            _constants.SetValue(value);
+            _constants.InsertIntoList(_variables);
+            _variables.AddRange(_extraVariables);
+            return _variables;
         }
 
-        public bool Any(IEnumerable<T>? collection)
+        public bool All(ICollection? collection)
         {
-            if (collection is null)
-            {
+            if (collection is null || collection.Count == 0)
                 return false;
-            }
 
-            bool flag = false;
-            foreach (T item in collection)
-            {
-                if (this.IsTrue(item))
-                {
-                    flag = true;
-                    break;
-                }
-            }
-
-            return flag;
-        }
-
-        public bool All(IEnumerable<T>? collection)
-        {
-            if (collection is null || collection.TryGetCount(out int count) && count <= 0)
-            {
-                return false;
-            }
-
-            bool result = true;
-
-            foreach (T item in collection)
+            foreach (object? item in collection)
             {
                 if (!this.IsTrue(item))
-                {
-                    result = false;
-                    break;
-                }
+                    return false;
             }
 
-            return result;
+            return true;
         }
-
-        private List<PSVariable> InitializeContext(T value)
+        public bool Any(ICollection? collection)
         {
-            _varList.Clear();
-            _thisVar.AddToVarList(value, _varList);
-            if (_hasAdditionalVariables)
+            if (collection is null || collection.Count == 0)
+                return false;
+
+            foreach (object? item in collection)
             {
-                _varList.AddRange(_additionalVariables);
+                if (this.IsTrue(item))
+                    return true;
             }
 
-            return _varList;
+            return false;
         }
-        public bool IsTrue(T value)
+        public bool IsTrue(object? value)
         {
-            List<PSVariable> list = this.InitializeContext(value);
-            Collection<PSObject> results = _scriptBlock.InvokeWithContext(null, list, Array.Empty<object>());
+            List<PSVariable> variables = this.InitializeContext(value);
 
-            return results.GetFirstValue(ConvertToBool);
-        }
-
-        private Predicate<T> ToPredicate()
-        {
-            return _predicate ??= new Predicate<T>(x => this.IsTrue(x));
-        }
-        protected override object MakePredicate()
-        {
-            return this.ToPredicate();
+            return _scriptBlock.InvokeWithContext(
+                variables: variables,
+                selectAs: LanguagePrimitives.IsTrue);
         }
 
-        public static implicit operator Predicate<T>(ScriptBlockFilter<T> filter)
+        public void Dispose()
         {
-            return filter.ToPredicate();
+            this.Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
+        private void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    if (!(_constants is null))
+                    {
+                        ObjPool<PSThisVariable>.Return(_constants);
+                        _constants = null!;
+                    }
 
-        private static bool ConvertToBool(object value) => Convert.ToBoolean(value);
+                    if (!(_extraVariables is null))
+                    {
+                        ListPool<PSVariable>.Return(_extraVariables);
+                        _extraVariables = null!;
+                    }
+
+                    if (!(_variables is null))
+                    {
+                        ListPool<PSVariable>.Return(_variables);
+                        _variables = null!;
+                    }
+                }
+
+                _disposed = true;
+            }
+        }
     }
 }

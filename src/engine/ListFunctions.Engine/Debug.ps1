@@ -63,35 +63,7 @@ foreach ($toCopy in $CopyToOutput)
 	}
 }
 
-Import-Module "$PSScriptRoot\$LibraryName.dll" -ErrorAction Stop -Verbose
+Import-Module "$PSScriptRoot\$LibraryName.dll" -ErrorAction Stop -Force
 $myDesktop = [System.Environment]::GetFolderPath("Desktop")
 
 Push-Location $myDesktop
-
-$o1 = [pscustomobject]@{
-	Hi = "asdf"
-	Bye = "jkl;"
-}
-$o2 = [pscustomobject]@{
-	Hi = "asdf"
-	Bye = "jkl;"
-}
-$o3 = [pscustomobject]@{
-	Hi = "1234"
-	Bye = "too late"
-}
-$o4 = [pscustomobject]@{
-	Hi = ""
-	Bye = "too late again"
-}
-$o5 = [pscustomobject]@{
-	Hi = $null
-	Bye = "too late"
-}
-
-$eqScr = { $x.Hi -eq $y.Hi }
-#$hashScr = {  }
-$compar = { $x.Hi.CompareTo($y.Hi) }
-
-$eq = New-Object "ListFunctions.ScriptBlockEqualityComparer[object]"($eqScr, $hashScr)
-$cm = New-Object "ListFunctions.ScriptBlockComparer[object]"($compar)
