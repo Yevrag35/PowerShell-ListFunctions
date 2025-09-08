@@ -34,6 +34,7 @@ namespace ListFunctions.Cmdlets.Constructs
         public string KeyPropertyName { get; set; } = string.Empty;
 
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "KeyScript")]
+        [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.PSITEM_NAME, PSThisVariable.THIS_NAME)]
         public ScriptBlock KeySelector { get; set; } = null!;
 
         [Parameter(Mandatory = false, Position = 1)]
