@@ -1,11 +1,12 @@
 ﻿using ListFunctions.Extensions;
+using ListFunctions.Modern;
 using ListFunctions.Modern.Variables;
+using ListFunctions.Validation;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Management.Automation;
-using System.Management.Automation.Language;
 using ZLinq;
 
 #nullable enable
@@ -19,11 +20,17 @@ namespace ListFunctions.Cmdlets.Constructs
         [AllowEmptyCollection, AllowNull, AllowEmptyString]
         public object?[]? InputObject { get; set; }
 
-        [Parameter(Mandatory = false)]
+        [Parameter]
+        public DuplicateKeyBehavior DuplicateKeyBehavior { get; set; }
+
+        [Parameter]
         public IEqualityComparer? KeyComparer { get; set; }
 
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "KeyProperty")]
         [Alias("KeyName", "Key")]
+#if NET7_0_OR_GREATER
+        [ValidateNotNullOrWhiteSpace]
+#endif
         public string KeyPropertyName { get; set; } = string.Empty;
 
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "KeyScript")]
@@ -34,13 +41,21 @@ namespace ListFunctions.Cmdlets.Constructs
         [AllowEmptyString, AllowNull]
         public object? ValuePropertyName { get; set; }
 
-        [Parameter(Mandatory = false)]
+        [Parameter]
         [AllowNull, AllowEmptyString]
         public ScriptBlock? ValueSelector { get; set; }
 
+        [Parameter]
+        [ArgumentToTypeTransform]
+        public Type? ValueType
+        {
+            get => _valueType;
+            set => _valueType = value;
+        }
+
         private IDictionary _dictionary = null!;
         private Type _keyType = null!;
-        private Type _valueType = null!;
+        private Type? _valueType;
 
         protected override void BeginCore()
         {
@@ -71,7 +86,7 @@ namespace ListFunctions.Cmdlets.Constructs
             if (!(this.InputObject is null) && this.InputObject.Length > 0)
             {
                 _keyType = GetTypeForElement(this.InputObject, this.KeySelector);
-                _valueType = GetTypeForElement(this.InputObject, this.ValueSelector);
+                _valueType = this.GetValueType(_valueType, this.InputObject);
             }
         }
         protected override bool ProcessCore()
@@ -85,7 +100,7 @@ namespace ListFunctions.Cmdlets.Constructs
                 if (_keyType is null || _valueType is null)
                 {
                     _keyType = GetTypeForElement(this.InputObject, this.KeySelector);
-                    _valueType = GetTypeForElement(this.InputObject, this.ValueSelector);
+                    _valueType = this.GetValueType(_valueType, this.InputObject);
                 }
 
                 if (this.KeyComparer is null && (_keyType.Equals(typeof(string)) || _keyType.Equals(typeof(object))))
@@ -97,7 +112,21 @@ namespace ListFunctions.Cmdlets.Constructs
                 _dictionary = (IDictionary)Activator.CreateInstance(dictType, new[] { this.KeyComparer })!;
             }
 
-            foreach (object item in this.InputObject.AsValueEnumerable().Where(x => !(x is null))!)
+            flag = this.AddToDictionary(this.InputObject);
+            return flag;
+        }
+
+        private unsafe bool AddToDictionary(object?[] inputObjects)
+        {
+            delegate*<ConvertToDictionaryCmdlet, object, object?, void> action = this.DuplicateKeyBehavior switch
+            {
+                DuplicateKeyBehavior.Error => &AddVolatile,
+                DuplicateKeyBehavior.Skip => &AddSkip,
+                DuplicateKeyBehavior.Concatenate when typeof(object).Equals(_valueType) => &AddConcat,
+                _ => &AddVolatile,
+            };
+
+            foreach (object item in inputObjects.AsValueEnumerable().Where(x => !(x is null))!)
             {
                 try
                 {
@@ -111,7 +140,7 @@ namespace ListFunctions.Cmdlets.Constructs
                         ? LanguagePrimitives.ConvertTo(o, _valueType)
                         : item;
 
-                    _dictionary.Add(key, value);
+                    action(this, key, value);
                 }
                 catch (PSInvalidCastException e)
                 {
@@ -126,8 +155,9 @@ namespace ListFunctions.Cmdlets.Constructs
                 }
             }
 
-            return flag;
+            return true;
         }
+
         protected override void EndCore(bool wantsToStop)
         {
             if (wantsToStop)
@@ -166,6 +196,56 @@ namespace ListFunctions.Cmdlets.Constructs
             }
 
             return type;
+        }
+
+        private static void AddVolatile(ConvertToDictionaryCmdlet cmdlet, object key, object? value)
+        {
+            try
+            {
+                cmdlet._dictionary.Add(key, value);
+            }
+            catch (ArgumentException e)
+            {
+                var rec = e.ToRecord(ErrorCategory.InvalidData, key);
+                cmdlet.WriteError(rec);
+            }
+        }
+        private static void AddSkip(ConvertToDictionaryCmdlet cmdlet, object key, object? value)
+        {
+            if (cmdlet._dictionary.Contains(key))
+            {
+                cmdlet.WriteWarning("Key already exists, skipping value.");
+                return;
+            }
+
+            cmdlet._dictionary.Add(key, value);
+        }
+        private static void AddConcat(ConvertToDictionaryCmdlet cmdlet, object key, object? value)
+        {
+            if (cmdlet._dictionary.Contains(key))
+            {
+                cmdlet.WriteVerbose("Key exists, concatenating next value.");
+                object? existingValue = cmdlet._dictionary[key];
+                if (!(existingValue is ObjectList objList))
+                {
+                    objList = new ObjectList()
+                    {
+                        existingValue,
+                    };
+
+                    cmdlet._dictionary[key] = objList;
+                }
+
+                objList.Add(value);
+            }
+            else
+            {
+                cmdlet._dictionary.Add(key, value);
+            }
+        }
+        private Type GetValueType(Type? specifiedType, object?[] inputObjects)
+        {
+            return specifiedType ?? GetTypeForElement(inputObjects, this.ValueSelector);
         }
     }
 }
