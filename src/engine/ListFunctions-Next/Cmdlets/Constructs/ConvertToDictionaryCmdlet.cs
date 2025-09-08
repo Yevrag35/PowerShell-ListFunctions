@@ -60,17 +60,7 @@ namespace ListFunctions.Cmdlets.Constructs
 
         protected override void BeginCore()
         {
-            unsafe
-            {
-                delegate*<ConvertToDictionaryCmdlet, object, object?, void> action = this.DuplicateKeyBehavior switch
-                {
-                    DuplicateKeyBehavior.Error => &AddVolatile,
-                    DuplicateKeyBehavior.Skip => &AddSkip,
-                    DuplicateKeyBehavior.Concatenate => &AddConcat,
-                    _ => &AddVolatile,
-                };
-                _addToDictionaryPtr = (nint)action;
-            }
+            _addToDictionaryPtr = StoreAddToDictionaryFunction(this.DuplicateKeyBehavior);
 
             if (this.ParameterSetName.StartsWith("KeyProperty", StringComparison.Ordinal))
             {
@@ -96,43 +86,49 @@ namespace ListFunctions.Cmdlets.Constructs
                     : this.ValueSelector.ReplaceWithArgsZero();
             }
 
-            if (!(this.InputObject is null) && this.InputObject.Length > 0)
+            object?[]? inputObjects = this.InputObject;
+            if (!(inputObjects is null) && inputObjects.Length > 0)
             {
-                _keyType = GetTypeForElement(this.InputObject, this.KeySelector);
-                _valueType = this.GetValueType(_valueType, this.InputObject);
+                _keyType = GetTypeForElement(inputObjects, this.KeySelector);
+                _valueType = this.GetValueType(_valueType, inputObjects);
             }
         }
+
         protected override bool ProcessCore()
         {
             bool flag = true;
-            if (this.InputObject is null || this.InputObject.Length == 0)
+            object?[]? inputObjects = this.InputObject;
+            if (inputObjects is null || inputObjects.Length == 0)
                 return flag;
 
-            if (_dictionary is null)
+            _dictionary ??= this.CreateDictionary(inputObjects);
+
+            unsafe
             {
-                if (_keyType is null || _valueType is null)
-                {
-                    _keyType = GetTypeForElement(this.InputObject, this.KeySelector);
-                    _valueType = this.GetValueType(_valueType, this.InputObject);
-                }
-
-                if (this.KeyComparer is null && (_keyType.Equals(typeof(string)) || _keyType.Equals(typeof(object))))
-                {
-                    this.KeyComparer = StringComparer.OrdinalIgnoreCase;
-                }
-
-                Type dictType = typeof(Dictionary<,>).MakeGenericType(_keyType, _valueType);
-                _dictionary = (IDictionary)Activator.CreateInstance(dictType, new[] { this.KeyComparer })!;
+                return this.AddToDictionary(inputObjects, (delegate*< ConvertToDictionaryCmdlet, object, object ?, void >)_addToDictionaryPtr);
             }
-
-            flag = this.AddToDictionary(this.InputObject);
-            return flag;
         }
 
-        private unsafe bool AddToDictionary(object?[] inputObjects)
+        private IDictionary CreateDictionary(object?[] inputObjects)
         {
-            var action = (delegate*<ConvertToDictionaryCmdlet, object, object?, void>)_addToDictionaryPtr;
+            if (_keyType is null || _valueType is null)
+            {
+                _keyType = GetTypeForElement(inputObjects, this.KeySelector);
+                _valueType = this.GetValueType(_valueType, inputObjects);
+            }
 
+            if (this.KeyComparer is null && (_keyType.Equals(typeof(string)) || _keyType.Equals(typeof(object))))
+            {
+                this.KeyComparer = StringComparer.OrdinalIgnoreCase;
+            }
+
+            Type dictType = typeof(Dictionary<,>).MakeGenericType(_keyType, _valueType);
+            return Activator.CreateInstance(dictType, new[] { this.KeyComparer }) as IDictionary
+                ?? throw new InvalidOperationException("Somehow, Dictionary is not an IDictionary?");
+        }
+
+        private unsafe bool AddToDictionary(object?[] inputObjects, delegate*<ConvertToDictionaryCmdlet, object, object?, void> addToDictionaryAction)
+        {
             foreach (object item in inputObjects.AsValueEnumerable().Where(x => !(x is null))!)
             {
                 try
@@ -147,7 +143,7 @@ namespace ListFunctions.Cmdlets.Constructs
                         ? LanguagePrimitives.ConvertTo(o, _valueType)
                         : item;
 
-                    action(this, key, value);
+                    addToDictionaryAction(this, key, value);
                 }
                 catch (PSInvalidCastException e)
                 {
@@ -179,6 +175,20 @@ namespace ListFunctions.Cmdlets.Constructs
             this.WriteObject(_dictionary, enumerateCollection: false);
         }
 
+        private Type GetValueType(Type? specifiedType, object?[] inputObjects)
+        {
+            if (this.DuplicateKeyBehavior == DuplicateKeyBehavior.Concatenate)
+            {
+                if (!(specifiedType is null) && !typeof(object).Equals(specifiedType))
+                {
+                    this.WriteWarning("ValueType is ignored when 'DuplicateKeyBehavior::Concatenate' is used as the values can either be objects or lists of objects.");
+                }
+
+                return typeof(object);
+            }
+
+            return specifiedType ?? GetTypeForElement(inputObjects, this.ValueSelector);
+        }
         private static Type GetTypeForElement(object?[] inputObj, ScriptBlock? selector)
         {
             Type? type;
@@ -205,28 +215,6 @@ namespace ListFunctions.Cmdlets.Constructs
             return type;
         }
 
-        private static void AddVolatile(ConvertToDictionaryCmdlet cmdlet, object key, object? value)
-        {
-            try
-            {
-                cmdlet._dictionary.Add(key, value);
-            }
-            catch (ArgumentException e)
-            {
-                var rec = e.ToRecord(ErrorCategory.InvalidData, key);
-                cmdlet.WriteError(rec);
-            }
-        }
-        private static void AddSkip(ConvertToDictionaryCmdlet cmdlet, object key, object? value)
-        {
-            if (cmdlet._dictionary.Contains(key))
-            {
-                cmdlet.WriteWarning("Key already exists, skipping value.");
-                return;
-            }
-
-            cmdlet._dictionary.Add(key, value);
-        }
         private static void AddConcat(ConvertToDictionaryCmdlet cmdlet, object key, object? value)
         {
             if (cmdlet._dictionary.Contains(key))
@@ -250,19 +238,42 @@ namespace ListFunctions.Cmdlets.Constructs
                 cmdlet._dictionary.Add(key, value);
             }
         }
-        private Type GetValueType(Type? specifiedType, object?[] inputObjects)
+        private static void AddSkip(ConvertToDictionaryCmdlet cmdlet, object key, object? value)
         {
-            if (this.DuplicateKeyBehavior == DuplicateKeyBehavior.Concatenate)
+            if (cmdlet._dictionary.Contains(key))
             {
-                if (!(specifiedType is null) && !typeof(object).Equals(specifiedType))
-                {
-                    this.WriteWarning("ValueType is ignored when DuplicateKeyBehavior is Concatenate as the values can either be objects or lists of objects.");
-                }
-
-                return typeof(object);
+                cmdlet.WriteWarning("Key already exists, skipping value.");
+                return;
             }
 
-            return specifiedType ?? GetTypeForElement(inputObjects, this.ValueSelector);
+            cmdlet._dictionary.Add(key, value);
+        }
+        private static void AddVolatile(ConvertToDictionaryCmdlet cmdlet, object key, object? value)
+        {
+            try
+            {
+                cmdlet._dictionary.Add(key, value);
+            }
+            catch (ArgumentException e)
+            {
+                var rec = e.ToRecord(ErrorCategory.InvalidData, key);
+                cmdlet.WriteError(rec);
+            }
+        }
+        
+        private static nint StoreAddToDictionaryFunction(DuplicateKeyBehavior duplicateBehavior)
+        {
+            unsafe
+            {
+                delegate*<ConvertToDictionaryCmdlet, object, object?, void> action = duplicateBehavior switch
+                {
+                    DuplicateKeyBehavior.Error => &AddVolatile,
+                    DuplicateKeyBehavior.Skip => &AddSkip,
+                    DuplicateKeyBehavior.Concatenate => &AddConcat,
+                    _ => &AddVolatile,
+                };
+                return (nint)action;
+            }
         }
     }
 }
