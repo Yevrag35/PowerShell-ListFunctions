@@ -56,9 +56,22 @@ namespace ListFunctions.Cmdlets.Constructs
         private IDictionary _dictionary = null!;
         private Type _keyType = null!;
         private Type? _valueType;
+        private nint _addToDictionaryPtr;
 
         protected override void BeginCore()
         {
+            unsafe
+            {
+                delegate*<ConvertToDictionaryCmdlet, object, object?, void> action = this.DuplicateKeyBehavior switch
+                {
+                    DuplicateKeyBehavior.Error => &AddVolatile,
+                    DuplicateKeyBehavior.Skip => &AddSkip,
+                    DuplicateKeyBehavior.Concatenate => &AddConcat,
+                    _ => &AddVolatile,
+                };
+                _addToDictionaryPtr = (nint)action;
+            }
+
             if (this.ParameterSetName.StartsWith("KeyProperty", StringComparison.Ordinal))
             {
                 this.KeySelector = ScriptBlock.Create(string.Concat("$args[0].'", this.KeyPropertyName, "'"));
@@ -118,13 +131,7 @@ namespace ListFunctions.Cmdlets.Constructs
 
         private unsafe bool AddToDictionary(object?[] inputObjects)
         {
-            delegate*<ConvertToDictionaryCmdlet, object, object?, void> action = this.DuplicateKeyBehavior switch
-            {
-                DuplicateKeyBehavior.Error => &AddVolatile,
-                DuplicateKeyBehavior.Skip => &AddSkip,
-                DuplicateKeyBehavior.Concatenate => &AddConcat,
-                _ => &AddVolatile,
-            };
+            var action = (delegate*<ConvertToDictionaryCmdlet, object, object?, void>)_addToDictionaryPtr;
 
             foreach (object item in inputObjects.AsValueEnumerable().Where(x => !(x is null))!)
             {
