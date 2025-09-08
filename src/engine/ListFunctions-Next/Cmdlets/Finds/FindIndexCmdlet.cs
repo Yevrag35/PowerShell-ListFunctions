@@ -54,6 +54,7 @@ namespace ListFunctions.Cmdlets.Finds
                 }
             }
 
+            _currentIndex += this.InputObject.Length;
             return true;
         }
 
