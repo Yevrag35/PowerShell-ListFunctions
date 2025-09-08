@@ -122,7 +122,7 @@ namespace ListFunctions.Cmdlets.Constructs
             {
                 DuplicateKeyBehavior.Error => &AddVolatile,
                 DuplicateKeyBehavior.Skip => &AddSkip,
-                DuplicateKeyBehavior.Concatenate when typeof(object).Equals(_valueType) => &AddConcat,
+                DuplicateKeyBehavior.Concatenate => &AddConcat,
                 _ => &AddVolatile,
             };
 
@@ -245,6 +245,16 @@ namespace ListFunctions.Cmdlets.Constructs
         }
         private Type GetValueType(Type? specifiedType, object?[] inputObjects)
         {
+            if (this.DuplicateKeyBehavior == DuplicateKeyBehavior.Concatenate)
+            {
+                if (!(specifiedType is null) && !typeof(object).Equals(specifiedType))
+                {
+                    this.WriteWarning("ValueType is ignored when DuplicateKeyBehavior is Concatenate as the values can either be objects or lists of objects.");
+                }
+
+                return typeof(object);
+            }
+
             return specifiedType ?? GetTypeForElement(inputObjects, this.ValueSelector);
         }
     }
