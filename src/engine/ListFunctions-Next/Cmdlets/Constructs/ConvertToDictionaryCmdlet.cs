@@ -34,7 +34,7 @@ namespace ListFunctions.Cmdlets.Constructs
         public string KeyPropertyName { get; set; } = string.Empty;
 
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "KeyScript")]
-        [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.PSITEM_NAME, PSThisVariable.THIS_NAME)]
+        [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.PSITEM_NAME, PSThisVariable.THIS_NAME, PSThisVariable.ARGS_FIRST)]
         public ScriptBlock KeySelector { get; set; } = null!;
 
         [Parameter(Mandatory = false, Position = 1)]
@@ -110,6 +110,7 @@ namespace ListFunctions.Cmdlets.Constructs
             }
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0009:Member access should be qualified.", Justification = "Used in nameof()")]
         private IDictionary CreateDictionary(object?[] inputObjects)
         {
             if (_keyType is null || _valueType is null)
@@ -118,14 +119,32 @@ namespace ListFunctions.Cmdlets.Constructs
                 _valueType = this.GetValueType(_valueType, inputObjects);
             }
 
-            if (this.KeyComparer is null && (_keyType.Equals(typeof(string)) || _keyType.Equals(typeof(object))))
+            if (this.KeyComparer is null && (_keyType.Equals(typeof(string))))
             {
                 this.KeyComparer = StringComparer.OrdinalIgnoreCase;
             }
 
-            Type dictType = typeof(Dictionary<,>).MakeGenericType(_keyType, _valueType);
-            return Activator.CreateInstance(dictType, new[] { this.KeyComparer }) as IDictionary
-                ?? throw new InvalidOperationException("Somehow, Dictionary is not an IDictionary?");
+            object[] args = this.KeyComparer is null
+                ? Array.Empty<object>()
+                : new object[] { this.KeyComparer };
+            
+            try
+            {
+                Type dictType = typeof(Dictionary<,>).MakeGenericType(_keyType, _valueType);
+                return Activator.CreateInstance(dictType, args) as IDictionary
+                    ?? throw new InvalidOperationException("Somehow, Dictionary is not an IDictionary?");
+            }
+            catch (Exception e)
+            {
+                var rec = e.ToRecord(ErrorCategory.InvalidOperation, new Dictionary<string, object?>(3, StringComparer.OrdinalIgnoreCase)
+                {
+                    { nameof(InputObject), inputObjects },
+                    { "KeyType", _keyType },
+                    { "ValueType", _valueType },
+                });
+                this.ThrowTerminatingError(rec);
+                throw;
+            }
         }
 
         private unsafe bool AddToDictionary(object?[] inputObjects, delegate*<ConvertToDictionaryCmdlet, object, object?, void> addToDictionaryAction)

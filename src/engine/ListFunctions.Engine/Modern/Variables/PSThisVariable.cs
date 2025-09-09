@@ -9,6 +9,8 @@ namespace ListFunctions.Modern.Variables
         public const string UNDERSCORE_NAME = "_";
         public const string THIS_NAME = "this";
         public const string PSITEM_NAME = "psitem";
+        public const string ARGS_FIRST = "args[0]";
+        public const string ARGS_SECOND = "args[1]";
 
         static readonly Lazy<HashSet<string>> _names = new Lazy<HashSet<string>>(GetThisNames);
 
