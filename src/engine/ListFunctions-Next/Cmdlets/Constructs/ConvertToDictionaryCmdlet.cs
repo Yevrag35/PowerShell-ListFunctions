@@ -1,4 +1,5 @@
-﻿using ListFunctions.Extensions;
+﻿using ListFunctions.Exceptions;
+using ListFunctions.Extensions;
 using ListFunctions.Modern;
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
@@ -119,7 +120,7 @@ namespace ListFunctions.Cmdlets.Constructs
                 _valueType = this.GetValueType(_valueType, inputObjects);
             }
 
-            if (this.KeyComparer is null && (_keyType.Equals(typeof(string))))
+            if (this.KeyComparer is null && _keyType.Equals(typeof(string)))
             {
                 this.KeyComparer = StringComparer.OrdinalIgnoreCase;
             }
@@ -127,21 +128,25 @@ namespace ListFunctions.Cmdlets.Constructs
             object[] args = this.KeyComparer is null
                 ? Array.Empty<object>()
                 : new object[] { this.KeyComparer };
-            
+
+            Type? dictType = null;
             try
             {
-                Type dictType = typeof(Dictionary<,>).MakeGenericType(_keyType, _valueType);
+                dictType = typeof(Dictionary<,>).MakeGenericType(_keyType, _valueType);
                 return Activator.CreateInstance(dictType, args) as IDictionary
                     ?? throw new InvalidOperationException("Somehow, Dictionary is not an IDictionary?");
             }
             catch (Exception e)
             {
-                var rec = e.ToRecord(ErrorCategory.InvalidOperation, new Dictionary<string, object?>(3, StringComparer.OrdinalIgnoreCase)
-                {
-                    { nameof(InputObject), inputObjects },
-                    { "KeyType", _keyType },
-                    { "ValueType", _valueType },
-                });
+                ListFunctionsException ex = new($"Failed to instantiate dictionary with the arguments supplied - {e.Message}", e);
+                IDictionary data = ex.Data;
+                data["KeyType"] = _keyType;
+                data[nameof(InputObject)] = inputObjects.DeepClone();
+                data[nameof(ValueType)] = _valueType;
+                data["DictionaryType"] = dictType;
+
+                var rec = ex.ToRecord(ErrorCategory.InvalidOperation, targetObj: null);
+                
                 this.ThrowTerminatingError(rec);
                 throw;
             }

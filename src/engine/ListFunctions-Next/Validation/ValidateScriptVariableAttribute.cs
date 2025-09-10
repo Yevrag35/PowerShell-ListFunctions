@@ -121,8 +121,8 @@ namespace ListFunctions.Validation
                 : block.Ast.FindAll(searchNestedScriptBlocks: false, predicate: IsVariableAst);
 
             return allowsArgs
-                ? IsValidWithIndexes(asts, mustContainNames, mustContainIndexes)
-                : IsValidNoIndexes(asts, mustContainNames, mustContainIndexes);
+                ? IsValidWithIndexes(asts, mustContainNames, mustContainIndexes!)
+                : IsValidNoIndexes(asts, mustContainNames!);
         }
 
         private static bool IsVariableAst(Ast ast)
@@ -141,19 +141,18 @@ namespace ListFunctions.Validation
                 && Args.Equals(varAst.VariablePath.UserPath, StringComparison.OrdinalIgnoreCase);
         }
 
-        private static bool IsValidWithIndexes(IEnumerable<Ast> asts, ICollection<string>? anyNames, HashSet<int>? orAnyIndexes)
+        private static bool IsValidWithIndexes(IEnumerable<Ast> asts, HashSet<string>? anyNames, HashSet<int> orAnyIndexes)
         {
-            if (anyNames is null) anyNames = Array.Empty<string>();
-
+            bool isNotNull = !(anyNames is null || anyNames.Count == 0);
             foreach (Ast ast in asts.AsValueEnumerable())
             {
-                if (ast is VariableExpressionAst varAst && anyNames.Contains(varAst.VariablePath.UserPath))
+                if (ast is VariableExpressionAst varAst && isNotNull && anyNames!.Contains(varAst.VariablePath.UserPath))
                 {
                     return true;
                 }
                 else if (ast is IndexExpressionAst indexAst && indexAst.Index is ConstantExpressionAst constAst && constAst.Value is int index
                     &&
-                    orAnyIndexes!.Contains(index))
+                    orAnyIndexes.Contains(index))
                 {
                     return true;
                 }
@@ -161,12 +160,11 @@ namespace ListFunctions.Validation
 
             return false;
         }
-        private static bool IsValidNoIndexes(IEnumerable<Ast> asts, ICollection<string>? anyNames, HashSet<int>? _)
+        private static bool IsValidNoIndexes(IEnumerable<Ast> asts, HashSet<string> anyNames)
         {
-            Debug.Assert(!(anyNames is null), "Names should not null here.");
             foreach (VariableExpressionAst varAst in asts.AsValueEnumerable())
             {
-                if (anyNames!.Contains(varAst.VariablePath.UserPath))
+                if (anyNames.Contains(varAst.VariablePath.UserPath))
                 {
                     return true;
                 }
