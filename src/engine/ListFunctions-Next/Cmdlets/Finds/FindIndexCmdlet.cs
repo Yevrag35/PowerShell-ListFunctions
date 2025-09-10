@@ -81,50 +81,6 @@ namespace ListFunctions.Cmdlets.Finds
                 _list = null!;
             }
         }
-
-        //protected override void End(List<object?> list, PSVariable scriptErrorAction)
-        //{
-
-        //}
-
-        //static readonly Lazy<Dictionary<Type, MethodInfo>> _indexMethods = 
-        //    new Lazy<Dictionary<Type, MethodInfo>>(BuildMethodCache);
-
-        //protected override MethodInfo GetFindIndexMethod(Type listType, Type genericType)
-        //{
-        //    var list = new List<object>();
-
-        //    if (_indexMethods.IsValueCreated
-        //        &&
-        //        _indexMethods.Value.TryGetValue(genericType, out MethodInfo? info))
-        //    {
-        //        return info;
-        //    }
-
-        //    info = GetIndexMethodDefinition(listType, genericType);
-
-        //    Debug.Assert(!(info is null));
-        //    _indexMethods.Value.TryAdd(genericType, info);
-
-        //    return info;
-        //}
-
-        //private static MethodInfo GetIndexMethodDefinition(Type listType, Type genericType)
-        //{
-        //    Type genPred = PredicateType.MakeGenericType(genericType);
-
-        //    return listType.GetMethod(
-        //        name: nameof(List<object>.FindIndex),
-        //        bindingAttr: BindingFlags.Instance | BindingFlags.Public,
-        //        binder: null,
-        //        types: new Type[] { genPred },
-        //        modifiers: null)!;
-        //}
-
-        //private static Dictionary<Type, MethodInfo> BuildMethodCache()
-        //{
-        //    return new Dictionary<Type, MethodInfo>(3);
-        //}
     }
 }
 

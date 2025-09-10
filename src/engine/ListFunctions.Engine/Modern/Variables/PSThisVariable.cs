@@ -67,20 +67,4 @@ namespace ListFunctions.Modern.Variables
             return true;
         }
     }
-
-    //internal sealed class PSThisVariable<T> : PSThisVariable
-    //{
-    //    internal T? Value => (T?)base.ObjValue;
-
-    //    internal PSThisVariable()
-    //        : base()
-    //    {
-    //    }
-
-    //    internal void AddToVarList(T value, List<PSVariable> variables)
-    //    {
-    //        this.SetValue(value);
-    //        this.InsertIntoList(variables);
-    //    }
-    //}
 }

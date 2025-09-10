@@ -48,21 +48,5 @@ namespace ListFunctions.Cmdlets.Assertions
         {
             this.WriteObject(!scriptResult);
         }
-
-        //protected override void BeginProcessing()
-        //{
-        //    _equality = new ScriptBlockFilter(this.Condition, new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction));
-        //}
-        //protected override void ProcessRecord()
-        //{
-        //    if (!_stop)
-        //    {
-        //        _stop = !_equality.All(this.InputObject);
-        //    }
-        //}
-        //protected override void EndProcessing()
-        //{
-        //    this.WriteObject(_stop);
-        //}
     }
 }

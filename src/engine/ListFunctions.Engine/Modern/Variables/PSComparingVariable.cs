@@ -22,9 +22,6 @@ namespace ListFunctions.Modern.Variables
         {
         }
 
-        //public abstract void Initialize();
-        //public abstract bool TryReset();
-
         internal static PSComparingVariable<T> Left<T>()
         {
             return new PSComparingVariable<T>(_left);

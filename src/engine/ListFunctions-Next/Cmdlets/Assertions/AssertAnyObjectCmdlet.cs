@@ -52,20 +52,6 @@ namespace ListFunctions.Cmdlets.Assertions
             }
 
             return false;
-            //if (!_hasNonNull)
-            //{
-            //    ProcessWhenNoCondition(this.InputObject, ref _hasNonNull);
-            //}
-            //if (!this.HasCondition)
-            //{
-
-
-            //    return;
-            //}
-            //else if (!_stop)
-            //{
-            //    _stop = _equality.Any(this.InputObject);
-            //}
         }
         protected override void End(bool scriptResult)
         {
