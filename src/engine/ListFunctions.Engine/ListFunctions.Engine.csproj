@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net9.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
 	  <Nullable>enable</Nullable>
 	  <RootNamespace>ListFunctions</RootNamespace>
 	  <PackageId>ListFunctions.Engine</PackageId>
@@ -34,9 +34,9 @@
 		<Product>ListFunctions.Engine - .NET 8</Product>
 		<LangVersion>latest</LangVersion>
 	</PropertyGroup>
-	<PropertyGroup Condition=" '$(TargetFramework)' == 'net9.0' ">
-		<AssemblyTitle>ListFunctions.Engine - .NET 9</AssemblyTitle>
-		<Product>ListFunctions.Engine - .NET 9</Product>
+	<PropertyGroup Condition=" '$(TargetFramework)' == 'net10.0' ">
+		<AssemblyTitle>ListFunctions.Engine - .NET 10</AssemblyTitle>
+		<Product>ListFunctions.Engine - .NET 10</Product>
 		<LangVersion>preview</LangVersion>
 	</PropertyGroup>
 
@@ -76,8 +76,8 @@
     </PackageReference>
     <PackageReference Include="PowerShellStandard.Library" Version="5.1.1" />
   </ItemGroup>
-	<ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
-		<PackageReference Include="System.Management.Automation" Version="7.5.2" />
+	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+		<PackageReference Include="System.Management.Automation" Version="7.6.0-preview.4" />
 		<PackageReference Include="ZLinq" Version="1.5.2" />
 	</ItemGroup>
 
