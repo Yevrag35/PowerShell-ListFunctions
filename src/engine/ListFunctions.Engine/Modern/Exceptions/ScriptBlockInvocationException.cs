@@ -1,4 +1,5 @@
-﻿using ListFunctions.Internal;
+using ListFunctions.Extensions;
+using ListFunctions.Internal;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -64,22 +65,6 @@ namespace ListFunctions.Modern.Exceptions
         }
 
 #endif
-
-        [return: NotNullIfNotNull(nameof(obj))]
-        protected static object? CopyObject(object? obj)
-        {
-            switch (obj)
-            {
-                case ICloneable cloneable:
-                    return cloneable.Clone();
-
-                case PSObject pso:
-                    return pso.Copy();
-
-                default:
-                    return obj;
-            }
-        }
         private static string FormatMessage(string message, Exception? inner, string? statement)
         {
             if (string.IsNullOrWhiteSpace(statement))
@@ -105,8 +90,7 @@ namespace ListFunctions.Modern.Exceptions
 
             try
             {
-                string? statement = _statementProp.Value.GetValue(info) as string;
-                return statement ?? info.Line;
+                return _statementProp.Value.GetValue(info) as string ?? info.Line;
             }
             catch (Exception e)
             {
@@ -135,7 +119,7 @@ namespace ListFunctions.Modern.Exceptions
                 return;
             }
 
-            object? val = CopyObject(variable.Value);
+            object? val = variable.Value.CloneIf();
 
 #if NET5_0_OR_GREATER
             _ = dict.TryAdd(variable.Name, val);
@@ -151,7 +135,6 @@ namespace ListFunctions.Modern.Exceptions
             if (variables is null || variables.Count <= 0)
             {
                 return Empty.Dictionary<string, object?>();
-                //return Empty<string, object?>.Dictionary;
             }
 
             var dict = new Dictionary<string, object?>(variables.Count, StringComparer.InvariantCultureIgnoreCase);

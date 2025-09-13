@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Management.Automation;
 
@@ -9,6 +9,8 @@ namespace ListFunctions.Modern.Variables
         public const string UNDERSCORE_NAME = "_";
         public const string THIS_NAME = "this";
         public const string PSITEM_NAME = "psitem";
+        public const string ARGS_FIRST = "args[0]";
+        public const string ARGS_SECOND = "args[1]";
 
         static readonly Lazy<HashSet<string>> _names = new Lazy<HashSet<string>>(GetThisNames);
 
@@ -65,20 +67,4 @@ namespace ListFunctions.Modern.Variables
             return true;
         }
     }
-
-    //internal sealed class PSThisVariable<T> : PSThisVariable
-    //{
-    //    internal T? Value => (T?)base.ObjValue;
-
-    //    internal PSThisVariable()
-    //        : base()
-    //    {
-    //    }
-
-    //    internal void AddToVarList(T value, List<PSVariable> variables)
-    //    {
-    //        this.SetValue(value);
-    //        this.InsertIntoList(variables);
-    //    }
-    //}
 }

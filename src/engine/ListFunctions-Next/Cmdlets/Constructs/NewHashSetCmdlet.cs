@@ -39,12 +39,12 @@ namespace ListFunctions.Cmdlets.Construct
         public object[] InputObject { get; set; } = null!;
 
         [Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
-        [ValidateScriptVariable(PSComparingVariable.X, PSComparingVariable.LEFT)]
-        [ValidateScriptVariable(PSComparingVariable.Y, PSComparingVariable.RIGHT)]
+        [ValidateScriptVariable(PSComparingVariable.X, PSComparingVariable.LEFT, PSThisVariable.ARGS_FIRST)]
+        [ValidateScriptVariable(PSComparingVariable.Y, PSComparingVariable.RIGHT, PSThisVariable.ARGS_SECOND)]
         public ScriptBlock EqualityScript { get; set; } = null!;
 
         [Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
-        [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.THIS_NAME, PSThisVariable.PSITEM_NAME)]
+        [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.THIS_NAME, PSThisVariable.PSITEM_NAME, PSThisVariable.ARGS_FIRST)]
         public ScriptBlock HashCodeScript { get; set; } = null!;
 
         [Parameter(ParameterSetName = WITH_CUSTOM_EQUALITY)]

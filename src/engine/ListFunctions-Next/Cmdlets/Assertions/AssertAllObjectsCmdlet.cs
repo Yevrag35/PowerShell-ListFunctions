@@ -1,4 +1,4 @@
-﻿using ListFunctions.Modern;
+using ListFunctions.Modern;
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
 using System;
@@ -19,7 +19,7 @@ namespace ListFunctions.Cmdlets.Assertions
         [Parameter(Mandatory = true, Position = 0)]
         [Alias("ScriptBlock", "FilterScript")]
         [AllowNull, AllowEmptyString]
-        [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.THIS_NAME, PSThisVariable.PSITEM_NAME)]
+        [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.THIS_NAME, PSThisVariable.PSITEM_NAME, PSThisVariable.ARGS_FIRST)]
         public override ScriptBlock? Condition
         {
             get => base.Condition;
@@ -48,21 +48,5 @@ namespace ListFunctions.Cmdlets.Assertions
         {
             this.WriteObject(!scriptResult);
         }
-
-        //protected override void BeginProcessing()
-        //{
-        //    _equality = new ScriptBlockFilter(this.Condition, new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction));
-        //}
-        //protected override void ProcessRecord()
-        //{
-        //    if (!_stop)
-        //    {
-        //        _stop = !_equality.All(this.InputObject);
-        //    }
-        //}
-        //protected override void EndProcessing()
-        //{
-        //    this.WriteObject(_stop);
-        //}
     }
 }

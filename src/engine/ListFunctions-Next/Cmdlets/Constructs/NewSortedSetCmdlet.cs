@@ -30,8 +30,8 @@ namespace ListFunctions.Cmdlets.Constructs
         public Type GenericType { get; set; } = null!;
 
         [Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
-        [ValidateScriptVariable(PSComparingVariable.X, PSComparingVariable.LEFT)]
-        [ValidateScriptVariable(PSComparingVariable.Y, PSComparingVariable.RIGHT)]
+        [ValidateScriptVariable(PSComparingVariable.X, PSComparingVariable.LEFT, PSThisVariable.ARGS_FIRST)]
+        [ValidateScriptVariable(PSComparingVariable.Y, PSComparingVariable.RIGHT, PSThisVariable.ARGS_SECOND)]
         public ScriptBlock ComparingScript { get; set; } = null!;
 
         [Parameter(ValueFromPipeline = true)]

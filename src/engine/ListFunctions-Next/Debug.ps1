@@ -48,7 +48,7 @@ foreach ($toCopy in $CopyToOutput)
 	}
 
 	$name, $version = $dependency.Name -split '\/'
-	if ([string]::IsNullOrEmpty($name) -or [string]::IsNullOrEmpty($version)) {
+	if ([string]::IsNullOrWhitespace($name) -or [string]::IsNullOrWhitespace($version)) {
 
 		Write-Warning "Unable to parse name and version from '$toCopy'."
 		continue
@@ -61,7 +61,7 @@ foreach ($toCopy in $CopyToOutput)
 		continue;
 	}
 
-	$mems = $pso | Get-Member -MemberType NoteProperty | Where { $_.Name -clike "lib/*" }
+	$mems = $pso | Get-Member -MemberType NoteProperty | Where-Object { $_.Name -clike "lib/*" }
 	foreach ($mem in $mems)
 	{
 		$fileName = [System.IO.Path]::GetFileName($mem.Name)
@@ -94,9 +94,3 @@ if ($PSCmdlet.ShouldProcess($dllPath, "Importing Module")) {
 	Import-Module $dllPath -ErrorAction Stop -Force
 	Push-Location $myDesktop
 }
-
-$psAll = @(
-	[pscustomobject] @{ Name = "mike" },
-	[pscustomobject] @{ Name = "frank"},
-	$null
-)
