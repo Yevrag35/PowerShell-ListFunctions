@@ -7,14 +7,14 @@
 	  <PackageId>ListFunctions.Engine</PackageId>
 	  <Authors>Mike Garvey</Authors>
 	  <Company>Yevrag35, LLC.</Company>
-	  <Copyright>Copyright © 2022-2024 Yevrag35, LLC.  All rights reserved.</Copyright>
+	  <Copyright>Copyright © 2022-2025 Yevrag35, LLC.  All rights reserved.</Copyright>
 	  <RepositoryUrl>https://github.com/Yevrag35/PowerShell-ListFunctions.git</RepositoryUrl>
 	  <RepositoryType>Git</RepositoryType>
 	  <PackageProjectUrl>https://github.com/Yevrag35/PowerShell-ListFunctions</PackageProjectUrl>
-	  <Version>3.0.0</Version>
+	  <Version>3.1.0</Version>
 	  <AssemblyName>ListFunctions.Engine</AssemblyName>
-	  <AssemblyVersion>3.0.0</AssemblyVersion>
-	  <FileVersion>3.0.0</FileVersion>
+	  <AssemblyVersion>3.1.0</AssemblyVersion>
+	  <FileVersion>3.1.0</FileVersion>
 	  <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	  <ImplicitUsings>false</ImplicitUsings>
   </PropertyGroup>

@@ -4,7 +4,7 @@
     <TargetFramework>net9.0</TargetFramework>
 	  <Authors>Mike Garvey</Authors>
 	  <Company>Yevrag35, LLC.</Company>
-	  <Copyright>Copyright © Yevrag35, LLC. 2020-2023  All rights reserved.</Copyright>
+	  <Copyright>Copyright © Yevrag35, LLC. 2020-2025  All rights reserved.</Copyright>
 	  <PackageIconUrl>https://github.com/Yevrag35/PowerShell-ListFunctions/blob/master/.icon/list-functions.png?raw=true</PackageIconUrl>
 	  <PackageProjectUrl>https://github.com/Yevrag35/PowerShell-ListFunctions</PackageProjectUrl>
 	  <PackageLicenseUrl>https://raw.githubusercontent.com/Yevrag35/PowerShell-ListFunctions/master/LICENSE</PackageLicenseUrl>
@@ -15,9 +15,9 @@
 	  <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
-	  <Version>3.0.0</Version>
-	  <FileVersion>3.0.0</FileVersion>
-	  <AssemblyVersion>3.0.0</AssemblyVersion>
+	  <Version>3.1.0</Version>
+	  <FileVersion>3.1.0</FileVersion>
+	  <AssemblyVersion>3.1.0</AssemblyVersion>
   </PropertyGroup>
 
 	<ItemGroup Condition="'$(Configuration)' != 'Release'">
