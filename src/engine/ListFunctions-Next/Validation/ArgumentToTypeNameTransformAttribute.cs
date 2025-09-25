@@ -67,16 +67,14 @@ namespace ListFunctions.Validation
 
                 if (!(errors is null) && errors.Length > 0)
                 {
-                    throw new ParseException(errors);
+                    //throw new ParseException(errors);
+                    return !(runningModule is null) && PSREADLINE.Equals(runningModule.Name, StringComparison.OrdinalIgnoreCase)
+                        ? typeof(object)
+                        : throw new ArgumentException($"'{typeName}' is not a valid .NET or custom-defined type.");
                 }
             }
             catch (ParseException e)
             {
-                if (!(runningModule is null) && PSREADLINE.Equals(runningModule.Name, StringComparison.OrdinalIgnoreCase))
-                {
-                    return typeof(object);
-                }
-
                 throw new ArgumentException($"'{typeName}' is not a valid .NET or custom-defined type.", e);
             }
 
