@@ -27,7 +27,7 @@ namespace ListFunctions.Modern.Constructors
         protected abstract object ConstructDefault(IEqualityComparer comparer);
         private IEqualityComparer GetComparerOrDefault()
         {
-            if (!(_comparer is null))
+            if (_comparer is not null)
             {
                 return _comparer;
             }

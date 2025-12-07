@@ -65,7 +65,7 @@ namespace ListFunctions.Modern.Constructors
                    &&
                    (_comparer is null
                     ||
-                    !(_comparer is IComparingBlock));
+                    _comparer is not IComparingBlock);
         }
         private static Type[] ToTypeArray([NotNull] ref Type? genericType)
         {

@@ -95,19 +95,19 @@ namespace ListFunctions.Modern
             {
                 if (disposing)
                 {
-                    if (!(_constants is null))
+                    if (_constants is not null)
                     {
                         ObjPool<PSThisVariable>.Return(_constants);
                         _constants = null!;
                     }
 
-                    if (!(_extraVariables is null))
+                    if (_extraVariables is not null)
                     {
                         ListPool<PSVariable>.Return(_extraVariables);
                         _extraVariables = null!;
                     }
 
-                    if (!(_variables is null))
+                    if (_variables is not null)
                     {
                         ListPool<PSVariable>.Return(_variables);
                         _variables = null!;

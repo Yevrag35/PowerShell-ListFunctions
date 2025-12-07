@@ -15,7 +15,7 @@ namespace ListFunctions.Modern
             }
 
             bool converted = LanguagePrimitives.TryConvertTo(value, convertTo, out result);
-            return converted && !(result is null);
+            return converted && result is not null;
         }
         public static bool TryConvert<T>(object? value, [NotNullWhen(true)] out T result)
         {
@@ -26,7 +26,7 @@ namespace ListFunctions.Modern
             }
 
             bool converted = LanguagePrimitives.TryConvertTo(value, out result);
-            return converted && !(result is null);
+            return converted && result is not null;
         }
     }
 }

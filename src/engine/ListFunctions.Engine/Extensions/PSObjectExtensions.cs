@@ -9,7 +9,7 @@ namespace ListFunctions.Extensions
     {
         public static object? GetBaseObject(this object? obj)
         {
-            if (obj is null || !(obj is PSObject mshObj))
+            if (obj is null || obj is not PSObject mshObj)
             {
                 return obj;
             }
@@ -24,7 +24,7 @@ namespace ListFunctions.Extensions
         public static bool TryGetBaseObject(this object? obj, [NotNullWhen(true)] out object? result)
         {
             result = GetBaseObject(obj);
-            return !(result is null);
+            return result is not null;
         }
 
         [Obsolete("Use 'GetBaseObject' extension method.")]
@@ -42,7 +42,7 @@ namespace ListFunctions.Extensions
         public static bool TryAsObject(this PSObject? pso, [MaybeNullWhen(true)] out object result)
         {
             result = AsObject(pso);
-            return !(result is PSObject);
+            return result is not PSObject;
         }
     }
 }

@@ -30,7 +30,7 @@ namespace ListFunctions.Internal
         }
         private static bool LeftIsEqualToRight<T1, T2>(T1 t1, T2 t2) where T1 : IEquatable<T2>
         {
-            return !(t1 is null) && t1.Equals(t2);
+            return t1 is not null && t1.Equals(t2);
         }
     }
 }

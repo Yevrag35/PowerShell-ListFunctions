@@ -133,7 +133,7 @@ namespace ListFunctions.Modern
                 converted = tObj;
                 return true;
             }
-            else if (LanguagePrimitives.TryConvertTo(obj, out T tRes) && !(tRes is null))
+            else if (LanguagePrimitives.TryConvertTo(obj, out T tRes) && tRes is not null)
             {
                 converted = tRes;
                 return true;

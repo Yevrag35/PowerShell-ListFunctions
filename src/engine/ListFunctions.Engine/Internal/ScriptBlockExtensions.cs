@@ -16,7 +16,7 @@ namespace ListFunctions.Internal
         {
             Guard.NotNull(scriptBlock, nameof(scriptBlock));
 
-            if (!(scriptBlock.Ast is ScriptBlockAst scriptAst))
+            if (scriptBlock.Ast is not ScriptBlockAst scriptAst)
             {
                 return false;
             }
