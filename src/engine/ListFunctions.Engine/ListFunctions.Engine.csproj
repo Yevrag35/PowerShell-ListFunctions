@@ -77,7 +77,7 @@
     <PackageReference Include="PowerShellStandard.Library" Version="5.1.1" />
   </ItemGroup>
 	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
-		<PackageReference Include="System.Management.Automation" Version="7.6.0-preview.4" />
+		<PackageReference Include="System.Management.Automation" Version="7.6.0-preview.5" />
 		<PackageReference Include="ZLinq" Version="1.5.2" />
 	</ItemGroup>
 
