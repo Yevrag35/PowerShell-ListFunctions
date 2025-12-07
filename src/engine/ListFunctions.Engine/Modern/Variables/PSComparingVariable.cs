@@ -44,8 +44,6 @@ namespace ListFunctions.Modern.Variables
             PopulateVariables(ref _allVars, names);
         }
 
-
-
         private static void PopulateVariables([NotNull] ref PSVariable[]? allVars, string[] names)
         {
 #if NET5_0_OR_GREATER

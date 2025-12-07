@@ -12,16 +12,24 @@ namespace ListFunctions.Modern.Variables
         public const string ARGS_FIRST = "args[0]";
         public const string ARGS_SECOND = "args[1]";
 
-        static readonly Lazy<HashSet<string>> _names = new Lazy<HashSet<string>>(GetThisNames);
+        private static readonly
+#if NET8_0_OR_GREATER
+            System.Collections.Frozen.FrozenSet<string>
+#else
+            HashSet<string>
+#endif
+            _names = GetThisNames();
 
         private readonly PSVariable[] _allVars;
         public object? ObjValue { get; private set; }
         public PSThisVariable()
         {
-            _allVars = new PSVariable[3];
-            _allVars[0] = new PSVariable(UNDERSCORE_NAME, null);
-            _allVars[1] = new PSVariable(THIS_NAME, null);
-            _allVars[2] = new PSVariable(PSITEM_NAME, null);
+            _allVars = new PSVariable[]
+            {
+                new PSVariable(UNDERSCORE_NAME, null),
+                new PSVariable(THIS_NAME, null),
+                new PSVariable(PSITEM_NAME, null),
+            };
         }
 
         public void InsertIntoList(List<PSVariable> list)
@@ -31,12 +39,12 @@ namespace ListFunctions.Modern.Variables
         internal static bool IsThisVariable(string name)
         {
             Guard.NotNullOrEmpty(name, nameof(name));
-            return _names.Value.Contains(name);
+            return _names.Contains(name);
         }
         internal static bool IsThisVariable(PSVariable variable)
         {
             Guard.NotNull(variable, nameof(variable));
-            return _names.Value.Contains(variable.Name);
+            return _names.Contains(variable.Name);
         }
         public void SetValue(object? value)
         {
@@ -47,14 +55,26 @@ namespace ListFunctions.Modern.Variables
             }
         }
 
-        private static HashSet<string> GetThisNames()
+        private static
+#if NET8_0_OR_GREATER
+            System.Collections.Frozen.FrozenSet<string>
+#else
+            HashSet<string>
+#endif
+        GetThisNames()
         {
-            return new(StringComparer.OrdinalIgnoreCase)
+            HashSet<string> set = new(StringComparer.OrdinalIgnoreCase)
             {
                 UNDERSCORE_NAME,
                 THIS_NAME,
                 PSITEM_NAME,
             };
+
+#if !NET8_0_OR_GREATER
+            return set;
+#else
+            return System.Collections.Frozen.FrozenSet.ToFrozenSet(set, set.Comparer);
+#endif
         }
 
         void IPoolable.Initialize()
