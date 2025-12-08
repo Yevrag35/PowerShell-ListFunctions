@@ -28,7 +28,7 @@ namespace ListFunctions.Modern
 #endif
                 additionalVariables)
         {
-            Guard.NotNull(scriptBlock, nameof(scriptBlock));
+            Guard.NotNull(scriptBlock);
             _scriptBlock = scriptBlock;
             _extraVariables = ListPool<PSVariable>.Rent();
             _extraVariables.AddRange(additionalVariables

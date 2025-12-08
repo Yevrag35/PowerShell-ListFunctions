@@ -24,12 +24,12 @@ namespace ListFunctions.Modern.Variables
         public object? ObjValue { get; private set; }
         public PSThisVariable()
         {
-            _allVars = new PSVariable[]
-            {
+            _allVars =
+            [
                 new PSVariable(UNDERSCORE_NAME, null),
                 new PSVariable(THIS_NAME, null),
                 new PSVariable(PSITEM_NAME, null),
-            };
+            ];
         }
 
         public void InsertIntoList(List<PSVariable> list)
@@ -38,12 +38,12 @@ namespace ListFunctions.Modern.Variables
         }
         internal static bool IsThisVariable(string name)
         {
-            Guard.NotNullOrEmpty(name, nameof(name));
+            Guard.NotNullOrEmpty(name);
             return _names.Contains(name);
         }
         internal static bool IsThisVariable(PSVariable variable)
         {
-            Guard.NotNull(variable, nameof(variable));
+            Guard.NotNull(variable);
             return _names.Contains(variable.Name);
         }
         public void SetValue(object? value)

@@ -6,7 +6,7 @@ namespace ListFunctions
 {
     public static class Guard
     {
-        public static void NotNull([NotNull] object? obj, string? parameterName)
+        public static void NotNull([NotNull] object? obj, [CallerArgumentExpression(nameof(obj))] string? parameterName = null)
         {
 #if NET5_0_OR_GREATER
             ArgumentNullException.ThrowIfNull(obj, parameterName);
@@ -21,7 +21,7 @@ namespace ListFunctions
 
         /// <exception cref="ArgumentException"/>
         /// <exception cref="ArgumentNullException"/>
-        public static void NotNullOrEmpty([NotNull] string? value, string? parameterName)
+        public static void NotNullOrEmpty([NotNull] string? value, [CallerArgumentExpression(nameof(value))] string? parameterName = null)
         {
 #if NET5_0_OR_GREATER
             ArgumentException.ThrowIfNullOrEmpty(value, parameterName);
@@ -38,7 +38,7 @@ namespace ListFunctions
 #endif
         }
 
-        public static void ThrowIfGreaterThanOrEqual(int value, int other, string? parameterName)
+        public static void ThrowIfGreaterThanOrEqual(int value, int other, [CallerArgumentExpression(nameof(value))] string? parameterName = null)
         {
 #if NET5_0_OR_GREATER
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(value, other, parameterName);

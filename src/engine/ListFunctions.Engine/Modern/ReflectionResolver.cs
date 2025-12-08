@@ -27,7 +27,7 @@ namespace ListFunctions.Modern
                 return GetHashtableAdd();
             }
 
-            Guard.NotNull(types, nameof(types));
+            Guard.NotNull(types);
             if (types.Length <= 0 || types.Length > 2)
             {
                 throw new ArgumentException("Wrong number of Type arguments were supplied.");

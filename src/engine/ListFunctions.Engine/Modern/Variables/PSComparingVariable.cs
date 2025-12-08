@@ -46,18 +46,18 @@ namespace ListFunctions.Modern.Variables
 
         private static void PopulateVariables([NotNull] ref PSVariable[]? allVars, string[] names)
         {
-//#if NET5_0_OR_GREATER
             allVars = new PSVariable[names.Length];
-            ref string f = ref MemoryMarshal.GetReference<string>(names);
-            ref PSVariable fVar = ref MemoryMarshal.GetReference<PSVariable>(allVars);
-
             for (int i = 0; i < names.Length; i++)
             {
-                Unsafe.Add(ref fVar, i) = new PSVariable(Unsafe.Add(ref f, i), value: null);
+                allVars[i] = new PSVariable(names[i], value: null);
             }
-//#else
-//            allVars = Array.ConvertAll(names, x => new PSVariable(x, value: null));
-//#endif
+            //ref string f = ref MemoryMarshal.GetReference<string>(names);
+            //ref PSVariable fVar = ref MemoryMarshal.GetReference<PSVariable>(allVars);
+
+            //for (int i = 0; i < names.Length; i++)
+            //{
+            //    Unsafe.Add(ref fVar, i) = new PSVariable(Unsafe.Add(ref f, i), value: null);
+            //}
         }
 
         internal void AddToVarList(T value, List<PSVariable> variables)

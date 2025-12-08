@@ -27,9 +27,9 @@ namespace ListFunctions.Modern
         /// <exception cref="ArgumentNullException"/>
         public static IEqualityBlock CreateBlock(Type type, IHashCodeBlock hashCodeBlock, ScriptBlock equalityScript, IEnumerable<PSVariable>? additionalVariables)
         {
-            Guard.NotNull(type, nameof(type));
-            Guard.NotNull(hashCodeBlock, nameof(hashCodeBlock));
-            Guard.NotNull(equalityScript, nameof(equalityScript));
+            Guard.NotNull(type);
+            Guard.NotNull(hashCodeBlock);
+            Guard.NotNull(equalityScript);
 
             MethodInfo genMeth = _genMeth.MakeGenericMethod(type);
             object[] args = new object[] { hashCodeBlock, equalityScript, additionalVariables! };
@@ -74,7 +74,7 @@ namespace ListFunctions.Modern
         internal EqualityBlock(ScriptBlock scriptBlock, IHashCodeBlock hashCodeBlock, IEnumerable<PSVariable>? additionalVariables, bool preValidated)
             : base(scriptBlock, preValidated)
         {
-            Guard.NotNull(hashCodeBlock, nameof(hashCodeBlock));
+            Guard.NotNull(hashCodeBlock);
             _additionalVariables = additionalVariables is null
                 ? Array.Empty<PSVariable>()
                 : additionalVariables.AsValueEnumerable().ToArray();
@@ -147,12 +147,12 @@ namespace ListFunctions.Modern
 
         public int GetHashCode(T obj)
         {
-            Guard.NotNull(obj, nameof(obj));
+            Guard.NotNull(obj);
             return _hashCodeBlock.GetHashCode(obj, _additionalVariables);
         }
         int IEqualityComparer.GetHashCode(object? obj)
         {
-            Guard.NotNull(obj, nameof(obj));
+            Guard.NotNull(obj);
             return _hashCodeBlock.GetHashCode(obj, _additionalVariables);
         }
     }
