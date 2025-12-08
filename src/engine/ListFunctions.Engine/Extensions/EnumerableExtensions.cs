@@ -15,7 +15,7 @@ namespace ZLinq
         {
             return source;
         }
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IEnumerable<object> AsValueEnumerable(this IEnumerable source)
         {
             return source.Cast<object>();
