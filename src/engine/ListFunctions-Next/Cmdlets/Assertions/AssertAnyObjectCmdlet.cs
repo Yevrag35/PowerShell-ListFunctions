@@ -40,11 +40,11 @@ namespace ListFunctions.Cmdlets.Assertions
         }
         protected override bool ProcessWhenNoCondition()
         {
-            if (!(this.InputObject is null))
+            if (this.InputObject is not null)
             {
                 foreach (object? item in this.InputObject)
                 {
-                    if (!(item is null))
+                    if (item is not null)
                     {
                         return true;
                     }

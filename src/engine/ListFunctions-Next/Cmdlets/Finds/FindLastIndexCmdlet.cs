@@ -43,7 +43,7 @@ namespace ListFunctions.Cmdlets.Finds
         }
         protected override bool ProcessCore()
         {
-            if (!(this.InputObject is null))
+            if (this.InputObject is not null)
             {
                 _list.AddRange(this.InputObject);
             }
@@ -69,13 +69,13 @@ namespace ListFunctions.Cmdlets.Finds
 
         protected override void Cleanup()
         {
-            if (!(_filter is null))
+            if (_filter is not null)
             {
                 _filter.Dispose();
                 _filter = null!;
             }
 
-            if (!(_list is null))
+            if (_list is not null)
             {
                 ListPool<object?>.Return(_list);
                 _list = null!;

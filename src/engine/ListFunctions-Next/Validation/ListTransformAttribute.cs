@@ -29,7 +29,7 @@ namespace ListFunctions.Validation
         {
             object? target = inputData.GetBaseObject();
 
-            if (!(target is null)
+            if (target is not null
                 && 
                 !IsObjectArrayType(target, out Type actualType)
                 &&

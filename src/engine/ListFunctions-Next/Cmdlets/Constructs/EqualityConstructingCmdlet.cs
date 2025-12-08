@@ -30,9 +30,8 @@ namespace ListFunctions.Cmdlets.Construct
         private Type _collectionType = null!;
         private RuntimeDefinedParameterDictionary? _dict = null!;
         private Type[] _genericTypes = null!;
-#if NET5_0_OR_GREATER
+
         [MemberNotNullWhen(true, nameof(_addMethod))]
-#endif
         private RuntimeDefinedParameterDictionary DynParamLib
         {
             get => _dict ??= new RuntimeDefinedParameterDictionary();

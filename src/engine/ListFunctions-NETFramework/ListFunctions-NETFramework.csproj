@@ -5,7 +5,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{6E62CFEE-5F6B-4097-98C0-93F3CF55A17D}</ProjectGuid>
-    <LangVersion>9.0</LangVersion>
+    <LangVersion>latest</LangVersion>
     <OutputType>Library</OutputType>
     <Nullable>enable</Nullable>
     <AppDesignerFolder>Properties</AppDesignerFolder>
@@ -43,6 +43,9 @@
     <Reference Include="Microsoft.Bcl.Memory, Version=10.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Bcl.Memory.10.0.0\lib\net462\Microsoft.Bcl.Memory.dll</HintPath>
     </Reference>
+    <Reference Include="System.Memory, Version=4.0.2.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\system.memory\4.6.3\lib\net462\System.Memory.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Management.Automation, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.PowerShell.5.ReferenceAssemblies.1.1.0\lib\net4\System.Management.Automation.dll</HintPath>
@@ -51,7 +54,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ModuleInitializer.cs" />
-    <Compile Include="Nullable\AllowNullAttribute.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(Configuration)' != 'Release'">

@@ -64,7 +64,7 @@ namespace ListFunctions.Validation
                 arguments = ScriptBlock.Create(str);
             }
 
-            if (!(arguments is ScriptBlock block))
+            if (arguments is not ScriptBlock block)
             {
                 return;
             }

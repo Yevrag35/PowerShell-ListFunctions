@@ -49,7 +49,7 @@ namespace ListFunctions.Validation
             }
             catch (ParseException e)
             {
-                if (!(runningModule is null) && PSREADLINE.Equals(runningModule.Name, StringComparison.OrdinalIgnoreCase))
+                if (runningModule is not null && PSREADLINE.Equals(runningModule.Name, StringComparison.OrdinalIgnoreCase))
                 {
                     return typeof(object);
                 }
@@ -65,10 +65,10 @@ namespace ListFunctions.Validation
             {
                 ast = Parser.ParseInput(typeName, out Token[] tokens, out ParseError[] errors);
 
-                if (!(errors is null) && errors.Length > 0)
+                if (errors is not null && errors.Length > 0)
                 {
                     //throw new ParseException(errors);
-                    return !(runningModule is null) && PSREADLINE.Equals(runningModule.Name, StringComparison.OrdinalIgnoreCase)
+                    return runningModule is not null && PSREADLINE.Equals(runningModule.Name, StringComparison.OrdinalIgnoreCase)
                         ? typeof(object)
                         : throw new ArgumentException($"'{typeName}' is not a valid .NET or custom-defined type.");
                 }

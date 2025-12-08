@@ -9,7 +9,6 @@ namespace ListFunctions
     public sealed class ModuleInitializer : IModuleAssemblyInitializer
     {
         private static readonly string _assLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-        private static readonly Dictionary<string, Assembly> _assNames = new Dictionary<string, Assembly>(4);
 
         public void OnImport()
         {
@@ -21,17 +20,10 @@ namespace ListFunctions
             int index = e.Name.IndexOf(',');
             string name = e.Name.Substring(0, index);
 
-            if (_assNames.TryGetValue(name, out Assembly ass))
-            {
-                return ass;
-            }
-
             string fullPath = Path.Combine(_assLocation, $"{name}.dll");
             if (File.Exists(fullPath))
             {
-                ass = Assembly.LoadFile(fullPath);
-                _assNames.Add(name, ass);
-                return ass;
+                return Assembly.LoadFile(fullPath);
             }
 
             return null;

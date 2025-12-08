@@ -31,6 +31,8 @@ namespace ListFunctions.Cmdlets.Constructs
         [Alias("KeyName", "Key")]
 #if NET7_0_OR_GREATER
         [ValidateNotNullOrWhiteSpace]
+#else
+        [ValidateNotNullOrEmpty]
 #endif
         public string KeyPropertyName { get; set; } = string.Empty;
 
@@ -89,7 +91,7 @@ namespace ListFunctions.Cmdlets.Constructs
             }
 
             object?[]? inputObjects = this.InputObject;
-            if (!(inputObjects is null) && inputObjects.Length > 0)
+            if (inputObjects is not null && inputObjects.Length > 0)
             {
                 _keyType = GetTypeForElement(inputObjects, this.KeySelector);
                 _valueType = this.GetValueType(_valueType, inputObjects);
@@ -154,7 +156,7 @@ namespace ListFunctions.Cmdlets.Constructs
 
         private unsafe bool AddToDictionary(object?[] inputObjects, delegate*<ConvertToDictionaryCmdlet, object, object?, void> addToDictionaryAction)
         {
-            foreach (object item in inputObjects.AsValueEnumerable().Where(x => !(x is null))!)
+            foreach (object item in inputObjects.AsValueEnumerable().Where(x => x is not null)!)
             {
                 try
                 {
@@ -204,7 +206,7 @@ namespace ListFunctions.Cmdlets.Constructs
         {
             if (this.DuplicateKeyBehavior == DuplicateKeyBehavior.Concatenate)
             {
-                if (!(specifiedType is null) && !typeof(object).Equals(specifiedType))
+                if (specifiedType is not null && !typeof(object).Equals(specifiedType))
                 {
                     this.WriteWarning("ValueType is ignored when 'DuplicateKeyBehavior::Concatenate' is used as the values can either be objects or lists of objects.");
                 }
@@ -246,7 +248,7 @@ namespace ListFunctions.Cmdlets.Constructs
             {
                 cmdlet.WriteVerbose("Key exists, concatenating next value.");
                 object? existingValue = cmdlet._dictionary[key];
-                if (!(existingValue is ObjectList objList))
+                if (existingValue is not ObjectList objList)
                 {
                     objList = new ObjectList()
                     {

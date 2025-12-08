@@ -109,7 +109,7 @@ namespace ListFunctions.Cmdlets
             try
             {
                 result = LanguagePrimitives.ConvertTo(item, convertTo);
-                return !(result is null);
+                return result is not null;
             }
             catch (PSInvalidCastException e)
             {

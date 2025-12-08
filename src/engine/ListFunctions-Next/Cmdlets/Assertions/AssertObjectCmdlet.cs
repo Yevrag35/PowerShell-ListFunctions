@@ -35,9 +35,8 @@ namespace ListFunctions.Cmdlets.Assertions
 
         [AllowsNull]
         private protected ScriptBlockFilter? Filter { get; private set; }
-#if NETCOREAPP
+
         [MemberNotNullWhen(true, nameof(Condition), nameof(Filter))]
-#endif
         protected private bool HasCondition { get; set; }
 
         protected sealed override void BeginCore()
@@ -64,7 +63,7 @@ namespace ListFunctions.Cmdlets.Assertions
         protected sealed override bool ProcessCore()
         {
             return this.HasCondition
-                ? !this.Process(this.Filter!)
+                ? !this.Process(this.Filter)
                 : !this.ProcessWhenNoCondition();
         }
         protected abstract bool Process(ScriptBlockFilter filter);
@@ -89,7 +88,7 @@ namespace ListFunctions.Cmdlets.Assertions
         {
             if (!_disposed)
             {
-                if (disposing && !(this.Filter is null))
+                if (disposing && this.Filter is not null)
                 {
                     this.Filter.Dispose();
                     this.Filter = null;
