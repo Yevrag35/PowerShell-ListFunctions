@@ -43,10 +43,7 @@ namespace ListFunctions.Internal
         bool IList.IsFixedSize => true;
         object ICollection.SyncRoot => this;
 
-
-#if NET6_0_OR_GREATER
         [MemberNotNullWhen(false, nameof(_value), nameof(Value))]
-#endif
         public bool IsEmpty => _value is null;
         public object? Value => _value;
 
@@ -108,6 +105,7 @@ namespace ListFunctions.Internal
             return this.GetEnumerator();
         }
 
+        [StructLayout(LayoutKind.Auto)]
         public struct Enumerator : IEnumerator<object?>
         {
             private short _index;

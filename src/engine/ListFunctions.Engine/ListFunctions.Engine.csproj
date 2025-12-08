@@ -54,6 +54,11 @@
 			<_Parameter1>ListFunctions.Next</_Parameter1>
 		</AssemblyAttribute>
 	</ItemGroup>
+	<ItemGroup>
+		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+			<_Parameter1>ListFunctions.NETFramework</_Parameter1>
+		</AssemblyAttribute>
+	</ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)'=='Debug'">
     <Content Include="Debug.ps1">
@@ -70,15 +75,18 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
-    <PackageReference Include="Nullable" Version="1.3.1">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
     <PackageReference Include="PowerShellStandard.Library" Version="5.1.1" />
   </ItemGroup>
 	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
 		<PackageReference Include="System.Management.Automation" Version="7.6.0-preview.5" />
 		<PackageReference Include="ZLinq" Version="1.5.4" />
+	</ItemGroup>
+	<ItemGroup>
+	  <PackageReference Include="PolySharp" Version="1.15.0">
+	    <PrivateAssets>all</PrivateAssets>
+	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+	  </PackageReference>
+	  <PackageReference Include="System.Memory" Version="4.6.3" />
 	</ItemGroup>
 
 </Project>
