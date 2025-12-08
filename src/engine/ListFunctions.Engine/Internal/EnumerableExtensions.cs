@@ -10,14 +10,8 @@ namespace ListFunctions.Internal
 {
     internal static class EnumerableExtensions
     {
-#if NET5_0_OR_GREATER
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static bool TryGetCount<T>(this IEnumerable<T> enumerable, out int count)
-        {
-            return enumerable.TryGetNonEnumeratedCount(out count);
-        }
-#else
-        internal static bool TryGetCount<T>(this IEnumerable<T> collection, out int count)
+#if !NET5_0_OR_GREATER
+        internal static bool TryGetNonEnumeratedCount<T>(this IEnumerable<T> collection, out int count)
         {
             switch (collection)
             {

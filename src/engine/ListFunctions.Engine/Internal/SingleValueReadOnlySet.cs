@@ -158,7 +158,7 @@ namespace ListFunctions.Internal
                 return !other.AsValueEnumerable().Any();
             }
 
-            if (other.TryGetCount(out int count) && count != 1)
+            if (other.TryGetNonEnumeratedCount(out int count) && count != 1)
             {
                 return false;
             }
