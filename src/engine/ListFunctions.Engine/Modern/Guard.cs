@@ -6,9 +6,6 @@ namespace ListFunctions
 {
     public static class Guard
     {
-#if NET5_0_OR_GREATER
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public static void NotNull([NotNull] object? obj, string? parameterName)
         {
 #if NET5_0_OR_GREATER
@@ -24,9 +21,6 @@ namespace ListFunctions
 
         /// <exception cref="ArgumentException"/>
         /// <exception cref="ArgumentNullException"/>
-#if NET5_0_OR_GREATER
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public static void NotNullOrEmpty([NotNull] string? value, string? parameterName)
         {
 #if NET5_0_OR_GREATER
@@ -44,9 +38,6 @@ namespace ListFunctions
 #endif
         }
 
-#if NET5_0_OR_GREATER
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public static void ThrowIfGreaterThanOrEqual(int value, int other, string? parameterName)
         {
 #if NET5_0_OR_GREATER
