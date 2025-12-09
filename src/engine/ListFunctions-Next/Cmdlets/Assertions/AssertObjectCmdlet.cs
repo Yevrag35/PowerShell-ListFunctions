@@ -1,15 +1,9 @@
 using ListFunctions.Modern;
-using ListFunctions.Modern.Variables;
-using ListFunctions.Validation;
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Management.Automation;
 
 using AllowsNull = System.Diagnostics.CodeAnalysis.AllowNullAttribute;
-using PSAllowNull = System.Management.Automation.AllowNullAttribute;
 
 #nullable enable
 
@@ -17,17 +11,14 @@ namespace ListFunctions.Cmdlets.Assertions
 {
     public abstract class AssertObjectCmdlet : ListFunctionCmdletBase, IDisposable
     {
-        private ScriptBlock? _condition;
         private bool _disposed;
-        private bool _stopRequested;
 
-        [MaybeNull, AllowsNull]
-        public virtual ScriptBlock Condition
+        public virtual ScriptBlock? Condition
         {
-            get => _condition;
+            get;
             set
             {
-                _condition = value;
+                field = value;
                 this.HasCondition = !(value is null || string.IsNullOrWhiteSpace(value.ToString()));
             }
         }
@@ -45,7 +36,7 @@ namespace ListFunctions.Cmdlets.Assertions
 
             if (this.HasCondition)
             {
-                this.Filter = new ScriptBlockFilter(_condition!, new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction));
+                this.Filter = new ScriptBlockFilter(this.Condition, new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction));
             }
 
             // # Maybe in the future.
