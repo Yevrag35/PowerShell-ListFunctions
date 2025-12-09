@@ -34,7 +34,7 @@ namespace ListFunctions.Modern.Constructors
         }
         protected override bool ShouldConstructDefault(IEqualityComparer? comparer, Type[] genericTypes)
         {
-            return ObjectType.Equals(_equalityType)
+            return (ObjectType.Equals(_equalityType) && (comparer is null || EqualityComparer<object>.Default.Equals(comparer)))
                    ||
                    base.ShouldConstructDefault(comparer, genericTypes);
         }

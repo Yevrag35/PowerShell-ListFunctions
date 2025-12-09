@@ -24,11 +24,11 @@ namespace ListFunctions.Cmdlets
             {
                 this.BeginCore();
             }
-            catch
+            catch (Exception e)
             {
                 this.CleanupCore();
                 _wantsToStop = true;
-                throw;
+                this.ThrowTerminatingError(e.ToRecord(ErrorCategory.InvalidArgument));
             }
         }
         protected sealed override void ProcessRecord()

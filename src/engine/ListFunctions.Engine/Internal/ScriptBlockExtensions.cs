@@ -31,20 +31,21 @@ namespace ListFunctions.Internal
             }
 
             ReadOnlyCollection<StatementAst> statements = scriptAst.EndBlock.Statements;
-            if (statements.Count == 0)
-            {
-                return false;
-            }
-            else if (statements[0] is PipelineAst firstPipeline)
-            {
-                return firstPipeline.PipelineElements.Count > 0
-                   &&
-                   firstPipeline.PipelineElements[0] is CommandExpressionAst;
-            }
-            else
-            {
-                return false;
-            }
+            return statements.Count != 0;
+            //if (statements.Count == 0)
+            //{
+            //    return false;
+            //}
+            //else if (statements[0] is PipelineAst firstPipeline)
+            //{
+            //    return firstPipeline.PipelineElements.Count > 0
+            //       &&
+            //       firstPipeline.PipelineElements[0] is CommandExpressionAst;
+            //}
+            //else
+            //{
+            //    return false;
+            //}
         }
 
         [return: NotNullIfNotNull(nameof(defaultIfNull))]

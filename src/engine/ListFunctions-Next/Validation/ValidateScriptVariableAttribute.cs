@@ -66,7 +66,7 @@ namespace ListFunctions.Validation
                     values: (IEnumerable<string>)_mustContainNames
 #endif
                 );
-                throw new ValidationMetadataException(string.Concat(message, vars));
+                throw new ValidationMetadataException(string.Concat(message, "$", vars));
             }
         }
 
