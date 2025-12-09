@@ -68,11 +68,6 @@ namespace ListFunctions.Validation
                 );
                 throw new ValidationMetadataException(string.Concat(message, vars));
             }
-            //EnumerateAllVariablesInBlock(block);
-
-            //if (DoesNotContainAny(ref allVars, this.MustContainAny))
-            //{
-            //}
         }
 
         private static int ParseIndexes(string[]? variableNames, out int[]? indexes)
