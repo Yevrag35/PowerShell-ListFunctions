@@ -32,20 +32,6 @@ namespace ListFunctions.Internal
 
             ReadOnlyCollection<StatementAst> statements = scriptAst.EndBlock.Statements;
             return statements.Count != 0;
-            //if (statements.Count == 0)
-            //{
-            //    return false;
-            //}
-            //else if (statements[0] is PipelineAst firstPipeline)
-            //{
-            //    return firstPipeline.PipelineElements.Count > 0
-            //       &&
-            //       firstPipeline.PipelineElements[0] is CommandExpressionAst;
-            //}
-            //else
-            //{
-            //    return false;
-            //}
         }
 
         [return: NotNullIfNotNull(nameof(defaultIfNull))]
@@ -55,8 +41,30 @@ namespace ListFunctions.Internal
             return results.GetFirstValue(selectAs, defaultIfNull);
         }
 
+        internal static bool TryInvokeWithContext(this ScriptBlock scriptBlock, List<PSVariable> variables, [NotNullIfNotNull(nameof(defaultIfNull))] out object? result, out Exception? caughtError, object? defaultIfNull = null)
+        {
+            try
+            {
+                Collection<PSObject> results = scriptBlock.InvokeWithContext(null, variables, _emptyObjs);
+                caughtError = null;
+                if (results.Count > 0 && results[0] is PSObject o)
+                {
+                    result = PSObject.AsPSObject(o.BaseObject).ImmediateBaseObject;
+                    return result is not null;
+                }
 
-        internal static bool TryInvokeWithContext<T>(this ScriptBlock scriptBlock, List<PSVariable> variables, Func<object, T> selectAs, [NotNullIfNotNull(nameof(defaultIfNull))] out T result, [NotNullWhen(false)] out Exception? caughtError, T defaultIfNull = default!)
+                result = defaultIfNull;
+                return result is not null;
+
+            }
+            catch (Exception e)
+            {
+                caughtError = e;
+                result = defaultIfNull;
+                return false;
+            }
+        }
+        internal static bool TryInvokeWithContext<T>(this ScriptBlock scriptBlock, List<PSVariable> variables, Func<object, T> selectAs, [NotNullIfNotNull(nameof(defaultIfNull))] out T result, out Exception? caughtError, T defaultIfNull = default!)
         {
             try
             {
@@ -64,7 +72,7 @@ namespace ListFunctions.Internal
                 result = results.GetFirstValue(selectAs, defaultIfNull);
 
                 caughtError = null;
-                return true;
+                return result is not null;
             }
             catch (Exception e)
             {

@@ -6,32 +6,33 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
-namespace ListFunctions.Internal
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+namespace System.Linq;
+#pragma warning restore IDE0130 // Namespace does not match folder structure
+
+internal static class EnumerableExtensions
 {
-    internal static class EnumerableExtensions
-    {
 #if !NET5_0_OR_GREATER
-        internal static bool TryGetNonEnumeratedCount<T>(this IEnumerable<T> collection, out int count)
+    internal static bool TryGetNonEnumeratedCount<T>(this IEnumerable<T> collection, out int count)
+    {
+        switch (collection)
         {
-            switch (collection)
-            {
-                case IReadOnlyCollection<T> roCol:
-                    count = roCol.Count;
-                    return true;
+            case IReadOnlyCollection<T> roCol:
+                count = roCol.Count;
+                return true;
 
-                case ICollection<T> icol:
-                    count = icol.Count;
-                    return true;
+            case ICollection<T> icol:
+                count = icol.Count;
+                return true;
 
-                case ICollection nonGenCol:
-                    count = nonGenCol.Count;
-                    return true;
+            case ICollection nonGenCol:
+                count = nonGenCol.Count;
+                return true;
 
-                default:
-                    count = 0;
-                    return false;
-            }
+            default:
+                count = 0;
+                return false;
         }
-#endif
     }
+#endif
 }

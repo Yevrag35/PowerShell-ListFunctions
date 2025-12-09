@@ -11,7 +11,7 @@ using ZLinq;
 
 namespace ListFunctions.Extensions
 {
-    public static partial class ScriptBlockExtensions
+    public static partial class ScriptBlockVariableExtensions
     {
         public static ScriptBlock ReplaceWithArgsZero(this ScriptBlock scriptBlock)
         {
@@ -28,7 +28,7 @@ namespace ListFunctions.Extensions
         private static string ReplaceString(string script)
         {
 #if !NETCOREAPP
-            return Regex.Replace(script, @"\$(?:(?:_|PSItem|this)(\s|\;|$|\.))", "$args[0]$1", RegexOptions.IgnoreCase);
+            return Regex.Replace(script, @"\$(?:(?:_|PSItem|this)(\s|\)|\""|\;|$|\.|\,|\'))", "$args[0]$1", RegexOptions.IgnoreCase);
         }
 #else
             return ReplaceDefaultNames().Replace(script, "$args[0]$1");

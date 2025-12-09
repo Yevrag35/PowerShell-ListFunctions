@@ -44,15 +44,15 @@ namespace ListFunctions.Modern.Exceptions
         }
 #endif
 
-        public static HashCodeScriptException FromBlockException<T>(Exception exception, [MaybeNull] in T obj)
+        public static HashCodeScriptException FromBlockException<T>(Exception? exception, [MaybeNull] in T obj)
         {
             return FromBlockException(exception, in obj, null);
         }
-        public static HashCodeScriptException FromBlockException<T>(Exception exception, [MaybeNull] in T obj, IReadOnlyList<PSVariable>? injectedVariables)
+        public static HashCodeScriptException FromBlockException<T>(Exception? exception, [MaybeNull] in T obj, IReadOnlyList<PSVariable>? injectedVariables)
         {
             return FromBlockException(treatAsNonRuntime: false, exception, in obj, injectedVariables);
         }
-        private static HashCodeScriptException FromBlockException<T>(bool treatAsNonRuntime, Exception exception, [MaybeNull] in T obj, IReadOnlyList<PSVariable>? injectedVariables)
+        private static HashCodeScriptException FromBlockException<T>(bool treatAsNonRuntime, Exception? exception, [MaybeNull] in T obj, IReadOnlyList<PSVariable>? injectedVariables)
         {
             if (!treatAsNonRuntime && exception is RuntimeException runtime)
             {

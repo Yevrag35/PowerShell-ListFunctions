@@ -3,8 +3,10 @@ using ListFunctions.Internal;
 using ListFunctions.Modern.Exceptions;
 using ListFunctions.Modern.Variables;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Management.Automation;
 using System.Reflection;
 
@@ -52,11 +54,48 @@ namespace ListFunctions.Modern
                 throw HashCodeScriptException.FromBlockException(argNull, obj);
             }
 
-            var list = this.SetContextVariables(obj, additionalVariables);
-
-            if (!this.Script.TryInvokeWithContext(list, x => x, out object? hashObj, out Exception? ex))
+            object? hashObj = null;
+            if (additionalVariables.TryGetNonEnumeratedCount(out int varCount) && varCount == 0)
             {
-                throw HashCodeScriptException.FromBlockException(ex, obj, this.SetContextVariables(obj, additionalVariables));
+                object? o = this.Script.InvokeReturnAsIs(obj);
+                if (o is null)
+                {
+                    return this.ThrowNullHashCode(obj, additionalVariables);
+                }
+                else if (LanguagePrimitives.GetEnumerable(o) is IEnumerable enuemrable)
+                {
+                    foreach (object? item in enuemrable)
+                    {
+                        if (item is not null)
+                        {
+                            hashObj = item;
+                            break;
+                        }
+                    }
+
+                    if (hashObj is null)
+                    {
+                        return this.ThrowNullHashCode(obj, additionalVariables);
+                    }
+                }
+
+                else
+                {
+                    hashObj = o;
+                }
+            }
+            else
+            {
+                var list = this.SetContextVariables(obj, additionalVariables);
+                if (!this.Script.TryInvokeWithContext(list, out hashObj, out Exception? ex))
+                {
+                    if (ex is null && hashObj is null)
+                    {
+                        return this.ThrowNullHashCode(obj, additionalVariables);
+                    }
+
+                    throw HashCodeScriptException.FromBlockException(ex, obj, this.SetContextVariables(obj, additionalVariables));
+                }
             }
 
             return hashObj?.GetHashCode() ?? this.ThrowNullHashCode(obj, additionalVariables);
@@ -65,7 +104,6 @@ namespace ListFunctions.Modern
         private List<PSVariable> SetContextVariables(T obj, IEnumerable<PSVariable>? additionalVariables)
         {
             _varList.Clear();
-            //_thisVar.AddToVarList(obj, _varList);
             _thisVar.SetValue(obj);
             _thisVar.InsertIntoList(_varList);
 
