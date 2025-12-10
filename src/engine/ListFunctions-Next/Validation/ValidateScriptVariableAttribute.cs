@@ -81,7 +81,7 @@ namespace ListFunctions.Validation
             int left = 0;
             int right = variableNames.Length - 1;
 
-            int[]? parsed = null;
+            indexes = null;
             int parsedCount = 0;
 
             // Invariant:
@@ -104,9 +104,11 @@ namespace ListFunctions.Validation
                     // Lazy allocation with a tighter upper bound:
                     //   - left elements are *known* non-parsable,
                     //   - so at most (buffer.Length - left) elements can ever be parsable.
-                    parsed ??= new int[variableNames.Length - left];
+                    int arrayLength = variableNames.Length - left;
+                    Debug.Assert(arrayLength > 0, "The array length should be greater than zero here.");
+                    indexes ??= new int[arrayLength];
 
-                    parsed[parsedCount++] = value;
+                    indexes[parsedCount++] = value;
 
                     // Swap the current element with the element at 'right'
                     (variableNames[right], variableNames[left]) = (variableNames[left], variableNames[right]);
@@ -117,7 +119,6 @@ namespace ListFunctions.Validation
                 }
             }
 
-            indexes = parsedCount == 0 ? null : parsed;
             return parsedCount;
         }
 

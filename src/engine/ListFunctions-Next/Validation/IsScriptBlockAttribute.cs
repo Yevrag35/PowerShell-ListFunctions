@@ -7,13 +7,10 @@ namespace ListFunctions.Validation
     {
         protected override void Validate(object arguments, EngineIntrinsics engineIntrinsics)
         {
-            if (arguments is ScriptBlock block)
+            if (arguments is ScriptBlock block && !block.IsProperScriptBlock())
             {
-                if (!block.IsProperScriptBlock())
-                {
-                    throw new ValidationMetadataException(
-                        $"{nameof(block)} is not a proper script block.");
-                }
+                throw new ValidationMetadataException(
+                    $"{nameof(block)} is not a proper script block.");
             }
         }
     }
