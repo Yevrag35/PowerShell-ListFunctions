@@ -13,7 +13,7 @@ using System.Reflection;
 
 #nullable enable
 
-namespace ListFunctions.Cmdlets.Construct
+namespace ListFunctions.Cmdlets.Constructs
 {
     public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
     {
@@ -22,7 +22,7 @@ namespace ListFunctions.Cmdlets.Construct
         protected const string AND_COPY = WITH_CUSTOM_EQUALITY + "AndCopy";
         
         static readonly Type _stringType = typeof(string);
-        static readonly string _addName = nameof(ICollection<object>.Add);
+        static readonly string _addName = nameof(ICollection<>.Add);
 
         private AddMethodInvoker _addMethod = null!;
         private RuntimeDefinedParameter _caseSensitive = null!;

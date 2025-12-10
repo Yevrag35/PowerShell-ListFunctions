@@ -14,25 +14,23 @@ using System.Reflection;
 
 #nullable enable
 
-namespace ListFunctions.Cmdlets.Construct
+namespace ListFunctions.Cmdlets.Constructs
 {
-    [Cmdlet(VerbsCommon.New, "HashSet", DefaultParameterSetName = "None")]
+    [Cmdlet(VerbsCommon.New, "HashSet", DefaultParameterSetName = SPECIFIED_TYPE)]
     [OutputType(typeof(HashSet<>))]
     public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDynamicParameters
     {
-        const string DYN_PSET_NAME = "StringSet";
+        private const string DYN_PSET_NAME = "StringSet";
+        private const string SPECIFIED_TYPE = "SpecifiedType";
 
         protected override string CaseSensitiveParameterSetName => DYN_PSET_NAME;
 
-        [Parameter]
-        [ValidateRange(0, int.MaxValue)]
-        [PSDefaultValue(Value = 0)]
+        [Parameter, ValidateRange(0, int.MaxValue), PSDefaultValue(Value = 0)]
         public override int Capacity { get; set; }
 
-        [Parameter(Mandatory = false, Position = 0)]
-        [ArgumentToTypeTransform]
+        [Parameter(Mandatory = false, Position = 0, ParameterSetName = SPECIFIED_TYPE)]
+        [ArgumentToTypeTransform, Alias("Type")]
         [PSDefaultValue(Value = typeof(object))]
-        [Alias("Type")]
         public Type GenericType { get; set; } = null!;
 
         [Parameter(ValueFromPipeline = true)]

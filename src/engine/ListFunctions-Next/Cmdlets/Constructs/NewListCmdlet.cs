@@ -14,7 +14,7 @@ using AllowsNullAttribute = System.Diagnostics.CodeAnalysis.AllowNullAttribute;
 using PSAllowNullAttribute = System.Management.Automation.AllowNullAttribute;
 #nullable enable
 
-namespace ListFunctions.Cmdlets.Construct
+namespace ListFunctions.Cmdlets.Constructs
 {
     [Cmdlet(VerbsCommon.New, "List", DefaultParameterSetName = "None")]
     [OutputType(typeof(List<>))]

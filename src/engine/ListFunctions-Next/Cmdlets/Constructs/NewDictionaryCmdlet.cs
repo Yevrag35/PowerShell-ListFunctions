@@ -15,7 +15,7 @@ using System.Reflection;
 
 #nullable enable
 
-namespace ListFunctions.Cmdlets.Construct
+namespace ListFunctions.Cmdlets.Constructs
 {
     [Cmdlet(VerbsCommon.New, "Dictionary", DefaultParameterSetName = "None")]
     [OutputType(typeof(Dictionary<,>), typeof(Hashtable))]

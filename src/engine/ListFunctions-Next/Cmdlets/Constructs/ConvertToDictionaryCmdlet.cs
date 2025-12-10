@@ -27,21 +27,15 @@ namespace ListFunctions.Cmdlets.Constructs
         [Parameter]
         public IEqualityComparer? KeyComparer { get; set; }
 
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "KeyProperty")]
-        [Alias("KeyName", "Key")]
-#if NET7_0_OR_GREATER
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "KeyProperty"), Alias("KeyName", "Key")]
         [ValidateNotNullOrWhiteSpace]
-#else
-        [ValidateNotNullOrEmpty]
-#endif
         public string KeyPropertyName { get; set; } = string.Empty;
 
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "KeyScript")]
         [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.PSITEM_NAME, PSThisVariable.THIS_NAME, PSThisVariable.ARGS_FIRST)]
         public ScriptBlock KeySelector { get; set; } = null!;
 
-        [Parameter(Mandatory = false, Position = 1)]
-        [Alias("ValueName", "Value")]
+        [Parameter(Mandatory = false, Position = 1), Alias("ValueName", "Value")]
         [AllowEmptyString, AllowNull]
         public object? ValuePropertyName { get; set; }
 
@@ -129,7 +123,7 @@ namespace ListFunctions.Cmdlets.Constructs
 
             object[] args = this.KeyComparer is null
                 ? Array.Empty<object>()
-                : new object[] { this.KeyComparer };
+                : [this.KeyComparer];
 
             Type? dictType = null;
             try

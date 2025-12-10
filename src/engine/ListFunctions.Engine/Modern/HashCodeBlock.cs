@@ -17,9 +17,8 @@ namespace ListFunctions.Modern
         public static IHashCodeBlock CreateBlock(Type type, ScriptBlock scriptBlock)
         {
             MethodInfo genMethod = _genMeth.MakeGenericMethod(type);
-            object[] args = new[] { scriptBlock };
 
-            return genMethod.Invoke(null, args) as IHashCodeBlock ?? throw new InvalidOperationException("Unable to create generic hash code block instance.");
+            return genMethod.Invoke(null, [scriptBlock]) as IHashCodeBlock ?? throw new InvalidOperationException("Unable to create generic hash code block instance.");
         }
 
         static readonly MethodInfo _genMeth = typeof(HashCodeBlock)
