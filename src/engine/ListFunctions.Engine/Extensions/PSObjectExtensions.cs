@@ -2,6 +2,8 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
 using System.Management.Automation.Internal;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace ListFunctions.Extensions
 {
@@ -9,17 +11,28 @@ namespace ListFunctions.Extensions
     {
         public static object? GetBaseObject(this object? obj)
         {
-            if (obj is null || obj is not PSObject mshObj)
+            if (obj is not PSObject mshObj)
             {
                 return obj;
             }
 
             if (mshObj == AutomationNull.Value)
-            {
                 return null;
+            if (Marshal.IsImmediateBaseObjectIsEmpty(mshObj))
+            {
+                return obj;
             }
 
-            return PSObject.AsPSObject(mshObj.ImmediateBaseObject).ImmediateBaseObject;
+            object returnValue;
+            do
+            {
+                returnValue = Marshal.GetRawImmediateBaseObject(mshObj)!;
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+                mshObj = returnValue as PSObject;
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
+            } while ((mshObj is not null) && !Marshal.IsImmediateBaseObjectIsEmpty(mshObj));
+
+            return returnValue;
         }
         public static bool TryGetBaseObject(this object? obj, [NotNullWhen(true)] out object? result)
         {
@@ -27,22 +40,46 @@ namespace ListFunctions.Extensions
             return result is not null;
         }
 
-        [Obsolete("Use 'GetBaseObject' extension method.")]
-        public static object? AsObject(this PSObject? pso)
+        private static class Marshal
         {
-            if (pso is null)
+#if NET9_0_OR_GREATER
+            internal static object? GetRawImmediateBaseObject(PSObject psObject)
             {
-                return null;
+                return GetImmediateBaseObject(psObject);
+            }
+            internal static bool IsImmediateBaseObjectIsEmpty(PSObject psObject)
+            {
+                return ImmediateBaseObjectIsEmpty(psObject);
             }
 
-            return PSObject.AsPSObject(pso.ImmediateBaseObject).ImmediateBaseObject;
-        }
+            [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_immediateBaseObject")]
+            private static extern ref object? GetImmediateBaseObject(PSObject psObject);
 
-        [Obsolete("Use 'TryGetBaseObject' extension method.")]
-        public static bool TryAsObject(this PSObject? pso, [MaybeNullWhen(true)] out object result)
-        {
-            result = AsObject(pso);
-            return result is not PSObject;
+            [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "get_ImmediateBaseObjectIsEmpty")]
+            private static extern bool ImmediateBaseObjectIsEmpty(PSObject psObject);
+
+#else
+            private static readonly FieldInfo _immediateBaseObjectField;
+            private static readonly FieldInfo _immediateBaseObjectIsEmptyField;
+            static Marshal()
+            {
+                _immediateBaseObjectIsEmptyField = typeof(PSObject).GetField("immediateBaseObjectIsEmpty", BindingFlags.NonPublic | BindingFlags.Instance)
+                    ?? throw new InvalidOperationException("Could not find field 'immediateBaseObjectIsEmpty' on type 'PSObject'.");
+
+                _immediateBaseObjectField = typeof(PSObject).GetField("immediateBaseObject", BindingFlags.NonPublic | BindingFlags.Instance)
+                    ?? throw new InvalidOperationException("Could not find field 'immediateBaseObject' on type 'PSObject'.");
+            }
+
+            internal static object? GetRawImmediateBaseObject(PSObject psObject)
+            {
+                return _immediateBaseObjectField.GetValue(psObject);
+            }
+
+            internal static bool IsImmediateBaseObjectIsEmpty(PSObject psObject)
+            {
+                return _immediateBaseObjectIsEmptyField.GetValue(psObject) as bool? ?? false;
+            }
+#endif
         }
     }
 }

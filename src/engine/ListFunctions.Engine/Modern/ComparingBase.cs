@@ -1,6 +1,7 @@
 ﻿using ListFunctions.Internal;
 using System;
 using System.Management.Automation;
+using System.Runtime.CompilerServices;
 
 namespace ListFunctions.Modern
 {
@@ -16,7 +17,7 @@ namespace ListFunctions.Modern
             }
             else
             {
-                Guard.NotNull(scriptBlock, nameof(scriptBlock));
+                Guard.NotNull(scriptBlock);
             }
 
             this.Script = scriptBlock;
@@ -24,11 +25,12 @@ namespace ListFunctions.Modern
 
         /// <exception cref="ArgumentException"/>
         /// <exception cref="ArgumentNullException"/>
-        private static void ValidateScriptBlock(ScriptBlock scriptBlock)
+        private static void ValidateScriptBlock(ScriptBlock scriptBlock, [CallerArgumentExpression(nameof(scriptBlock))] string? paramName = null)
         {
             if (!scriptBlock.IsProperScriptBlock())
             {
-                throw new ArgumentException($"{nameof(scriptBlock)} is not a script block.");
+                paramName ??= nameof(scriptBlock);
+                throw new ArgumentException($"{nameof(scriptBlock)} is not a script block.", paramName);
             }
         }
     }

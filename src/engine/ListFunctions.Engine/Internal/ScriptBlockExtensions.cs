@@ -14,7 +14,7 @@ namespace ListFunctions.Internal
 
         internal static bool IsProperScriptBlock(this ScriptBlock scriptBlock)
         {
-            Guard.NotNull(scriptBlock, nameof(scriptBlock));
+            Guard.NotNull(scriptBlock);
 
             if (scriptBlock.Ast is not ScriptBlockAst scriptAst)
             {
