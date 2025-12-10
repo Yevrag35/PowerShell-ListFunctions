@@ -93,11 +93,7 @@ namespace ListFunctions.Modern
 
         public bool Equals([System.Diagnostics.CodeAnalysis.AllowNull] T x, [System.Diagnostics.CodeAnalysis.AllowNull] T y)
         {
-            if (x is null && y is null)
-            {
-                return true;
-            }
-            else if (ReferenceEquals(x, y))
+            if (ReferenceEquals(x, y))
             {
                 return true;
             }

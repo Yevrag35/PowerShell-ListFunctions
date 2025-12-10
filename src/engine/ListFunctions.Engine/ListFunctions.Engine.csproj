@@ -86,6 +86,7 @@
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Bcl.Memory" Version="10.0.1" />
+		<PackageReference Include="System.Collections.Immutable" Version="10.0.1" />
 		<PackageReference Include="ZLinq" Version="1.5.4" />
 		<PackageReference Include="PolySharp" Version="1.15.0">
 			<PrivateAssets>all</PrivateAssets>

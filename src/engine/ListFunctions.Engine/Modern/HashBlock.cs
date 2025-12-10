@@ -11,7 +11,7 @@ using System.Runtime.CompilerServices;
 
 namespace ListFunctions.Modern;
 
-public sealed class HashBlock : ComparingBase
+public sealed class HashBlock : ComparingBase, IHashBlock
 {
     private readonly PSThisVariable _thisVar;
     private readonly List<PSVariable> _varList;

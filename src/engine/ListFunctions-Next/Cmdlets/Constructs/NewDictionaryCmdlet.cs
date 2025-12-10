@@ -133,18 +133,20 @@ namespace ListFunctions.Cmdlets.Constructs
         }
         protected override IEqualityComparer? GetCustomEqualityComparer(Type genericType)
         {
-            if (!WITH_CUSTOM_EQUALITY.Equals(this.ParameterSetName, StringComparison.InvariantCultureIgnoreCase))
+            if (!WITH_CUSTOM_EQUALITY.Equals(this.ParameterSetName, StringComparison.OrdinalIgnoreCase))
             {
                 return base.GetCustomEqualityComparer(genericType);
             }
 
-            IHashCodeBlock hashBlock = HashCodeBlock.CreateBlock(genericType, this.HashCodeScript);
+            HashBlock hashBlock = new(this.HashCodeScript);
             ActionPreference errorPreference = this.ScriptBlockErrorAction;
 
-            PSVariable[] additional = new PSVariable[] {
-                new PSVariable(ERROR_ACTION_PREFERENCE, errorPreference) };
-
-            return EqualityBlock.CreateBlock(genericType, hashBlock, this.EqualityScript, additional);
+            PSVariable variable = new(ERROR_ACTION_PREFERENCE, errorPreference);
+#if NET9_0_OR_GREATER
+            return new EqBlock(this.EqualityScript, hashBlock, variable);
+#else
+            return new EqBlock(this.EqualityScript, hashBlock, [variable]);
+#endif
         }
 
         protected override Type GetEqualityForType()
@@ -168,6 +170,6 @@ namespace ListFunctions.Cmdlets.Constructs
                 : throw new ArgumentException("What the hell? That's not a method call...");
         }
 
-        #endregion
+#endregion
     }
 }

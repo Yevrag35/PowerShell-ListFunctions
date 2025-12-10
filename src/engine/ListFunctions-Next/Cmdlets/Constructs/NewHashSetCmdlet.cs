@@ -59,26 +59,46 @@ namespace ListFunctions.Cmdlets.Constructs
                 return flag;
             }
 
-            object?[] args = new object[1];
-            foreach (object? item in this.InputObject)
+            if (collection is ICollection<object> objCol)
             {
-                try
+                foreach (object item in this.InputObject)
                 {
-                    args[0] = item;
-                    this.AddToCollection(collection, args, (x, types) =>
-                        LanguagePrimitives.ConvertTo(x, types[0]));
+                    try
+                    {
+                        objCol.Add(item);
+                    }
+                    catch (Exception e)
+                    {
+                        var rec = e.ToRecord(ErrorCategory.InvalidOperation, item);
+                        this.WriteError(rec);
+                        flag = false;
+                    }
                 }
-                catch (PSInvalidCastException e)
+            }
+            else
+            {
+                object?[] args = new object[1];
+                foreach (object? item in this.InputObject)
                 {
-                    var rec = e.ToRecord(ErrorCategory.InvalidArgument, item);
-                    this.WriteError(rec);
+                    try
+                    {
+                        args[0] = item;
+                        this.AddToCollection(collection, args, (x, types) =>
+                            LanguagePrimitives.ConvertTo(x, types[0]));
+                    }
+                    catch (PSInvalidCastException e)
+                    {
+                        var rec = e.ToRecord(ErrorCategory.InvalidArgument, item);
+                        this.WriteError(rec);
+                    }
+                    catch (Exception e)
+                    {
+                        var rec = e.ToRecord(ErrorCategory.InvalidOperation, item);
+                        this.WriteError(rec);
+                        flag = false;
+                    }
                 }
-                catch (Exception e)
-                {
-                    var rec = e.ToRecord(ErrorCategory.InvalidOperation, item);
-                    this.WriteError(rec);
-                    flag = false;
-                }
+
             }
 
             return flag;
@@ -106,18 +126,20 @@ namespace ListFunctions.Cmdlets.Constructs
         }
         protected override IEqualityComparer? GetCustomEqualityComparer(Type genericType)
         {
-            if (!this.ParameterSetName.StartsWith(WITH_CUSTOM_EQUALITY, StringComparison.OrdinalIgnoreCase))
+            if (!WITH_CUSTOM_EQUALITY.Equals(this.ParameterSetName, StringComparison.OrdinalIgnoreCase))
             {
                 return base.GetCustomEqualityComparer(genericType);
             }
 
-            IHashCodeBlock hashBlock = HashCodeBlock.CreateBlock(genericType, this.HashCodeScript);
+            HashBlock hashBlock = new(this.HashCodeScript);
             ActionPreference errorPreference = this.ScriptBlockErrorAction;
 
-            PSVariable[] additional = new PSVariable[] {
-                new PSVariable(ERROR_ACTION_PREFERENCE, errorPreference) };
-
-            return EqualityBlock.CreateBlock(genericType, hashBlock, this.EqualityScript, additional);
+            PSVariable variable = new(ERROR_ACTION_PREFERENCE, errorPreference);
+#if NET9_0_OR_GREATER
+            return new EqBlock(this.EqualityScript, hashBlock, variable);
+#else
+            return new EqBlock(this.EqualityScript, hashBlock, [variable]);
+#endif
         }
         protected override Type GetEqualityForType()
         {

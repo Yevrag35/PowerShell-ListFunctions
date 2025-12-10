@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
 using System.Runtime.CompilerServices;
@@ -13,8 +14,10 @@ namespace ListFunctions.Modern.Variables
         public const string Y = "y";
         public const string LEFT = "left";
         public const string RIGHT = "right";
-        private static readonly string[] _left = new[] { X, LEFT };
-        private static readonly string[] _right = new[] { Y, RIGHT };
+        private static readonly string[] _left = [X, LEFT];
+        private static readonly string[] _right = [Y, RIGHT];
+        protected static readonly ImmutableArray<string> LeftNames = ImmutableCollectionsMarshal.AsImmutableArray(_left);
+        protected static readonly ImmutableArray<string> RightNames = ImmutableCollectionsMarshal.AsImmutableArray(_right);
 
         public abstract object? InstanceValue { get; }
 
@@ -51,13 +54,6 @@ namespace ListFunctions.Modern.Variables
             {
                 allVars[i] = new PSVariable(names[i], value: null);
             }
-            //ref string f = ref MemoryMarshal.GetReference<string>(names);
-            //ref PSVariable fVar = ref MemoryMarshal.GetReference<PSVariable>(allVars);
-
-            //for (int i = 0; i < names.Length; i++)
-            //{
-            //    Unsafe.Add(ref fVar, i) = new PSVariable(Unsafe.Add(ref f, i), value: null);
-            //}
         }
 
         internal void AddToVarList(T value, List<PSVariable> variables)
