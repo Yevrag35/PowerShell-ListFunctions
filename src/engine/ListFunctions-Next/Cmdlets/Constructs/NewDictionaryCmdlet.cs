@@ -143,9 +143,9 @@ namespace ListFunctions.Cmdlets.Constructs
 
             PSVariable variable = new(ERROR_ACTION_PREFERENCE, errorPreference);
 #if NET9_0_OR_GREATER
-            return new EqBlock(this.EqualityScript, hashBlock, variable);
+            return new EqualityBlock(this.EqualityScript, hashBlock, variable);
 #else
-            return new EqBlock(this.EqualityScript, hashBlock, [variable]);
+            return new EqualityBlock(this.EqualityScript, hashBlock, [variable]);
 #endif
         }
 

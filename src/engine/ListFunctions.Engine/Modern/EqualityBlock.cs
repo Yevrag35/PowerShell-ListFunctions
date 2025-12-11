@@ -3,153 +3,106 @@ using ListFunctions.Modern.Variables;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Management.Automation;
-using System.Reflection;
+using System.Text;
 using ZLinq;
 
-namespace ListFunctions.Modern
+namespace ListFunctions.Modern;
+
+public interface IEqualityBlock : IEqualityComparer, IEqualityComparer<object>
 {
-    public static class EqualityBlock
+    IHashBlock HashCodeBlock { get; }
+}
+
+public sealed class EqualityBlock : ComparingBase, IEqualityBlock
+{
+    private readonly PSVariable[] _additionalVariables;
+    private readonly List<PSVariable> _varList;
+    private readonly ObjVariable _left;
+    private readonly ObjVariable _right;
+
+    public IHashBlock HashCodeBlock { get; }
+
+    public EqualityBlock(ScriptBlock equalityBlock, IHashBlock hashCodeBlock) : this(equalityBlock, hashCodeBlock, additionalVariables: null)
     {
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="type"></param>
-        /// <param name="hashCodeBlock"></param>
-        /// <param name="equalityScript"></param>
-        /// <param name="additionalVariables"></param>
-        /// <returns></returns>
-        /// /// <exception cref="ArgumentException">
-        ///     <paramref name="equalityScript"/> is not a proper scriptblock.
-        /// </exception>
-        /// <exception cref="ArgumentNullException"/>
-        public static IEqualityBlock CreateBlock(Type type, IHashCodeBlock hashCodeBlock, ScriptBlock equalityScript, IEnumerable<PSVariable>? additionalVariables)
-        {
-            Guard.NotNull(type);
-            Guard.NotNull(hashCodeBlock);
-            Guard.NotNull(equalityScript);
+    }
+    public EqualityBlock(ScriptBlock equalityBlock, IHashBlock hashCodeBlock, IEnumerable<PSVariable>? additionalVariables) : base(equalityBlock, preValidated: false)
+    {
+        _additionalVariables = additionalVariables is not null
+            ? additionalVariables.AsValueEnumerable().ToArray()
+            : [];
 
-            MethodInfo genMeth = _genMeth.MakeGenericMethod(type);
-            object[] args = new object[] { hashCodeBlock, equalityScript, additionalVariables! };
+        _varList = new(3 + _additionalVariables.Length);
+        this.HashCodeBlock = hashCodeBlock;
+        _left = new(isLeft: true);
+        _right = new(isLeft: false);
+    }
+#if NET9_0_OR_GREATER
+    public EqualityBlock(ScriptBlock equalityBlock, IHashBlock hashCodeBlock, params ReadOnlySpan<PSVariable> variables) : base(equalityBlock, preValidated: false)
+    {
+        _additionalVariables = !variables.IsEmpty
+            ? variables.AsValueEnumerable().ToArray()
+            : [];
 
-            return genMeth.Invoke(null, args) as IEqualityBlock
-                ?? throw new InvalidOperationException("Unable to create generic equality block instance.");
-        }
-        
-        static readonly MethodInfo _genMeth = typeof(EqualityBlock)
-            .GetMethod(nameof(CreateGenericBlock), BindingFlags.Static | BindingFlags.NonPublic)
-                ?? throw new InvalidOperationException("Unable to find generic method definition for CreateGenericBlock.");
-
-        private static EqualityBlock<T> CreateGenericBlock<T>(IHashCodeBlock hashCodeBlock, ScriptBlock equalityScript, IEnumerable<PSVariable>? additionalVariables)
-        {
-            return new EqualityBlock<T>(equalityScript, hashCodeBlock, additionalVariables);
-        }
+        _varList = new(3 + _additionalVariables.Length);
+        this.HashCodeBlock = hashCodeBlock;
+        _left = new(isLeft: true);
+        _right = new(isLeft: false);
     }
 
-    public sealed class EqualityBlock<T> : ComparingBase, IEqualityBlock, IEqualityComparer<T>
+#endif
+
+    public new bool Equals(object? x, object? y)
     {
-        readonly List<PSVariable> _varList;
-        readonly PSVariable[] _additionalVariables;
-        readonly IHashCodeBlock _hashCodeBlock;
-        readonly PSComparingVariable<T> _left;
-        readonly PSComparingVariable<T> _right;
-        readonly Type _checksType;
-
-        Type IEqualityBlock.ChecksType => _checksType;
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="scriptBlock"></param>
-        /// <param name="hashCodeBlock"></param>
-        /// <param name="additionalVariables"></param>
-        /// <exception cref="ArgumentException"><paramref name="scriptBlock"/> is not a proper scriptblock.</exception>
-        /// <exception cref="ArgumentNullException"/>
-        public EqualityBlock(ScriptBlock scriptBlock, IHashCodeBlock hashCodeBlock, IEnumerable<PSVariable>? additionalVariables)
-            : this(scriptBlock, hashCodeBlock, additionalVariables, preValidated: false)
+        if (ReferenceEquals(x, y))
         {
-        }
-        internal EqualityBlock(ScriptBlock scriptBlock, IHashCodeBlock hashCodeBlock, IEnumerable<PSVariable>? additionalVariables, bool preValidated)
-            : base(scriptBlock, preValidated)
-        {
-            Guard.NotNull(hashCodeBlock);
-            _additionalVariables = additionalVariables is null
-                ? Array.Empty<PSVariable>()
-                : additionalVariables.AsValueEnumerable().ToArray();
-
-            _checksType = typeof(T);
-            if (!typeof(T).Equals(hashCodeBlock.HashesType))
-            {
-                throw new ArgumentException($"{nameof(hashCodeBlock)} does not hash type '{typeof(T).FullName}'.");
-            }
-
-            _hashCodeBlock = hashCodeBlock;
-            _varList = new List<PSVariable>(4);
-            _left = PSComparingVariable.Left<T>();
-            _right = PSComparingVariable.Right<T>();
+            return true;
         }
 
-        public bool Equals([System.Diagnostics.CodeAnalysis.AllowNull] T x, [System.Diagnostics.CodeAnalysis.AllowNull] T y)
+        _varList.Clear();
+        _left.AddToList(x, _varList);
+        _right.AddToList(y, _varList);
+        _varList.AddRange(_additionalVariables);
+
+        return this.Script.InvokeWithContext(_varList, LanguagePrimitives.IsTrue);
+    }
+
+    public int GetHashCode([DisallowNull] object obj)
+    {
+        Guard.NotNull(obj);
+        return this.HashCodeBlock.GetHashCode(obj, _additionalVariables);
+    }
+
+    private sealed class ObjVariable : PSComparingVariable
+    {
+        private readonly PSVariable[] _variables;
+
+        internal object? Value { get; set; }
+        public override object? InstanceValue => this.Value;
+        internal ObjVariable(bool isLeft)
         {
-            if (ReferenceEquals(x, y))
+            ReadOnlySpan<string> names = (isLeft ? LeftNames : RightNames).AsSpan();
+            _variables = new PSVariable[names.Length];
+            
+            for (int i = 0; i < names.Length; i++)
             {
-                return true;
-            }
-
-            _varList.Clear();
-            _left.AddToVarList(x, _varList);
-            _right.AddToVarList(y, _varList);
-            _varList.AddRange(_additionalVariables);
-
-            return this.Script.InvokeWithContext(_varList, x => LanguagePrimitives.ConvertTo<bool>(x));
-        }
-        bool IEqualityComparer.Equals(object? x, object? y)
-        {
-            if (ReferenceEquals(x, y))
-            {
-                return true;
-            }
-
-            if (TryConvert(x, out T? isX) && TryConvert(y, out T? isY))
-            {
-                return this.Equals(isX, isY);
-            }
-            else
-            {
-                return false;
+                _variables[i] = new(names[i]);
             }
         }
 
-        private static bool TryConvert(object? obj, [MaybeNullWhen(false)] out T converted)
+        internal void AddToList(object? value, List<PSVariable> list)
         {
-            if (obj is T tObj)
-            {
-                converted = tObj;
-                return true;
-            }
-            else if (LanguagePrimitives.TryConvertTo(obj, out T tRes) && tRes is not null)
-            {
-                converted = tRes;
-                return true;
-            }
-            else
-            {
-                converted = default;
-                return false;
-            } 
-        }
+#if NETCOREAPP
+            list.EnsureCapacity(_variables.Length);
+#endif
 
-        public int GetHashCode(T obj)
-        {
-            Guard.NotNull(obj);
-            return _hashCodeBlock.GetHashCode(obj, _additionalVariables);
-        }
-        int IEqualityComparer.GetHashCode(object? obj)
-        {
-            Guard.NotNull(obj);
-            return _hashCodeBlock.GetHashCode(obj, _additionalVariables);
+            foreach (PSVariable psVar in _variables)
+            {
+                psVar.Value = value;
+                list.Add(psVar);
+            }
         }
     }
 }
