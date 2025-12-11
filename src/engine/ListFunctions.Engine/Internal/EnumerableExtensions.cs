@@ -17,6 +17,18 @@ internal static class EnumerableExtensions
     {
         switch (collection)
         {
+            case Array array:
+                count = array.Length;
+                return true;
+
+            case List<T> list:
+                count = list.Count;
+                return true;
+
+            case HashSet<T> set:
+                count = set.Count;
+                return true;
+
             case IReadOnlyCollection<T> roCol:
                 count = roCol.Count;
                 return true;

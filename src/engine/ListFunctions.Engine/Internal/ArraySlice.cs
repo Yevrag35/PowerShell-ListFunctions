@@ -128,17 +128,6 @@ public readonly struct ArraySlice<T> : IEnumerable<T>
         return new Enumerator(this);
     }
 
-    public void UnionWith(HashSet<T> set)
-    {
-        if (_array is null || _length == 0)
-            return;
-
-        foreach (T item in _array.AsSpan(_offset, _length))
-        {
-            _ = set.Add(item);
-        }
-    }
-
     public static implicit operator ReadOnlySpan<T>(ArraySlice<T> slice)
     {
         return slice._array is T[] array && array.Length > 0

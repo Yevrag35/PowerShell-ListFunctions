@@ -1,5 +1,11 @@
 ﻿namespace System.Management.Automation
 {
+    /// <summary>
+    /// Specifies that a parameter must not be null, empty, or consist only of white-space characters.
+    /// </summary>
+    /// <remarks>Apply this attribute to parameters to enforce that they contain at least one non-white-space
+    /// character. This validation is typically used to ensure that required string arguments are provided and are
+    /// meaningful.</remarks>
     internal sealed class ValidateNotNullOrWhiteSpaceAttribute : ValidateArgumentsAttribute
     {
         private const string NULL_EMPTY_ERROR = "The argument is null or empty. Provide an argument that is not null or empty, and then try the command again.";
