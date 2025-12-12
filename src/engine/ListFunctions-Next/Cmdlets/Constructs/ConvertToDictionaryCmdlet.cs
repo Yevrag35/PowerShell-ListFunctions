@@ -150,10 +150,10 @@ namespace ListFunctions.Cmdlets.Constructs
             {
                 ListFunctionsException ex = new($"Failed to instantiate dictionary with the arguments supplied - {e.Message}", e);
                 IDictionary data = ex.Data;
-                data["KeyType"] = _keyType;
+                data["KeyType"] = _keyType.FullName ?? _keyType.Name;
                 data[nameof(InputObject)] = inputObjects.DeepClone();
-                data[nameof(ValueType)] = _valueType;
-                data["DictionaryType"] = dictType;
+                data[nameof(ValueType)] = _valueType.FullName ?? _valueType.Name;
+                data["DictionaryType"] = dictType?.FullName ?? dictType?.Name;
 
                 var rec = ex.ToRecord(ErrorCategory.InvalidOperation, targetObj: null);
                 
@@ -164,17 +164,19 @@ namespace ListFunctions.Cmdlets.Constructs
 
         private unsafe bool AddToDictionary(object?[] inputObjects, delegate*<ConvertToDictionaryCmdlet, object, object?, void> addToDictionaryAction)
         {
-            foreach (object item in inputObjects.AsValueEnumerable().Where(x => x is not null)!)
+            foreach (object? item in inputObjects.AsValueEnumerable())
             {
+                if (item is null) continue;
+
                 try
                 {
-                    object? key = this.KeySelector.Invoke(item).FirstOrDefault()?.BaseObject;
+                    object? key = this.KeySelector.Invoke(item).AsValueEnumerable().FirstOrDefault().GetBaseObject();
                     if (key is null)
                         continue;
 
                     key = LanguagePrimitives.ConvertTo(key, _keyType);
 
-                    object? value = this.ValueSelector?.Invoke(item).FirstOrDefault()?.BaseObject is object o
+                    object? value = this.ValueSelector?.Invoke(item).AsValueEnumerable().FirstOrDefault().GetBaseObject() is object o
                         ? LanguagePrimitives.ConvertTo(o, _valueType)
                         : item;
 
@@ -233,7 +235,7 @@ namespace ListFunctions.Cmdlets.Constructs
             }
             else
             {
-                var firstObj = selector.Invoke(inputObj).FirstOrDefault();
+                var firstObj = selector.Invoke(inputObj).AsValueEnumerable().FirstOrDefault();
                 if (firstObj is null)
                 {
                     return typeof(object);

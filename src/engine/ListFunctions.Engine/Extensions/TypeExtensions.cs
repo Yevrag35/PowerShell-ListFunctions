@@ -7,10 +7,9 @@ namespace ListFunctions.Extensions
     public static class TypeExtensions
     {
         [DebuggerStepThrough]
-        [return: NotNullIfNotNull(nameof(type))]
-        public static string? GetTypeName(this Type? type)
+        public static string GetTypeName(this Type type)
         {
-            return type?.FullName ?? type?.Name;
+            return type.FullName ?? type.Name;
         }
     }
 }
