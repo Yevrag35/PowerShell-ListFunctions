@@ -39,6 +39,18 @@ namespace ListFunctions
             }
 #endif
         }
+        public static unsafe void NotNull([NotNull] void* argument, [CallerArgumentExpression(nameof(argument))] string? paramName = null)
+        {
+#if NET5_0_OR_GREATER
+            ArgumentNullException.ThrowIfNull(argument, paramName);
+#else
+            if (argument is null)
+            {
+                paramName ??= nameof(argument);
+                throw new ArgumentNullException(paramName);
+            }
+#endif
+        }
 
         /// <exception cref="ArgumentException"/>
         /// <exception cref="ArgumentNullException"/>
@@ -47,14 +59,16 @@ namespace ListFunctions
 #if NET5_0_OR_GREATER
             ArgumentException.ThrowIfNullOrEmpty(value, parameterName);
 #else
-            parameterName ??= nameof(value);
+            
             if (value is null)
             {
+                parameterName ??= nameof(value);
                 throw new ArgumentNullException(parameterName);
             }
             else if (string.Empty == value)
             {
-                throw new ArgumentException($"'{parameterName}' cannot be an empty string.", parameterName);
+                parameterName ??= nameof(value);
+                throw new ArgumentException("The string cannot be empty.", parameterName);
             }
 #endif
         }

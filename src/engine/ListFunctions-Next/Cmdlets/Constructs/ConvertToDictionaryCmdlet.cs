@@ -6,19 +6,32 @@ using ListFunctions.Validation;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Management.Automation;
 using ZLinq;
+
+using PSAllowNull = System.Management.Automation.AllowNullAttribute;
 
 #nullable enable
 
 namespace ListFunctions.Cmdlets.Constructs
 {
+    /// <summary>
+    /// Provides a PowerShell cmdlet that converts a collection of input objects into a dictionary, using specified keys
+    /// and values derived from object properties or script blocks.
+    /// </summary>
+    /// <remarks>Use this cmdlet to transform lists or arrays of objects into a dictionary, where keys and
+    /// values can be selected via property names or custom script blocks. The behavior for handling duplicate keys is
+    /// configurable via the DuplicateKeyBehavior property, allowing you to choose whether to throw an error, skip
+    /// duplicates, or concatenate values. Key comparison can be customized with the KeyComparer property. This cmdlet
+    /// supports both property-based and script-based key/value selection, and is suitable for scenarios where you need
+    /// to group or index objects by a specific attribute or computed value.</remarks>
     [Cmdlet(VerbsData.ConvertTo, "Dictionary", DefaultParameterSetName = "None")]
     public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
     {
         [Parameter(Mandatory = true, ValueFromPipeline = true)]
-        [AllowEmptyCollection, AllowNull, AllowEmptyString]
+        [AllowEmptyCollection, PSAllowNull, AllowEmptyString]
         public object?[]? InputObject { get; set; }
 
         [Parameter]
@@ -36,11 +49,12 @@ namespace ListFunctions.Cmdlets.Constructs
         public ScriptBlock KeySelector { get; set; } = null!;
 
         [Parameter(Mandatory = false, Position = 1), Alias("ValueName", "Value")]
-        [AllowEmptyString, AllowNull]
+        [AllowEmptyString, PSAllowNull]
         public object? ValuePropertyName { get; set; }
 
         [Parameter]
-        [AllowNull, AllowEmptyString]
+        [PSAllowNull, AllowEmptyString]
+        [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.PSITEM_NAME, PSThisVariable.THIS_NAME, PSThisVariable.ARGS_FIRST)]
         public ScriptBlock? ValueSelector { get; set; }
 
         [Parameter]
@@ -77,11 +91,11 @@ namespace ListFunctions.Cmdlets.Constructs
             }
             else
             {
-                this.ValueSelector = this.ValueSelector is null
-                    ? this.ValuePropertyName is ScriptBlock valSc
+                this.ValueSelector = this.ValueSelector is not null
+                    ? this.ValueSelector.ReplaceWithArgsZero()
+                    : this.ValuePropertyName is ScriptBlock valSc
                         ? valSc.ReplaceWithArgsZero()
-                        : null
-                    : this.ValueSelector.ReplaceWithArgsZero();
+                        : null;
             }
 
             object?[]? inputObjects = this.InputObject;
@@ -107,7 +121,7 @@ namespace ListFunctions.Cmdlets.Constructs
             }
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0009:Member access should be qualified.", Justification = "Used in nameof()")]
+        [SuppressMessage("Style", "IDE0009", Justification = "Used in nameof()")]
         private IDictionary CreateDictionary(object?[] inputObjects)
         {
             if (_keyType is null || _valueType is null)

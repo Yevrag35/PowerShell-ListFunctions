@@ -9,6 +9,14 @@ using System.Management.Automation;
 
 namespace ListFunctions.Cmdlets
 {
+    /// <summary>
+    /// Provides a base class for PowerShell cmdlets that implement list-like functions with custom processing and error
+    /// handling logic.
+    /// </summary>
+    /// <remarks>This abstract class is intended to be inherited by cmdlets that require structured processing
+    /// phases (begin, process, end) and custom error management. It enforces a processing workflow and provides utility
+    /// methods for error preference retrieval and type conversion. Derived classes should override the core processing
+    /// methods to implement specific cmdlet behavior.</remarks>
     public abstract class ListFunctionCmdletBase : PSCmdlet
     {
         protected const string WITH_CUSTOM_EQUALITY = "WithCustomEquality";
@@ -87,6 +95,12 @@ namespace ListFunctions.Cmdlets
                 Debug.Fail(e.Message);
             }
         }
+        /// <summary>
+        /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+        /// </summary>
+        /// <remarks>Override this method in a derived class to implement custom cleanup logic. This
+        /// method is called to allow derived types to release resources or perform other cleanup operations before the
+        /// object is disposed or finalized.</remarks>
         protected virtual void Cleanup()
         {
             // Override to implement custom cleanup logic

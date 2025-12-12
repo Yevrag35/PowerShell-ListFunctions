@@ -7,37 +7,57 @@ using System.Runtime.CompilerServices;
 
 namespace ListFunctions.Extensions
 {
+    /// <summary>
+    /// Provides extension methods for extracting the underlying base object from wrapper objects, such as PSObject
+    /// instances, in PowerShell-related scenarios.
+    /// </summary>
+    /// <remarks>These methods are useful when working with objects that may be wrapped by one or more
+    /// PSObject layers, allowing callers to access the original object for further processing. The class is intended
+    /// for use in environments where PowerShell objects are encountered, such as automation or scripting
+    /// hosts.</remarks>
     public static class PSObjectExtensions
     {
+        /// <summary>
+        /// Retrieves the underlying base object from a wrapper object, such as a PSObject, by unwrapping all nested
+        /// wrappers.
+        /// </summary>
+        /// <remarks>This method is typically used to obtain the original object that may have been
+        /// wrapped by one or more PSObject instances. If the input object is not a recognized wrapper, it is returned
+        /// unchanged.</remarks>
+        /// <param name="obj">The object from which to extract the base object. This may be a wrapper object or a direct value. Can be
+        /// null.</param>
+        /// <returns>The innermost base object if the input is a wrapper; otherwise, returns the original object. Returns null if
+        /// the input is null.</returns>
         public static object? GetBaseObject(this object? obj)
         {
-            if (obj is not PSObject mshObj)
-            {
+            if (!TryGetPSObject(obj, out PSObject? mshObj) || Marshal.IsImmediateBaseObjectIsEmpty(mshObj))
                 return obj;
-            }
 
-            if (mshObj == AutomationNull.Value)
-                return null;
-            if (Marshal.IsImmediateBaseObjectIsEmpty(mshObj))
-            {
-                return obj;
-            }
-
-            object returnValue;
+            object? returnValue;
             do
             {
-                returnValue = Marshal.GetRawImmediateBaseObject(mshObj)!;
-#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+                returnValue = Marshal.GetRawImmediateBaseObject(mshObj);
                 mshObj = returnValue as PSObject;
-#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
             } while ((mshObj is not null) && !Marshal.IsImmediateBaseObjectIsEmpty(mshObj));
 
             return returnValue;
         }
-        public static bool TryGetBaseObject(this object? obj, [NotNullWhen(true)] out object? result)
+        /// <summary>
+        /// Attempts to retrieve the underlying base object from the specified object.
+        /// </summary>
+        /// <param name="obj">The object from which to extract the base object. This parameter can be null.</param>
+        /// <param name="result">When this method returns, contains the base object if extraction succeeded; otherwise, null. This parameter
+        /// is passed uninitialized.</param>
+        /// <returns>true if the base object was successfully retrieved; otherwise, false.</returns>
+        public static bool TryGetBaseObject([NotNullWhen(true)] this object? obj, [NotNullWhen(true)] out object? result)
         {
             result = GetBaseObject(obj);
             return result is not null;
+        }
+
+        private static bool TryGetPSObject(object? obj, [NotNullWhen(true)] out PSObject? mshObj)
+        {
+            return (mshObj = obj as PSObject) is not null && !mshObj.Equals(AutomationNull.Value);
         }
 
         private static class Marshal
