@@ -23,13 +23,11 @@ namespace ListFunctions.Cmdlets.Finds
         private ScriptBlockFilter _filter = null!;
         private List<object?> _list = null!;
 
-        [Parameter(Mandatory = true, Position = 0)]
-        [Alias("ScriptBlock")]
-        [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.THIS_NAME, PSThisVariable.PSITEM_NAME, PSThisVariable.ARGS_FIRST)]
+        [Parameter(Mandatory = true, Position = 0), Alias("ScriptBlock")]
+        [ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.This, PSThisVariable.PSItem, PSThisVariable.FirstArg)]
         public ScriptBlock Condition { get; set; } = null!;
 
-        [Parameter(Mandatory = true, ValueFromPipeline = true)]
-        [Alias("List")]
+        [Parameter(Mandatory = true, ValueFromPipeline = true), Alias("List")]
         [AllowEmptyCollection, AllowNull, AllowEmptyString]
         public object?[]? InputObject { get; set; }
 

@@ -45,7 +45,7 @@ namespace ListFunctions.Cmdlets.Constructs
         public string KeyPropertyName { get; set; } = string.Empty;
 
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "KeyScript")]
-        [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.PSITEM_NAME, PSThisVariable.THIS_NAME, PSThisVariable.ARGS_FIRST)]
+        [ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.PSItem, PSThisVariable.This, PSThisVariable.FirstArg)]
         public ScriptBlock KeySelector { get; set; } = null!;
 
         [Parameter(Mandatory = false, Position = 1), Alias("ValueName", "Value")]
@@ -54,7 +54,7 @@ namespace ListFunctions.Cmdlets.Constructs
 
         [Parameter]
         [PSAllowNull, AllowEmptyString]
-        [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.PSITEM_NAME, PSThisVariable.THIS_NAME, PSThisVariable.ARGS_FIRST)]
+        [ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.PSItem, PSThisVariable.This, PSThisVariable.FirstArg)]
         public ScriptBlock? ValueSelector { get; set; }
 
         [Parameter]

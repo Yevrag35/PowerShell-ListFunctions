@@ -19,7 +19,7 @@ namespace ListFunctions.Cmdlets.Assertions
         [Parameter(Mandatory = true, Position = 0)]
         [Alias("ScriptBlock", "FilterScript")]
         [AllowNull, AllowEmptyString]
-        [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.THIS_NAME, PSThisVariable.PSITEM_NAME, PSThisVariable.ARGS_FIRST)]
+        [ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.This, PSThisVariable.PSItem, PSThisVariable.FirstArg)]
         public override ScriptBlock? Condition
         {
             get => base.Condition;

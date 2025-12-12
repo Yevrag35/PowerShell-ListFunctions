@@ -26,7 +26,7 @@ namespace ListFunctions.Cmdlets.Finds
 
         [Parameter(Mandatory = true, Position = 0)]
         [Alias("ScriptBlock")]
-        [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.THIS_NAME, PSThisVariable.PSITEM_NAME, PSThisVariable.ARGS_FIRST)]
+        [ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.This, PSThisVariable.PSItem, PSThisVariable.FirstArg)]
         public ScriptBlock Condition { get; set; } = null!;
 
         [Parameter(Mandatory = true, ValueFromPipeline = true)]

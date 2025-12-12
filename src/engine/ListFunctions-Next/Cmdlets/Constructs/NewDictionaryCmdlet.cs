@@ -67,7 +67,7 @@ namespace ListFunctions.Cmdlets.Constructs
 
         [Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
         [Parameter(Mandatory = true, ParameterSetName = AND_COPY)]
-        [ValidateScriptVariable(PSThisVariable.UNDERSCORE_NAME, PSThisVariable.THIS_NAME, PSThisVariable.PSITEM_NAME)]
+        [ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.This, PSThisVariable.PSItem)]
         public ScriptBlock HashCodeScript { get; set; } = null!;
 
         [Parameter(ParameterSetName = WITH_CUSTOM_EQUALITY)]

@@ -8,6 +8,14 @@ using System.Runtime.InteropServices;
 
 namespace ListFunctions.Modern.Variables
 {
+    /// <summary>
+    /// Represents a variable used in comparison operations, such as the left or right operand in a comparison
+    /// expression.
+    /// </summary>
+    /// <remarks>This abstract base class provides a common interface for variables that participate in
+    /// comparison logic, typically representing the left or right side of a comparison. Derived types specify the
+    /// actual value and context for the variable. Common names for left and right variables are provided as constants
+    /// for use in comparison scenarios.</remarks>
     public abstract class PSComparingVariable
     {
         public const string X = "x";
@@ -19,8 +27,14 @@ namespace ListFunctions.Modern.Variables
         protected static readonly ImmutableArray<string> LeftNames = ImmutableCollectionsMarshal.AsImmutableArray(_left);
         protected static readonly ImmutableArray<string> RightNames = ImmutableCollectionsMarshal.AsImmutableArray(_right);
 
+        /// <summary>
+        /// Gets the value represented by this comparing variable instance.
+        /// </summary>
         public abstract object? InstanceValue { get; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PSComparingVariable"/> class.
+        /// </summary>
         private protected PSComparingVariable()
         {
         }
