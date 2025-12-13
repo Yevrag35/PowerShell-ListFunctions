@@ -93,6 +93,7 @@ namespace ListFunctions.Cmdlets
         /// <summary>
         /// When implemented in a derived class, performs the core processing logic for the cmdlet.
         /// </summary>
+        /// <returns><see langword="true"/> to continue processing; <see langword="false"/> to stop processing.</returns>
         protected abstract bool ProcessCore();
         /// <param name="wantsToStop">true to request that the operation is requesting to stop; otherwise, false.</param>
         /// <summary>
@@ -100,6 +101,7 @@ namespace ListFunctions.Cmdlets
         /// </summary>
         /// <remarks>Override this method in a derived class to implement specific behavior that should
         /// occur when the operation ends. The base implementation does nothing.</remarks>
+        /// <param name="state">The current state of the cmdlet run, including flags indicating processing outcomes.</param>
         protected virtual void EndCore(CmdletRunState state)
         {
         }
@@ -133,8 +135,8 @@ namespace ListFunctions.Cmdlets
         /// <remarks>This method checks for an explicitly bound error action parameter before falling back
         /// to the session state's error action preference variable. Use this value to control error handling logic in
         /// derived cmdlets.</remarks>
-        /// <returns>An ActionPreference value that specifies the error handling behavior. Returns the current error action
-        /// preference if set; otherwise, returns the default value.</returns>
+        /// <returns>An <see cref="ActionPreference"/> value that specifies the error handling behavior. Returns the current error action
+        /// preference if set; otherwise, returns <see cref="ActionPreference.Continue"/>.</returns>
         protected ActionPreference GetErrorPreference()
         {
             if (!this.MyInvocation.BoundParameters.TryGetValue(ERROR_ACTION, out object? errorObj))
@@ -144,7 +146,7 @@ namespace ListFunctions.Cmdlets
 
             return errorObj is ActionPreference actionPref
                 ? actionPref
-                : default;
+                : ActionPreference.Continue;
         }
 
         /// <summary>
