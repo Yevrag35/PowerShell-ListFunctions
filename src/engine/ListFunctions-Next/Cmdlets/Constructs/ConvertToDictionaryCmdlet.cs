@@ -1,4 +1,5 @@
-﻿using ListFunctions.Exceptions;
+﻿using ListFunctions.Components;
+using ListFunctions.Exceptions;
 using ListFunctions.Extensions;
 using ListFunctions.Modern;
 using ListFunctions.Modern.Variables;
@@ -198,9 +199,9 @@ namespace ListFunctions.Cmdlets.Constructs
             return true;
         }
 
-        protected override void EndCore(bool wantsToStop)
+        protected override void EndCore(CmdletRunState state)
         {
-            if (wantsToStop)
+            if (state.FoundMatch)
                 return;
 
             if (_dictionary is null)

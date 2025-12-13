@@ -1,4 +1,4 @@
-namespace ListFunctions
+namespace ListFunctions.Components
 {
     public enum DuplicateKeyBehavior
     {

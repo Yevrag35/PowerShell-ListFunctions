@@ -1,4 +1,5 @@
-﻿using ListFunctions.Extensions;
+﻿using ListFunctions.Components;
+using ListFunctions.Extensions;
 using ListFunctions.Modern;
 using ListFunctions.Modern.Constructors;
 using System;
@@ -78,9 +79,9 @@ namespace ListFunctions.Cmdlets.Constructs
         }
         protected abstract bool Process(T collection, Type collectionType);
 
-        protected sealed override void EndCore(bool wantsToStop)
+        protected sealed override void EndCore(CmdletRunState state)
         {
-            this.End(_collection, wantsToStop);
+            this.End(_collection, state.FoundMatch);
         }
         protected virtual void End(T collection, bool wantsToStop)
         {

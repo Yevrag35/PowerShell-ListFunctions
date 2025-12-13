@@ -1,3 +1,4 @@
+using ListFunctions.Components;
 using ListFunctions.Modern;
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -60,9 +61,9 @@ namespace ListFunctions.Cmdlets.Assertions
         protected abstract bool Process(ScriptBlockFilter filter);
         protected abstract bool ProcessWhenNoCondition();
 
-        protected sealed override void EndCore(bool wantsToStop)
+        protected sealed override void EndCore(CmdletRunState state)
         {
-            this.End(wantsToStop);
+            this.End(state.FoundMatch);
         }
         protected abstract void End(bool scriptResult);
 

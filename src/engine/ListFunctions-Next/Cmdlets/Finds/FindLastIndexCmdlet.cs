@@ -1,3 +1,4 @@
+using ListFunctions.Components;
 using ListFunctions.Extensions;
 using ListFunctions.Modern;
 using ListFunctions.Modern.Pools;
@@ -48,9 +49,9 @@ namespace ListFunctions.Cmdlets.Finds
 
             return true;
         }
-        protected override void EndCore(bool wantsToStop)
+        protected override void EndCore(CmdletRunState state)
         {
-            if (wantsToStop)
+            if (state.FoundMatch)
                 return;
 
             for (int i = _list.Count - 1; i >= 0; i--)

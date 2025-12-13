@@ -1,3 +1,4 @@
+using ListFunctions.Components;
 using ListFunctions.Extensions;
 using ListFunctions.Modern;
 using ListFunctions.Modern.Pools;
@@ -10,6 +11,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Management.Automation;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 #nullable enable
 
@@ -22,7 +24,6 @@ namespace ListFunctions.Cmdlets.Finds
     {
         private ScriptBlockFilter _filter = null!;
         private int _currentIndex;
-        private List<object?> _list = null!;
 
         [Parameter(Mandatory = true, Position = 0)]
         [Alias("ScriptBlock")]
@@ -40,10 +41,9 @@ namespace ListFunctions.Cmdlets.Finds
         protected override void BeginCore()
         {
             _filter = new ScriptBlockFilter(this.Condition, new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction));
-            _list = ListPool<object?>.Rent();
         }
         protected override bool ProcessCore()
-        {
+        {   
             if (this.InputObject is null || this.InputObject.Length == 0)
                 return true;    // keep going
 
@@ -60,9 +60,9 @@ namespace ListFunctions.Cmdlets.Finds
             return true;
         }
 
-        protected override void EndCore(bool wantsToStop)
+        protected override void EndCore(CmdletRunState state)
         {
-            int index = wantsToStop ? _currentIndex : -1;
+            int index = state.FoundMatch ? _currentIndex : -1;
 
             this.WriteObject(index);
         }
@@ -73,12 +73,6 @@ namespace ListFunctions.Cmdlets.Finds
             {
                 _filter.Dispose();
                 _filter = null!;
-            }
-
-            if (_list is not null)
-            {
-                ListPool<object?>.Return(_list);
-                _list = null!;
             }
         }
     }

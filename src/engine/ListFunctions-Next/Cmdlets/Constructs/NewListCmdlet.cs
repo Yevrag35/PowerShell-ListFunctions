@@ -1,4 +1,5 @@
-﻿using ListFunctions.Extensions;
+﻿using ListFunctions.Components;
+using ListFunctions.Extensions;
 using ListFunctions.Validation;
 using System;
 using System.Collections;
@@ -151,9 +152,9 @@ namespace ListFunctions.Cmdlets.Constructs
             }
         }
 
-        protected override void EndCore(bool wantsToStop)
+        protected override void EndCore(CmdletRunState state)
         {
-            if (!wantsToStop && !_listIsNull)
+            if (!state.FoundMatch && !_listIsNull)
             {
                 this.WriteObject(_list, false);
             }

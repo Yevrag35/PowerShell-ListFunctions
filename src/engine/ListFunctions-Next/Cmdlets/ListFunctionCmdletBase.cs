@@ -1,9 +1,12 @@
-﻿using ListFunctions.Exceptions;
+﻿using ListFunctions.Components;
+using ListFunctions.Exceptions;
 using ListFunctions.Extensions;
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
+using System.Runtime.CompilerServices;
+using System.Threading;
 
 #nullable enable
 
@@ -24,7 +27,7 @@ namespace ListFunctions.Cmdlets
         protected const string ERROR_ACTION = "ErrorAction";
         protected const string ERROR_ACTION_PREFERENCE = ERROR_ACTION + PREFERENCE;
 
-        private bool _wantsToStop;
+        private CmdletRunState _state;
 
         protected sealed override void BeginProcessing()
         {
@@ -34,42 +37,44 @@ namespace ListFunctions.Cmdlets
             }
             catch (Exception e)
             {
+                _state = _state.With(CmdletRunFlags.BeginFailed);
                 this.CleanupCore();
-                _wantsToStop = true;
                 this.ThrowTerminatingError(e.ToRecord(ErrorCategory.InvalidArgument));
             }
         }
         protected sealed override void ProcessRecord()
         {
-            if (_wantsToStop)
+            if (this.Stopping || this.PipelineStopToken.IsCancellationRequested)
+            {
+                _state = _state.With(CmdletRunFlags.IsStopping);
                 return;
+            }
+
+            if (_state.ShouldSkipProcess)
+            {
+                //this.SetStopping();
+                return;
+            }
 
             try
             {
-                _wantsToStop = !this.ProcessCore();
+                bool keepGoing = this.ProcessCore();
+
+                if (!keepGoing)
+                    _state = _state.With(CmdletRunFlags.FoundMatch);
             }
-            catch
+            catch (Exception e)
             {
-                try
-                {
-                    this.StopProcessing();
-                }
-                catch
-                {
-                    throw;
-                }
-                finally
-                {
-                    this.CleanupCore();
-                    _wantsToStop = true;
-                }
+                _state = _state.With(CmdletRunFlags.ProcessFailed);
+                this.CleanupCore();
+                this.ThrowTerminatingError(e.ToRecord(ErrorCategory.NotSpecified));
             }
         }
         protected sealed override void EndProcessing()
         {
             try
             {
-                this.EndCore(_wantsToStop);
+                this.EndCore(_state);
             }
             finally
             {
@@ -80,7 +85,7 @@ namespace ListFunctions.Cmdlets
         {
         }
         protected abstract bool ProcessCore();
-        protected virtual void EndCore(bool wantsToStop)
+        protected virtual void EndCore(CmdletRunState state)
         {
         }
         
@@ -93,6 +98,7 @@ namespace ListFunctions.Cmdlets
             catch (Exception e)
             {
                 Debug.Fail(e.Message);
+                throw;
             }
         }
         /// <summary>
@@ -146,5 +152,29 @@ namespace ListFunctions.Cmdlets
                 errorCategory: cat,
                 targetObject: item));
         }
+
+//        private void SetStopping()
+//        {
+//#if NET10_0_OR_GREATER
+//            object processor = GetPipelineProcessor(this.CommandRuntime);
+//            GetStopSource(processor).Cancel();
+//            //StopProcessing(processor);
+//#endif
+//        }
+//#if NET10_0_OR_GREATER
+
+//        [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "get_PipelineProcessor")]
+//        [return: UnsafeAccessorType("System.Management.Automation.Internal.PipelineProcessor, System.Management.Automation")]
+//        private static extern object GetPipelineProcessor([UnsafeAccessorType("System.Management.Automation.MshCommandRuntime, System.Management.Automation")] object runtime);
+
+//        [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_pipelineStopTokenSource")]
+//        private static extern ref readonly CancellationTokenSource GetStopSource([UnsafeAccessorType("System.Management.Automation.Internal.PipelineProcessor, System.Management.Automation")] object pipelineProcessor);
+
+//        [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_stopping")]
+//        private static extern ref bool GetIsStoppingField([UnsafeAccessorType("System.Management.Automation.Internal.PipelineProcessor, System.Management.Automation")] object pipelineProcessor);
+
+//        [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "Stop")]
+//        private static extern void StopProcessing([UnsafeAccessorType("System.Management.Automation.Internal.PipelineProcessor, System.Management.Automation")] object pipelineProcessor);
+//#endif
     }
 }

@@ -1,3 +1,4 @@
+using ListFunctions.Components;
 using ListFunctions.Extensions;
 using ListFunctions.Modern;
 using ListFunctions.Modern.Constructors;
@@ -77,9 +78,9 @@ namespace ListFunctions.Cmdlets.Constructs
 
             return flag;
         }
-        protected override void EndCore(bool wantsToStop)
+        protected override void EndCore(CmdletRunState state)
         {
-            if (!wantsToStop)
+            if (!state.FoundMatch)
             {
                 this.WriteObject(_set);
             }
