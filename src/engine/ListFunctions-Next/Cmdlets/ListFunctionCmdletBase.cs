@@ -76,10 +76,25 @@ namespace ListFunctions.Cmdlets
                 this.CleanupCore();
             }
         }
+        /// <summary>
+        /// When overridden in a derived class, performs provider-specific logic required to begin cmdlet processing or
+        /// operations.
+        /// </summary>
+        /// <remarks>Override this method in a subclass to implement cmdlet behavior that should occur at
+        /// the start of processing. The base implementation does nothing.</remarks>
         protected virtual void BeginCore()
         {
         }
+        /// <summary>
+        /// When implemented in a derived class, performs the core processing logic for the cmdlet.
+        /// </summary>
         protected abstract bool ProcessCore();
+        /// <summary>
+        /// Performs custom logic when ending cmdlet processing, optionally indicating whether the operation should stop.
+        /// </summary>
+        /// <remarks>Override this method in a derived class to implement specific behavior that should
+        /// occur when the operation ends. The base implementation does nothing.</remarks>
+        /// <param name="wantsToStop">true to request that the operation is requesting to stop; otherwise, false.</param>
         protected virtual void EndCore(bool wantsToStop)
         {
         }
@@ -106,6 +121,14 @@ namespace ListFunctions.Cmdlets
             // Override to implement custom cleanup logic
         }
 
+        /// <summary>
+        /// Retrieves the current error action preference to determine how errors are handled during command execution.
+        /// </summary>
+        /// <remarks>This method checks for an explicitly bound error action parameter before falling back
+        /// to the session state's error action preference variable. Use this value to control error handling logic in
+        /// derived cmdlets.</remarks>
+        /// <returns>An ActionPreference value that specifies the error handling behavior. Returns the current error action
+        /// preference if set; otherwise, returns the default value.</returns>
         protected ActionPreference GetErrorPreference()
         {
             if (!this.MyInvocation.BoundParameters.TryGetValue(ERROR_ACTION, out object? errorObj))
@@ -118,6 +141,17 @@ namespace ListFunctions.Cmdlets
                 : default;
         }
 
+        /// <summary>
+        /// Attempts to convert the specified object to the given target type.
+        /// </summary>
+        /// <remarks>If the conversion fails due to an invalid cast, an error is written and <paramref
+        /// name="result"/> is set to null. This method does not throw an exception for conversion failures.</remarks>
+        /// <param name="item">The object to convert. This value can be null.</param>
+        /// <param name="convertTo">The type to which to attempt to convert the object. Cannot be null.</param>
+        /// <param name="result">When this method returns, contains the converted object if the conversion succeeded; otherwise, null. This
+        /// parameter is passed uninitialized.</param>
+        /// <returns>true if the conversion was successful and <paramref name="result"/> contains the converted value; otherwise,
+        /// false.</returns>
         protected bool TryConvertItem(object? item, Type convertTo, [NotNullWhen(true)] out object? result)
         {
             try

@@ -9,6 +9,13 @@ using System.Reflection;
 
 namespace ListFunctions.Exceptions
 {
+    /// <summary>
+    /// Represents an exception that is thrown when an object cannot be converted to the specified type during a
+    /// language function operation.
+    /// </summary>
+    /// <remarks>This exception provides detailed error information, including the value that failed to
+    /// convert, its original type, the target type, and the underlying error message. It is typically used to wrap a
+    /// PowerShell invalid cast exception with additional context relevant to language function processing.</remarks>
     public sealed class LFInvalidCastException : PSInvalidCastException
     {
         const string MSG_FORMAT = "Cannot convert value \"{0}\" of type \"{1}\" to type \"{2}\".";
@@ -27,6 +34,16 @@ namespace ListFunctions.Exceptions
             set => base.Source = value;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the LFInvalidCastException class using information from a
+        /// PSInvalidCastException, the target type, and the item that failed to convert.
+        /// </summary>
+        /// <remarks>This constructor preserves error details and context from the original
+        /// PSInvalidCastException, including error category information and recommended actions. Use this constructor
+        /// to wrap PowerShell cast exceptions with additional context for error handling or reporting.</remarks>
+        /// <param name="inner">The PSInvalidCastException that contains details about the original cast failure. Cannot be null.</param>
+        /// <param name="convertingTo">The type to which the conversion was attempted. Cannot be null.</param>
+        /// <param name="item">The object that could not be converted. May be null if the original cast did not involve a specific item.</param>
         public LFInvalidCastException(PSInvalidCastException inner, Type convertingTo, object? item)
             : base(string.Empty, inner.InnerException)
         {
