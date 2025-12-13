@@ -28,6 +28,15 @@ namespace ListFunctions.Validation
         private readonly ArraySlice<int> _mustContainIndexes;
         private readonly ArraySlice<string> _mustContainNames;
 
+        /// <summary>
+        /// Initializes a new instance of the ValidateScriptVariableAttribute class with the specified variable names
+        /// and/or index values to validate.
+        /// </summary>
+        /// <remarks>Variable names and index values can be mixed in the array. Index values are
+        /// interpreted as strings that can be parsed to integers; all other values are treated as variable names. The
+        /// order of elements determines how they are categorized.</remarks>
+        /// <param name="variableNames">An array of variable names and/or index values that must be present for validation. Index values should be
+        /// provided as string representations of integers. Cannot be null.</param>
         public ValidateScriptVariableAttribute(params string[] variableNames)
         {
             int indexCount = ParseIndexes(variableNames, out int[]? indexes);
@@ -42,6 +51,7 @@ namespace ListFunctions.Validation
                 : new(variableNames, 0, nameCount);
         }
 
+        /// <inheritdoc/>
         protected override void Validate(object arguments, EngineIntrinsics engineIntrinsics)
         {
             if (arguments is string str)
@@ -70,6 +80,18 @@ namespace ListFunctions.Validation
             }
         }
 
+        /// <summary>
+        /// Parses variable names to extract integer indexes from those that match the expected pattern.
+        /// </summary>
+        /// <remarks>The method partitions the input array in place, moving variable names with parsable
+        /// indexes to the end of the array. Only variable names that match the expected pattern are included in the
+        /// output array. The order of parsed indexes in the output array corresponds to their original positions in the
+        /// input array.</remarks>
+        /// <param name="variableNames">An array of variable names to examine for parsable integer indexes. Must contain at least one element.</param>
+        /// <param name="indexes">When this method returns, contains an array of integer indexes parsed from the variable names that match the
+        /// expected pattern, or null if no variable names could be parsed. This parameter is passed uninitialized.</param>
+        /// <returns>The number of variable names from which an integer index was successfully parsed.</returns>
+        /// <exception cref="ArgumentException">Thrown if variableNames is null or contains no elements.</exception>
         private static int ParseIndexes(string[]? variableNames, out int[]? indexes)
         {
             Guard.NotNull(variableNames);
@@ -122,6 +144,16 @@ namespace ListFunctions.Validation
             return parsedCount;
         }
 
+        /// <summary>
+        /// Determines whether the specified script block contains all required variable names and, if specified, all
+        /// required argument indexes.
+        /// </summary>
+        /// <param name="block">The script block to validate for required variables and argument indexes.</param>
+        /// <param name="mustContainNames">A collection of variable names that must be present in the script block. Cannot be null.</param>
+        /// <param name="mustContainIndexes">A collection of argument indexes that must be present in the script block. If empty, only variable names are
+        /// validated.</param>
+        /// <returns>true if the script block contains all required variable names and, if specified, all required argument
+        /// indexes; otherwise, false.</returns>
         private static bool IsAllValid(ScriptBlock block, ArraySlice<string> mustContainNames, ArraySlice<int> mustContainIndexes)
         {
             bool allowsArgs = mustContainIndexes.Length != 0;
@@ -151,6 +183,15 @@ namespace ListFunctions.Validation
                 && Args.Equals(varAst.VariablePath.UserPath, StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// Determines whether the specified abstract syntax tree (AST) collection contains a variable or index that
+        /// matches any of the provided names or indexes.
+        /// </summary>
+        /// <param name="asts">The collection of AST nodes to search for matching variables or indexes.</param>
+        /// <param name="anyNames">A slice of variable names to match against variable expressions in the ASTs. Matching is case-insensitive.</param>
+        /// <param name="orAnyIndexes">A slice of integer indexes to match against constant index expressions in the ASTs.</param>
+        /// <returns>true if any AST node is a variable expression with a name in anyNames, or an index expression with a
+        /// constant value in orAnyIndexes; otherwise, false.</returns>
         private static bool IsValidWithIndexes(IEnumerable<Ast> asts, ArraySlice<string> anyNames, ArraySlice<int> orAnyIndexes)
         {
             bool isNotNull = anyNames.Length > 0;
@@ -170,6 +211,13 @@ namespace ListFunctions.Validation
 
             return false;
         }
+        /// <summary>
+        /// Determines whether any variable in the specified abstract syntax trees matches a name in the provided
+        /// collection, using a case-insensitive comparison.
+        /// </summary>
+        /// <param name="asts">A collection of abstract syntax tree (AST) nodes to search for variable expressions.</param>
+        /// <param name="anyNames">A collection of variable names to match against, compared using case-insensitive ordinal comparison.</param>
+        /// <returns>true if at least one variable expression in the ASTs matches a name in the collection; otherwise, false.</returns>
         private static bool IsValidNoIndexes(IEnumerable<Ast> asts, ArraySlice<string> anyNames)
         {
             foreach (VariableExpressionAst varAst in asts.AsValueEnumerable())
@@ -183,9 +231,20 @@ namespace ListFunctions.Validation
             return false;
         }
 
+        /// <summary>
+        /// Attempts to extract a zero-based index from the specified argument name string.
+        /// </summary>
+        /// <remarks>The method expects the argument name to start with the standard argument prefix (such
+        /// as "Args"). If the name includes an index, it may be enclosed in square brackets. Parsing fails if the index
+        /// is missing, negative, or not a valid integer.</remarks>
+        /// <param name="name">The argument name to parse. The name is expected to begin with the standard argument prefix, optionally
+        /// followed by an index in square brackets (e.g., "Args[2]").</param>
+        /// <param name="parsedIndex">When this method returns, contains the parsed zero-based index if parsing succeeds; otherwise, contains -1.
+        /// This parameter is passed uninitialized.</param>
+        /// <returns>true if a valid non-negative index is successfully parsed from the argument name; otherwise, false.</returns>
         private static bool TryParseIndexFromName(string name, out int parsedIndex)
         {
-            if (name.Length <= Args.Length)
+            if (name.Length < Args.Length + 3 || !name.StartsWith(Args, StringComparison.OrdinalIgnoreCase))
             {
                 parsedIndex = -1;
                 return false;
@@ -204,13 +263,6 @@ namespace ListFunctions.Validation
                 return true;
             }
 #else
-            
-            if (!name.StartsWith(Args, StringComparison.OrdinalIgnoreCase))
-            {
-                parsedIndex = -1;
-                return false;
-            }
-
             string trimmed = name[Args.Length] == '[' && name[name.Length - 1] == ']'
                 ? name.Substring(Args.Length + 1, name.Length - Args.Length - 2)
                 : name.Substring(Args.Length);

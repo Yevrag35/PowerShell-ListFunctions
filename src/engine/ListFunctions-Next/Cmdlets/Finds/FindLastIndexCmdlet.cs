@@ -16,6 +16,14 @@ using System.Reflection;
 
 namespace ListFunctions.Cmdlets.Finds
 {
+    /// <summary>
+    /// Implements a cmdlet that finds the zero-based index of the last element in a list that matches a specified
+    /// condition.
+    /// </summary>
+    /// <remarks>This cmdlet evaluates each element in the input list against the provided script block
+    /// condition, starting from the end of the list and moving backward. If no element satisfies the condition, the
+    /// cmdlet returns -1. The cmdlet supports pipeline input and can be used in PowerShell scripts to efficiently
+    /// locate the last matching item in a collection.</remarks>
     [Cmdlet(VerbsCommon.Find, "LastIndexOf")]
     [Alias("Find-LastIndex", "LastIndexOf")]
     [OutputType(typeof(int))]
