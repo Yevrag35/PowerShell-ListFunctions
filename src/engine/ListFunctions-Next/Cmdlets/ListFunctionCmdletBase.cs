@@ -52,7 +52,6 @@ namespace ListFunctions.Cmdlets
 
             if (_state.ShouldSkipProcess)
             {
-                //this.SetStopping();
                 return;
             }
 
@@ -175,6 +174,14 @@ namespace ListFunctions.Cmdlets
             }
         }
 
+        /// <summary>
+        /// Writes an error record for a failed type conversion, including details about the original exception, the
+        /// target type, and the item that could not be converted.
+        /// </summary>
+        /// <param name="thrownException">The exception that was thrown during the type conversion attempt. Must not be null.</param>
+        /// <param name="item">The object that failed to convert to the specified type. Can be null if the conversion was attempted on a
+        /// null value.</param>
+        /// <param name="convertToType">The target type to which the conversion was attempted. Must not be null.</param>
         private void WriteConversionError(PSInvalidCastException thrownException, object? item, Type convertToType)
         {
             string errorId = thrownException.GetType().GetTypeName();
