@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ListFunctions.Engine", "Lis
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ListFunctions-Next", "ListFunctions-Next\ListFunctions-Next.csproj", "{0E39E680-C598-4EB5-8B64-294207712E27}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ListFunctions-NETFramework", "ListFunctions-NETFramework\ListFunctions-NETFramework.csproj", "{6E62CFEE-5F6B-4097-98C0-93F3CF55A17D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ListFunctions-NETFramework", "ListFunctions-NETFramework\ListFunctions-NETFramework.csproj", "{6E62CFEE-5F6B-4097-98C0-93F3CF55A17D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{EE380F7E-90CD-4720-974D-13DB7A875184}"
 	ProjectSection(SolutionItems) = preProject

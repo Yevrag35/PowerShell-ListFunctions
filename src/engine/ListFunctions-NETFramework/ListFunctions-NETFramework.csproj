@@ -1,95 +1,56 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-  <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{6E62CFEE-5F6B-4097-98C0-93F3CF55A17D}</ProjectGuid>
-    <LangVersion>latest</LangVersion>
-    <OutputType>Library</OutputType>
-    <Nullable>enable</Nullable>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>ListFunctions</RootNamespace>
-    <AssemblyName>ListFunctions.NETFramework</AssemblyName>
-    <AssemblyVersion>3.1.0</AssemblyVersion>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <FileVersion>3.1.0</FileVersion>
-    <Version>3.1.0</Version>
-    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <Deterministic>true</Deterministic>
-    <NuGetPackageImportStamp>
-    </NuGetPackageImportStamp>
-    <TargetFrameworkProfile />
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="Microsoft.Bcl.Memory, Version=10.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.Bcl.Memory.10.0.0\lib\net462\Microsoft.Bcl.Memory.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="System.Collections.Immutable, Version=10.0.0.1, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Collections.Immutable.10.0.1\lib\net462\System.Collections.Immutable.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Memory, Version=4.0.2.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\system.memory\4.6.3\lib\net462\System.Memory.dll</HintPath>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Management.Automation, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.PowerShell.5.ReferenceAssemblies.1.1.0\lib\net4\System.Management.Automation.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="ZLinq, Version=1.5.4.0, Culture=neutral, PublicKeyToken=df4c250b14d82627, processorArchitecture=MSIL">
-      <HintPath>..\packages\ZLinq.1.5.4\lib\netstandard2.0\ZLinq.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="ModuleInitializer.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ValidateNotNullOrWhitespace.cs" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(Configuration)' == 'Release'">
-    <Content Include="Debug.ps1">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
-    </Content>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="app.config" />
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="..\ListFunctions-Next\**\*.cs" Exclude="..\ListFunctions-Next\obj\**\*.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\ListFunctions.Engine\ListFunctions.Engine.csproj">
-      <Project>{515aa5f2-1c73-4556-a519-c2ff18b423f4}</Project>
-      <Name>ListFunctions.Engine</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('..\packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets'))" />
-  </Target>
-  <Import Project="..\packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets" Condition="Exists('..\packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets')" />
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net48</TargetFramework>
+		<LangVersion>latest</LangVersion>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>disable</ImplicitUsings>
+		<RootNamespace>ListFunctions</RootNamespace>
+		<AssemblyName>ListFunctions.NETFramework</AssemblyName>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<Authors>Mike Garvey</Authors>
+		<Company>Yevrag35, LLC.</Company>
+		<Copyright>Copyright © Yevrag35, LLC. 2020-2025</Copyright>
+		<Product>ListFunctions-NETFramework</Product>
+		<AssemblyTitle>ListFunctions-NETFramework</AssemblyTitle>
+		<Version>3.1.0</Version>
+		<AssemblyVersion>3.1.0</AssemblyVersion>
+		<FileVersion>3.1.0</FileVersion>
+		<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)'=='Debug'">
+		<DebugType>full</DebugType>
+		<DebugSymbols>true</DebugSymbols>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)'=='Release'">
+		<DebugType>portable</DebugType>
+	</PropertyGroup>
+
+	<ItemGroup Condition="'$(Configuration)' != 'Release'">
+		<Content Include="Debug.ps1">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+	<ItemGroup Condition="'$(Configuration)' == 'Release'">
+		<Content Include="Debug.ps1">
+			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
+			<CopyToPublishDirectory>Never</CopyToPublishDirectory>
+		</Content>
+	</ItemGroup>
+
+	<!-- Every cmdlet source file is shared with the PowerShell 7 project. -->
+	<ItemGroup>
+		<Compile Include="..\ListFunctions-Next\**\*.cs" Exclude="..\ListFunctions-Next\obj\**;..\ListFunctions-Next\bin\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.PowerShell.5.ReferenceAssemblies" ExcludeAssets="runtime" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\ListFunctions.Engine\ListFunctions.Engine.csproj" />
+	</ItemGroup>
+
 </Project>
