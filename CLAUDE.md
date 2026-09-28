@@ -60,7 +60,8 @@ The `ListFunctions/` directory is the publishable module, and it contains commit
 - `Core/` holds the `net10.0` builds of Engine, Next, and ZLinq. `Desk/` holds the `netstandard2.0` Engine and the NETFramework DLL.
 - Copy these DLLs in by hand from Release builds.
 - When cmdlets, aliases, or shipped files change, update `CmdletsToExport`, `AliasesToExport`, and `FileList` in `ListFunctions.psd1`.
-- The version (currently `3.1.0`) appears in all three csprojs and in the `.psd1`. Change all four together.
+- The version (currently `4.0.0`) is set in two places: `<Version>` in `src/engine/Directory.Build.props` and `ModuleVersion` in the `.psd1`. Change both together. `AssemblyVersion` and `FileVersion` are set to `$(Version)` so they stay exactly three-part.
+- `Directory.Build.props` also holds the shared authorship and repository metadata and the common compiler settings (`RootNamespace`, `LangVersion`, `ImplicitUsings`, `AllowUnsafeBlocks`). Each csproj keeps only what differs between projects: target frameworks, `Nullable`, assembly name, and title/product.
 
 `src/public/*.ps1` and `src/private/*.ps1` contain the legacy script implementation. The module does not load them. `Remove-All` and `Remove-At` exist only there and have not been ported to cmdlets.
 

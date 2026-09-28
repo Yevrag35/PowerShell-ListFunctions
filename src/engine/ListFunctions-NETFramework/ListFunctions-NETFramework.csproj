@@ -2,21 +2,10 @@
 
 	<PropertyGroup>
 		<TargetFramework>net48</TargetFramework>
-		<LangVersion>latest</LangVersion>
 		<Nullable>enable</Nullable>
-		<ImplicitUsings>disable</ImplicitUsings>
-		<RootNamespace>ListFunctions</RootNamespace>
 		<AssemblyName>ListFunctions.NETFramework</AssemblyName>
-		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-		<Authors>Mike Garvey</Authors>
-		<Company>Yevrag35, LLC.</Company>
-		<Copyright>Copyright © Yevrag35, LLC. 2020-2025</Copyright>
 		<Product>ListFunctions-NETFramework</Product>
 		<AssemblyTitle>ListFunctions-NETFramework</AssemblyTitle>
-		<Version>3.1.0</Version>
-		<AssemblyVersion>3.1.0</AssemblyVersion>
-		<FileVersion>3.1.0</FileVersion>
-		<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)'=='Debug'">
