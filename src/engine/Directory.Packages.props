@@ -1,0 +1,12 @@
+<Project>
+	<ItemGroup>
+		<PackageVersion Include="Microsoft.Bcl.Memory" Version="10.0.5" />
+		<PackageVersion Include="PowerShellStandard.Library" Version="5.1.1" />
+		<PackageVersion Include="System.Memory" Version="4.6.3" />
+		<PackageVersion Include="System.Collections.Immutable" Version="10.0.5" />
+		<PackageVersion Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
+		<PackageVersion Include="PolySharp" Version="1.15.0" />
+		<PackageVersion Include="System.Management.Automation" Version="7.6.6" />
+		<PackageVersion Include="ZLinq" Version="1.5.6" />
+	</ItemGroup>
+</Project>

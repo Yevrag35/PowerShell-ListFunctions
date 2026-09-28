@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
 	  <Nullable>enable</Nullable>
 	  <RootNamespace>ListFunctions</RootNamespace>
 	  <LangVersion>latest</LangVersion>
@@ -18,6 +18,7 @@
 	  <FileVersion>3.1.0</FileVersion>
 	  <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	  <ImplicitUsings>false</ImplicitUsings>
+	  <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
 
 	<PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' ">
@@ -76,24 +77,22 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
-    <PackageReference Include="PowerShellStandard.Library" Version="5.1.1" />
+    <PackageReference Include="PowerShellStandard.Library"/>
+	  <PackageReference Include="Microsoft.Bcl.Memory" />
+	  <PackageReference Include="System.Collections.Immutable" />
+	  <PackageReference Include="System.Runtime.CompilerServices.Unsafe"/>
+	  <PackageReference Include="System.Memory" />
   </ItemGroup>
-	<ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
-		<PackageReference Include="System.Management.Automation" Version="7.5.4" />
-	</ItemGroup>
 	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
-		<PackageReference Include="System.Management.Automation" Version="7.6.0-preview.5" />
+		<PackageReference Include="System.Management.Automation" />
 	</ItemGroup>
 	<ItemGroup>
-		<PackageReference Include="Microsoft.Bcl.Memory" Version="10.0.1" />
-		<PackageReference Include="System.Collections.Immutable" Version="10.0.1" />
-		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
-		<PackageReference Include="ZLinq" Version="1.5.4" />
-		<PackageReference Include="PolySharp" Version="1.15.0">
+		
+		<PackageReference Include="ZLinq" />
+		<PackageReference Include="PolySharp">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-		<PackageReference Include="System.Memory" Version="4.6.3" />
 	</ItemGroup>
 
 </Project>

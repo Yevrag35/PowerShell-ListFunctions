@@ -18,6 +18,7 @@
 	  <Version>3.1.0</Version>
 	  <FileVersion>3.1.0</FileVersion>
 	  <AssemblyVersion>3.1.0</AssemblyVersion>
+	  <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
 
 	<ItemGroup Condition="'$(Configuration)' != 'Release'">
@@ -33,7 +34,7 @@
 	</ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Management.Automation" Version="7.6.0-preview.5" />
+    <PackageReference Include="System.Management.Automation" />
   </ItemGroup>
 
   <ItemGroup>
