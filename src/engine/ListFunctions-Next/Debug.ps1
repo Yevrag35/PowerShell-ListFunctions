@@ -1,4 +1,4 @@
-﻿[CmdletBinding(SupportsShouldProcess=$true, PositionalBinding = $false)]
+[CmdletBinding(SupportsShouldProcess=$true, PositionalBinding = $false)]
 param  (
 	[Parameter(Mandatory=$false)]
 	[string] $LibraryName = 'ListFunctions.Next',
