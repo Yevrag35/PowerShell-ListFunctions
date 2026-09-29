@@ -93,7 +93,7 @@ public abstract class ScriptBlockInvocationException : RuntimeException
 		}
 		catch (Exception e)
 		{
-			Debug.Fail(e.Message);
+			Debug.WriteLine(e.Message);
 			return info.Line;
 		}
 	}
@@ -106,7 +106,7 @@ public abstract class ScriptBlockInvocationException : RuntimeException
 		}
 		catch (Exception e)
 		{
-			Debug.Fail(e.Message);
+			Debug.WriteLine(e.Message);
 			return null;
 		}
 	}

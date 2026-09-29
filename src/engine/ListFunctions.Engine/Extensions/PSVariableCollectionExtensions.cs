@@ -22,7 +22,7 @@ public static class PSVariableCollectionExtensions
 		}
 		catch (Exception e)
 		{
-			Debug.Fail(e.Message);
+			Debug.WriteLine(e.Message);
 			return defaultIfNull;
 		}
 	}

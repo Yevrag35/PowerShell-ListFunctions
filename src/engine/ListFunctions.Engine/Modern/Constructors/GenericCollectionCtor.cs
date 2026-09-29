@@ -71,7 +71,7 @@ public abstract class GenericCollectionCtor
 		}
 		catch (Exception ex)
 		{
-			Debug.Fail(ex.Message);
+			Debug.WriteLine(ex.Message);
 			return ThrowBadCtor(constructingType, ex);
 		}
 

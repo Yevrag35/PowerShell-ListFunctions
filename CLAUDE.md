@@ -13,12 +13,28 @@ dotnet build src/engine/ListFunctions.Engine.slnx -c Debug
 dotnet build src/engine/ListFunctions-Next/ListFunctions-Next.csproj -c Debug   # PS 7 module only
 ```
 
-- There are no test projects. To verify a change, build it and run it in a real PowerShell session.
 - All three projects are SDK-style and use central package management. Package versions live only in `src/engine/Directory.Packages.props`.
 - `ListFunctions-NETFramework` gets its runtime dependencies (ZLinq, System.Memory, System.Collections.Immutable, and so on) from Engine's `netstandard2.0` package references. Its only direct package references are `Microsoft.PowerShell.5.ReferenceAssemblies`, with `ExcludeAssets="runtime"`, and `PolySharp`. As of PolySharp 1.16.0, Engine's generated polyfills (the nullable attributes and others) are not visible to it through InternalsVisibleTo, so it generates its own.
 - `Directory.Build.props` sets `CopyLocalLockFileAssemblies` to `true`, so every Debug and Release output folder contains its NuGet runtime dependencies, such as `ZLinq.dll`. By default the SDK copies them only for `net48`.
 - Keep PowerShell itself out of the build outputs. `System.Management.Automation` is referenced with `ExcludeAssets="runtime;native"`. Without `native`, PowerShell's native binaries still land under `runtimes/`. Engine's `PowerShellStandard.Library` uses `ExcludeAssets="runtime"`, and `PrivateAssets="all"` so that it doesn't flow to `ListFunctions-NETFramework`.
 - `.build/build.ps1` and `.debug/debug.ps1` are left over from the old script-based module. They build `src/ListFunctions.psm1` and read from `src/assemblies`, and neither path exists anymore. Don't use them to build the current module.
+
+## Tests
+
+`tests/` holds the Pester 6 tests. There's no C# test project. Build first, then run the tests from the repo root in Bash:
+
+```bash
+pwsh -NoProfile -File tests/Invoke-Tests.ps1                              # Debug build, both editions
+pwsh -NoProfile -File tests/Invoke-Tests.ps1 -Tag Bug06 -Edition Core     # one bug's tests, PowerShell 7 only
+pwsh -NoProfile -File tests/Invoke-Tests.ps1 -Configuration Release -Output Detailed
+```
+
+- `Invoke-Tests.ps1` runs the tests in a new `powershell.exe` process and a new `pwsh` process. The imported DLLs unload when those processes exit, so they don't block the next build. The script exits with 1 when a test fails in either edition.
+- Every test file calls `tests/Import-ListFunctions.ps1` in a top-level `BeforeAll`. It imports `ListFunctions.Next.dll` (PowerShell 7) or `ListFunctions.NETFramework.dll` (Windows PowerShell 5.1) from the build output, never the committed DLLs under `ListFunctions/`.
+- Each cmdlet gets its own `<Cmdlet>.Tests.ps1` file. `Module.Tests.ps1` checks that the build exports exactly the manifest's `CmdletsToExport` and `AliasesToExport`.
+- Fix each item in `.work/bugs.md` test-first. Turn its repro into a test tagged `BugNN`, watch the test fail, and then fix the bug.
+- Test files also run in Windows PowerShell 5.1, so they can't use PowerShell 7 syntax such as `??`, the ternary operator, or `&&`. Keep them ASCII, because 5.1 reads a UTF-8 file without a BOM as ANSI.
+- Use Pester 6's `Should-*` commands, not the older `Should -Be` form. `Should-BeCollection` can't take a collection of value types, such as a `List[int]`, as `-Actual`. Pass `@($list)` instead.
 
 ## Debugging
 

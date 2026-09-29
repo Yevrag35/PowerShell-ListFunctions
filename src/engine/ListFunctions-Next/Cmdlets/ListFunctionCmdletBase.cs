@@ -194,12 +194,12 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	}
 
 	/// <summary>
-	/// Calls <see cref="Cleanup"/> and converts any exceptions into a debug-time failure.
+	/// Calls <see cref="Cleanup"/> and writes the message of any exception it throws to the debug output.
 	/// </summary>
 	/// <remarks>
 	/// This private helper centralizes the cleanup call so callers can rely on consistent exception
-	/// propagation and diagnostic reporting. Any exception thrown by <see cref="Cleanup"/> is
-	/// reported via <see cref="Debug.Fail(string)"/> and rethrown to preserve the original failure.
+	/// propagation and diagnostic reporting. When <see cref="Cleanup"/> throws, the method writes the
+	/// exception's message with <see cref="Debug.WriteLine(string)"/> and rethrows the original exception.
 	/// </remarks>
 	private void CleanupCore()
 	{
@@ -209,7 +209,7 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 		}
 		catch (Exception e)
 		{
-			Debug.Fail(e.Message);
+			Debug.WriteLine(e.Message);
 			throw;
 		}
 	}

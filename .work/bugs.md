@@ -2,6 +2,8 @@
 
 Found while rewriting `README.md` on 2026-09-28. The README describes how the module is meant to work, so each item under **README accuracy** makes a README statement false until it's fixed.
 
+**Pooling:** All custom pooling code is slated for removal soon, because it adds unnecessary overhead. That covers `ListPool<T>` and `ObjPool<T>` in `src/engine/ListFunctions.Engine/Modern/Pools/`, the `IPoolable` interface that `PSThisVariable` implements, and the calls that rent and return pooled objects in `ScriptBlockFilter` and `FindLastIndexCmdlet`.
+
 ## Checklist
 
 **README accuracy**
@@ -22,7 +24,7 @@ Found while rewriting `README.md` on 2026-09-28. The README describes how the mo
 - [ ] 11 — A generic type split at a comma silently becomes `[object]`
 - [ ] 12 — ConvertTo-Dictionary misses `$_` when an operator follows it
 - [ ] 13 — Assert-AllObject gives different answers for empty input
-- [ ] 14 — `Debug.Fail` ends the PowerShell process in Debug builds
+- [x] 14 — `Debug.Fail` ends the PowerShell process in Debug builds
 
 **Release**
 
@@ -40,7 +42,7 @@ Found while rewriting `README.md` on 2026-09-28. The README describes how the mo
 
 - **PowerShell 7:** run `src/engine/ListFunctions-Next/bin/Debug/net10.0/Debug.ps1`, which is what the `ListFunctions-Next` launch profile does, or import `ListFunctions.Next.dll` from `src/engine/ListFunctions-Next/bin/<configuration>/net10.0/`.
 - **Windows PowerShell 5.1:** import `ListFunctions.NETFramework.dll` from `src/engine/ListFunctions-NETFramework/bin/<configuration>/net48/`.
-- Items 09 and 10 hit `Debug.Fail` (14), which ends a Debug-build session, so run them against a Release build.
+- **Tests:** `tests/Invoke-Tests.ps1` runs the Pester tests in both editions. An item's tests are tagged with its number, so `-Tag Bug06` runs only item 06's tests.
 
 Every repro was checked against Release builds on Windows PowerShell 5.1.26100 and PowerShell 7.6.6. The two editions behave the same unless an item says otherwise.
 
@@ -177,14 +179,13 @@ $d.Count             # Expected: 1. Actual: 0
 ```powershell
 New-Dictionary [int] -EqualityScript { $x -eq $y } -HashCodeScript { $_.GetHashCode() }
 # Error: An exception occurred attempting to construct an object of type "System.Collections.Generic.Dictionary`2[[System.Int32, ...],[System.Object, ...]]".
-# In a Debug build, this ends the process instead (14).
 ```
 
 **Fix idea:** Wrap the `EqualityBlock` in a generic `IEqualityComparer<TKey>` adapter, the way `ComparingBlock<T>` works for comparers. Or reject value-type keys during parameter binding, with a clear message.
 
 ### 10 — A `-ComparingScript` result that isn't an `[int]` silently means "equal"
 
-**Where:** `ComparingBlock<T>.Compare` (`src/engine/ListFunctions.Engine/Modern/ComparingBlock.cs`) converts the script's first output with `LanguagePrimitives.ConvertTo<int>` through `PSVariableCollectionExtensions.GetFirstValue`, which catches a failed conversion and returns `0`. No output also gives `0`. Every pair then compares as equal, so the set keeps only its first element, and no error appears. In a Debug build, the failed conversion hits `Debug.Fail` instead (14).
+**Where:** `ComparingBlock<T>.Compare` (`src/engine/ListFunctions.Engine/Modern/ComparingBlock.cs`) converts the script's first output with `LanguagePrimitives.ConvertTo<int>` through `PSVariableCollectionExtensions.GetFirstValue`, which catches a failed conversion and returns `0`. No output also gives `0`. Every pair then compares as equal, so the set keeps only its first element, and no error appears.
 
 ```powershell
 (5, 3, 1 | New-SortedSet [int] -ComparingScript { 'x' + $x + $y }) -join ','     # Expected: an error. Actual: 5
@@ -250,6 +251,8 @@ Assert-AllObject -InputObject @() -Condition { $_ -is [int] }    # False
 The others guard cleanup and reflection fallbacks: `ListFunctionCmdletBase.CleanupCore`, and two in `ScriptBlockInvocationException`.
 
 **Fix idea:** Don't call `Debug.Fail` on paths that user input can reach. Use `Debug.WriteLine`, or nothing.
+
+**Fixed:** All five calls now use `Debug.WriteLine`, including the three that guard cleanup and reflection fallbacks. A `Debug.Fail` on any path that a cmdlet runs would end a whole test run instead of failing one test. The `Bug14` tests in `tests/New-Dictionary.Tests.ps1` and `tests/New-SortedSet.Tests.ps1` cover the two calls that user input reaches.
 
 ## Release
 
