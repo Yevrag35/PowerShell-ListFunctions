@@ -1,4 +1,4 @@
-﻿using ListFunctions.Modern;
+using ListFunctions.Modern;
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
 using System.Diagnostics.CodeAnalysis;
@@ -9,51 +9,50 @@ using PSAllowNull = System.Management.Automation.AllowNullAttribute;
 #nullable enable
 
 
-namespace ListFunctions.Cmdlets.Assertions
+namespace ListFunctions.Cmdlets.Assertions;
+
+[Cmdlet(VerbsLifecycle.Assert, "AnyObject")]
+[Alias("Assert-Any", "Any-Object", "Any")]
+[OutputType(typeof(bool))]
+public sealed class AssertAnyObjectCmdlet : AssertObjectCmdlet
 {
-    [Cmdlet(VerbsLifecycle.Assert, "AnyObject")]
-    [Alias("Assert-Any", "Any-Object", "Any")]
-    [OutputType(typeof(bool))]
-    public sealed class AssertAnyObjectCmdlet : AssertObjectCmdlet
-    {
-        [Parameter(Mandatory = true, ValueFromPipeline = true)]
-        [AllowEmptyCollection, PSAllowNull, AllowEmptyString]
-        public object?[]? InputObject { get; set; }
+	[Parameter(Mandatory = true, ValueFromPipeline = true)]
+	[AllowEmptyCollection, PSAllowNull, AllowEmptyString]
+	public object?[]? InputObject { get; set; }
 
-        [Parameter(Position = 0)]
-        [Alias("ScriptBlock", "FilterScript")]
-        [PSAllowNull, AllowEmptyString, MaybeNull, AllowsNull]
-        [ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.This, PSThisVariable.PSItem, PSThisVariable.FirstArg)]
-        public override ScriptBlock Condition
-        {
-            get => base.Condition;
-            set => base.Condition = value;
-        }
-        [Parameter, Alias("ScriptErrorAction")]
-        public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.SilentlyContinue;
+	[Parameter(Position = 0)]
+	[Alias("ScriptBlock", "FilterScript")]
+	[PSAllowNull, AllowEmptyString, MaybeNull, AllowsNull]
+	[ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.This, PSThisVariable.PSItem, PSThisVariable.FirstArg)]
+	public override ScriptBlock Condition
+	{
+		get => base.Condition;
+		set => base.Condition = value;
+	}
+	[Parameter, Alias("ScriptErrorAction")]
+	public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.SilentlyContinue;
 
-        protected override bool Process(ScriptBlockFilter filter)
-        {
-            return filter.Any(this.InputObject);
-        }
-        protected override bool ProcessWhenNoCondition()
-        {
-            if (this.InputObject is not null)
-            {
-                foreach (object? item in this.InputObject)
-                {
-                    if (item is not null)
-                    {
-                        return true;
-                    }
-                }
-            }
+	protected override bool Process(ScriptBlockFilter filter)
+	{
+		return filter.Any(this.InputObject);
+	}
+	protected override bool ProcessWhenNoCondition()
+	{
+		if (this.InputObject is not null)
+		{
+			foreach (object? item in this.InputObject)
+			{
+				if (item is not null)
+				{
+					return true;
+				}
+			}
+		}
 
-            return false;
-        }
-        protected override void End(bool scriptResult)
-        {
-            this.WriteObject(scriptResult);
-        }
-    }
+		return false;
+	}
+	protected override void End(bool scriptResult)
+	{
+		this.WriteObject(scriptResult);
+	}
 }

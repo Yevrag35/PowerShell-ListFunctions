@@ -1,4 +1,4 @@
-﻿using ListFunctions.Components;
+using ListFunctions.Components;
 using ListFunctions.Extensions;
 using ListFunctions.Modern;
 using ListFunctions.Modern.Constructors;
@@ -6,167 +6,163 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Management.Automation;
-using System.Reflection;
 
 #nullable enable
 
-namespace ListFunctions.Cmdlets.Constructs
+namespace ListFunctions.Cmdlets.Constructs;
+
+public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 {
-    public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
-    {
-        protected const string CASE_SENSE = "CaseSensitive";
-        protected const string JUST_COPY = "JustCopy";
-        protected const string AND_COPY = WITH_CUSTOM_EQUALITY + "AndCopy";
-        
-        static readonly Type _stringType = typeof(string);
-        static readonly string _addName = nameof(ICollection<>.Add);
+	protected const string CASE_SENSE = "CaseSensitive";
+	protected const string JUST_COPY = "JustCopy";
+	protected const string AND_COPY = WITH_CUSTOM_EQUALITY + "AndCopy";
 
-        private AddMethodInvoker _addMethod = null!;
-        private RuntimeDefinedParameter _caseSensitive = null!;
-        private T _collection = default!;
-        private Type _collectionType = null!;
-        private RuntimeDefinedParameterDictionary? _dict = null!;
-        private Type[] _genericTypes = null!;
+	static readonly Type _stringType = typeof(string);
+	static readonly string _addName = nameof(ICollection<>.Add);
 
-        [MemberNotNullWhen(true, nameof(_addMethod))]
-        private RuntimeDefinedParameterDictionary DynParamLib
-        {
-            get => _dict ??= new RuntimeDefinedParameterDictionary();
-        }
-        protected abstract string CaseSensitiveParameterSetName { get; }
+	private AddMethodInvoker _addMethod = null!;
+	private RuntimeDefinedParameter _caseSensitive = null!;
+	private T _collection = default!;
+	private Type _collectionType = null!;
+	private RuntimeDefinedParameterDictionary? _dict = null!;
+	private Type[] _genericTypes = null!;
 
-        public virtual int Capacity { get; set; }
-        protected bool CaseSensitive => IsParameterValueCaseSensitive(_caseSensitive);
-        public virtual ActionPreference ScriptBlockErrorAction { get; set; }
+	[MemberNotNullWhen(true, nameof(_addMethod))]
+	private RuntimeDefinedParameterDictionary DynParamLib
+	{
+		get => _dict ??= new RuntimeDefinedParameterDictionary();
+	}
+	protected abstract string CaseSensitiveParameterSetName { get; }
 
-        public object? GetDynamicParameters()
-        {
-            this.DynParamLib.Clear();
-            bool hasCase = this.TryGetDynamicCaseParam(this.GetEqualityForType(), this.CaseSensitiveParameterSetName);
+	public virtual int Capacity { get; set; }
+	protected bool CaseSensitive => IsParameterValueCaseSensitive(_caseSensitive);
+	public virtual ActionPreference ScriptBlockErrorAction { get; set; }
 
-            return this.TryGetDynamicParameters(this.DynParamLib, hasCase)
-                ? this.DynParamLib
-                : null;
-        }
+	public object? GetDynamicParameters()
+	{
+		this.DynParamLib.Clear();
+		bool hasCase = this.TryGetDynamicCaseParam(this.GetEqualityForType(), this.CaseSensitiveParameterSetName);
 
-        #region PROCESSING
-        protected sealed override void BeginCore()
-        {
-            Type[]? genericTypes = this.GetGenericTypes();
-            IEqualityComparer? comparer = this.GetCustomEqualityComparer(this.GetEqualityForType());
+		return this.TryGetDynamicParameters(this.DynParamLib, hasCase)
+			? this.DynParamLib
+			: null;
+	}
 
-            var ctor = this.GetConstructor(comparer, genericTypes);
-            _collection = (T)ctor.Construct();
+	#region PROCESSING
+	protected sealed override void BeginCore()
+	{
+		Type[]? genericTypes = this.GetGenericTypes();
+		IEqualityComparer? comparer = this.GetCustomEqualityComparer(this.GetEqualityForType());
 
-            _collectionType = ctor.ConstructingGenericType;
-            _genericTypes = ctor.GenericArgumentTypes;
-            _addMethod = new AddMethodInvoker(ctor);
+		var ctor = this.GetConstructor(comparer, genericTypes);
+		_collection = (T)ctor.Construct();
 
-            this.Begin(_collection, _collectionType);
-        }
-        protected virtual void Begin(T collection, Type genericBaseType)
-        {
-            return;
-        }
+		_collectionType = ctor.ConstructingGenericType;
+		_genericTypes = ctor.GenericArgumentTypes;
+		_addMethod = new AddMethodInvoker(ctor);
 
-        protected sealed override bool ProcessCore()
-        {
-            return this.Process(_collection, _collectionType);
-        }
-        protected abstract bool Process(T collection, Type collectionType);
+		this.Begin(_collection, _collectionType);
+	}
+	protected virtual void Begin(T collection, Type genericBaseType)
+	{
+		return;
+	}
 
-        protected sealed override void EndCore(CmdletRunState state)
-        {
-            this.End(_collection, state.FoundMatch);
-        }
-        protected virtual void End(T collection, bool wantsToStop)
-        {
-            return;
-        }
+	protected sealed override bool ProcessCore()
+	{
+		return this.Process(_collection, _collectionType);
+	}
+	protected abstract bool Process(T collection, Type collectionType);
 
-        #endregion
+	protected sealed override void EndCore(CmdletRunState state)
+	{
+		this.End(_collection, state.FoundMatch);
+	}
+	protected virtual void End(T collection, bool wantsToStop)
+	{
+		return;
+	}
 
-        #region BACKEND
-        protected abstract EqualityCollectionCtor GetConstructor(IEqualityComparer? comparer, Type[]? genericTypes);
+	#endregion
 
-        protected virtual bool TryGetDynamicParameters(RuntimeDefinedParameterDictionary paramDict, bool hasCaseSensitive)
-        {
-            return hasCaseSensitive;
-        }
-        private bool TryGetDynamicCaseParam(Type genericType, string parameterSetName)
-        {
-            bool returnLib = false;
-            if (EqualityCollectionCtor.IsTypeObjectOrString(genericType))
-            {
-                _caseSensitive ??= new RuntimeDefinedParameter(CASE_SENSE, typeof(SwitchParameter),
-                    new Collection<Attribute>()
-                    {
-                        new ParameterAttribute()
-                        {
-                            Mandatory = true,
-                            ParameterSetName = parameterSetName,
-                        }
-                    });
+	#region BACKEND
+	protected abstract EqualityCollectionCtor GetConstructor(IEqualityComparer? comparer, Type[]? genericTypes);
 
-                returnLib = this.DynParamLib.TryAdd(CASE_SENSE, _caseSensitive);
-            }
+	protected virtual bool TryGetDynamicParameters(RuntimeDefinedParameterDictionary paramDict, bool hasCaseSensitive)
+	{
+		return hasCaseSensitive;
+	}
+	private bool TryGetDynamicCaseParam(Type genericType, string parameterSetName)
+	{
+		bool returnLib = false;
+		if (EqualityCollectionCtor.IsTypeObjectOrString(genericType))
+		{
+			_caseSensitive ??= new RuntimeDefinedParameter(CASE_SENSE, typeof(SwitchParameter),
+				new Collection<Attribute>()
+				{
+						new ParameterAttribute()
+						{
+							Mandatory = true,
+							ParameterSetName = parameterSetName,
+						}
+				});
 
-            return returnLib;
-        }
+			returnLib = this.DynParamLib.TryAdd(CASE_SENSE, _caseSensitive);
+		}
 
-        protected void AddToCollection(T collection, object?[]? items, Func<object?, Type[], object?> conversion)
-        {
-            if (collection is null || items is null || items.Length < 1 || items[0] is null)
-            {
-                return;
-            }
+		return returnLib;
+	}
 
-            for (int i = items.Length - 1; i >= 0; i--)
-            {
-                items[i] = conversion(items[i], _genericTypes);
-            }
+	protected void AddToCollection(T collection, object?[]? items, Func<object?, Type[], object?> conversion)
+	{
+		if (collection is null || items is null || items.Length < 1 || items[0] is null)
+		{
+			return;
+		}
 
-            if (!_addMethod.TryInvoke(collection, items, false, out Exception? caughtEx))
-            {
-                this.WriteError(caughtEx.ToRecord(ErrorCategory.InvalidOperation, items));
-            }
-        }
-        protected void AddToCollection(T collection, object?[]? item, bool addIfNull)
-        {
-            if (collection is null || (item is null && !addIfNull))
-            {
-                return;
-            }
+		for (int i = items.Length - 1; i >= 0; i--)
+		{
+			items[i] = conversion(items[i], _genericTypes);
+		}
 
-            item ??= new object?[] { null };
+		if (!_addMethod.TryInvoke(collection, items, false, out Exception? caughtEx))
+		{
+			this.WriteError(caughtEx.ToRecord(ErrorCategory.InvalidOperation, items));
+		}
+	}
+	protected void AddToCollection(T collection, object?[]? item, bool addIfNull)
+	{
+		if (collection is null || (item is null && !addIfNull))
+		{
+			return;
+		}
 
-            if (!_addMethod.TryInvoke(collection, item, false, out Exception? caughtEx))
-            {
-                this.WriteError(caughtEx.ToRecord(ErrorCategory.InvalidOperation, item));
-            }
-        }
-        
-        protected virtual IEqualityComparer? GetCustomEqualityComparer(Type genericType)
-        {
-            if (!typeof(string).Equals(genericType))
-                return null;
+		item ??= new object?[] { null };
 
-            return IsParameterValueCaseSensitive(_caseSensitive)
-                ? StringComparer.CurrentCulture
-                : StringComparer.OrdinalIgnoreCase;
-        }
-        protected abstract Type[]? GetGenericTypes();
-        protected abstract Type GetEqualityForType();
+		if (!_addMethod.TryInvoke(collection, item, false, out Exception? caughtEx))
+		{
+			this.WriteError(caughtEx.ToRecord(ErrorCategory.InvalidOperation, item));
+		}
+	}
 
-        private static bool IsParameterValueCaseSensitive(RuntimeDefinedParameter? parameter)
-        {
-            return LanguagePrimitives.IsTrue(parameter?.Value);
-        }
+	protected virtual IEqualityComparer? GetCustomEqualityComparer(Type genericType)
+	{
+		if (!typeof(string).Equals(genericType))
+			return null;
 
-        #endregion
-    }
+		return IsParameterValueCaseSensitive(_caseSensitive)
+			? StringComparer.CurrentCulture
+			: StringComparer.OrdinalIgnoreCase;
+	}
+	protected abstract Type[]? GetGenericTypes();
+	protected abstract Type GetEqualityForType();
+
+	private static bool IsParameterValueCaseSensitive(RuntimeDefinedParameter? parameter)
+	{
+		return LanguagePrimitives.IsTrue(parameter?.Value);
+	}
+
+	#endregion
 }

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
@@ -22,12 +22,12 @@
 		</Content>
 	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="System.Management.Automation" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="System.Management.Automation" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\ListFunctions.Engine\ListFunctions.Engine.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\ListFunctions.Engine\ListFunctions.Engine.csproj" />
+	</ItemGroup>
 
 </Project>

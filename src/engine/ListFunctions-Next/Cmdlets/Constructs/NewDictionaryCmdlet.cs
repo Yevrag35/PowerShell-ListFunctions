@@ -1,4 +1,3 @@
-﻿using ListFunctions.Extensions;
 using ListFunctions.Modern;
 using ListFunctions.Modern.Constructors;
 using ListFunctions.Modern.Variables;
@@ -6,8 +5,6 @@ using ListFunctions.Validation;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Management.Automation;
@@ -15,161 +12,160 @@ using System.Reflection;
 
 #nullable enable
 
-namespace ListFunctions.Cmdlets.Constructs
+namespace ListFunctions.Cmdlets.Constructs;
+
+[Cmdlet(VerbsCommon.New, "Dictionary", DefaultParameterSetName = "None")]
+[OutputType(typeof(Dictionary<,>), typeof(Hashtable))]
+public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary>, IDynamicParameters
 {
-    [Cmdlet(VerbsCommon.New, "Dictionary", DefaultParameterSetName = "None")]
-    [OutputType(typeof(Dictionary<,>), typeof(Hashtable))]
-    public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary>, IDynamicParameters
-    {
-        const string CLONE_VALUES = "CloneValues";
-        const string STR_DICT = "StringDict";
+	const string CLONE_VALUES = "CloneValues";
+	const string STR_DICT = "StringDict";
 
-        bool _cloneValues;
+	bool _cloneValues;
 
-        protected override string CaseSensitiveParameterSetName => STR_DICT;
+	protected override string CaseSensitiveParameterSetName => STR_DICT;
 
-        [Parameter, Alias("Size")]
-        [ValidateRange(0, int.MaxValue)]
-        [PSDefaultValue(Value = 0)]
-        public override int Capacity
-        {
-            get => base.Capacity;
-            set => base.Capacity = value;
-        }
+	[Parameter, Alias("Size")]
+	[ValidateRange(0, int.MaxValue)]
+	[PSDefaultValue(Value = 0)]
+	public override int Capacity
+	{
+		get => base.Capacity;
+		set => base.Capacity = value;
+	}
 
-        [Parameter(ParameterSetName = JUST_COPY)]
-        [Parameter(ParameterSetName = AND_COPY)]
-        public SwitchParameter CloneValues
-        {
-            get => _cloneValues;
-            set => _cloneValues = value;
-        }
+	[Parameter(ParameterSetName = JUST_COPY)]
+	[Parameter(ParameterSetName = AND_COPY)]
+	public SwitchParameter CloneValues
+	{
+		get => _cloneValues;
+		set => _cloneValues = value;
+	}
 
-        [Parameter(Position = 0)]
-        [ArgumentToTypeTransform]
-        public Type? KeyType { get; set; } = null!;
+	[Parameter(Position = 0)]
+	[ArgumentToTypeTransform]
+	public Type? KeyType { get; set; } = null!;
 
-        [Parameter(Position = 1)]
-        [ArgumentToTypeTransform]
-        [PSDefaultValue(Value = typeof(object))]
-        public Type? ValueType { get; set; } = null!;
+	[Parameter(Position = 1)]
+	[ArgumentToTypeTransform]
+	[PSDefaultValue(Value = typeof(object))]
+	public Type? ValueType { get; set; } = null!;
 
-        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = JUST_COPY)]
-        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = AND_COPY)]
-        [Alias("CopyFrom")]
-        public Hashtable InputObject { get; set; } = null!;
+	[Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = JUST_COPY)]
+	[Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = AND_COPY)]
+	[Alias("CopyFrom")]
+	public Hashtable InputObject { get; set; } = null!;
 
-        [Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
-        [Parameter(Mandatory = true, ParameterSetName = AND_COPY)]
-        [ValidateScriptVariable(PSComparingVariable.X, PSComparingVariable.LEFT)]
-        [ValidateScriptVariable(PSComparingVariable.Y, PSComparingVariable.RIGHT)]
-        public ScriptBlock EqualityScript { get; set; } = null!;
+	[Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
+	[Parameter(Mandatory = true, ParameterSetName = AND_COPY)]
+	[ValidateScriptVariable(PSComparingVariable.X, PSComparingVariable.LEFT)]
+	[ValidateScriptVariable(PSComparingVariable.Y, PSComparingVariable.RIGHT)]
+	public ScriptBlock EqualityScript { get; set; } = null!;
 
-        [Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
-        [Parameter(Mandatory = true, ParameterSetName = AND_COPY)]
-        [ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.This, PSThisVariable.PSItem)]
-        public ScriptBlock HashCodeScript { get; set; } = null!;
+	[Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
+	[Parameter(Mandatory = true, ParameterSetName = AND_COPY)]
+	[ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.This, PSThisVariable.PSItem)]
+	public ScriptBlock HashCodeScript { get; set; } = null!;
 
-        [Parameter(ParameterSetName = WITH_CUSTOM_EQUALITY)]
-        [PSDefaultValue(Value = ActionPreference.Stop)]
-        public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.Stop;
+	[Parameter(ParameterSetName = WITH_CUSTOM_EQUALITY)]
+	[PSDefaultValue(Value = ActionPreference.Stop)]
+	public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.Stop;
 
-        protected override bool Process(IDictionary collection, Type collectionType)
-        {
-            if (null != this.InputObject && this.InputObject.Count > 0)
-            {
-                object?[] args = new object?[2];
-                foreach (DictionaryEntry de in this.InputObject)
-                {
-                    args[0] = LanguagePrimitives.ConvertTo(de.Key, this.KeyType);
-                    args[1] = CloneValue(de.Value, _cloneValues);
+	protected override bool Process(IDictionary collection, Type collectionType)
+	{
+		if (null != this.InputObject && this.InputObject.Count > 0)
+		{
+			object?[] args = new object?[2];
+			foreach (DictionaryEntry de in this.InputObject)
+			{
+				args[0] = LanguagePrimitives.ConvertTo(de.Key, this.KeyType);
+				args[1] = CloneValue(de.Value, _cloneValues);
 
-                    this.AddToCollection(collection, args, false);
-                }
-            }
+				this.AddToCollection(collection, args, false);
+			}
+		}
 
-            return true;
-        }
-        protected override void End(IDictionary collection, bool wantsToStop)
-        {
-            if (wantsToStop)
-                return;
+		return true;
+	}
+	protected override void End(IDictionary collection, bool wantsToStop)
+	{
+		if (wantsToStop)
+			return;
 
-            this.WriteObject(collection, false);
-        }
+		this.WriteObject(collection, false);
+	}
 
-        #region BACKEND
-        protected override EqualityCollectionCtor GetConstructor(IEqualityComparer? comparer, Type[]? genericTypes)
-        {
-            return new DictionaryCtor(comparer, this.KeyType, this.ValueType)
-            {
-                IsCaseSensitive = this.CaseSensitive,
-            };
-        }
+	#region BACKEND
+	protected override EqualityCollectionCtor GetConstructor(IEqualityComparer? comparer, Type[]? genericTypes)
+	{
+		return new DictionaryCtor(comparer, this.KeyType, this.ValueType)
+		{
+			IsCaseSensitive = this.CaseSensitive,
+		};
+	}
 
-        [return: NotNullIfNotNull(nameof(value))]
-        private static object? CloneValue(object? value, bool wantsCloning)
-        {
-            if (!wantsCloning)
-            {
-                return value;
-            }
+	[return: NotNullIfNotNull(nameof(value))]
+	private static object? CloneValue(object? value, bool wantsCloning)
+	{
+		if (!wantsCloning)
+		{
+			return value;
+		}
 
-            return value switch
-            {
-                ICloneable cloneable => cloneable.Clone(),
-                PSObject pso => pso.Copy(),
-                _ => value,
-            };
-        }
+		return value switch
+		{
+			ICloneable cloneable => cloneable.Clone(),
+			PSObject pso => pso.Copy(),
+			_ => value,
+		};
+	}
 
-        private static MethodInfo GetAddMethod(Type genericBaseType)
-        {
-            return genericBaseType.GetMethod(nameof(Dictionary<object, object>.Add),
-                bindingAttr: BindingFlags.Public | BindingFlags.Instance,
-                binder: null,
-                types: genericBaseType.GetGenericArguments(),
-                modifiers: null)!;
-        }
-        protected override IEqualityComparer? GetCustomEqualityComparer(Type genericType)
-        {
-            if (!WITH_CUSTOM_EQUALITY.Equals(this.ParameterSetName, StringComparison.OrdinalIgnoreCase))
-            {
-                return base.GetCustomEqualityComparer(genericType);
-            }
+	private static MethodInfo GetAddMethod(Type genericBaseType)
+	{
+		return genericBaseType.GetMethod(nameof(Dictionary<object, object>.Add),
+			bindingAttr: BindingFlags.Public | BindingFlags.Instance,
+			binder: null,
+			types: genericBaseType.GetGenericArguments(),
+			modifiers: null)!;
+	}
+	protected override IEqualityComparer? GetCustomEqualityComparer(Type genericType)
+	{
+		if (!WITH_CUSTOM_EQUALITY.Equals(this.ParameterSetName, StringComparison.OrdinalIgnoreCase))
+		{
+			return base.GetCustomEqualityComparer(genericType);
+		}
 
-            HashBlock hashBlock = new(this.HashCodeScript);
-            ActionPreference errorPreference = this.ScriptBlockErrorAction;
+		HashBlock hashBlock = new(this.HashCodeScript);
+		ActionPreference errorPreference = this.ScriptBlockErrorAction;
 
-            PSVariable variable = new(ERROR_ACTION_PREFERENCE, errorPreference);
+		PSVariable variable = new(ERROR_ACTION_PREFERENCE, errorPreference);
 #if NET9_0_OR_GREATER
-            return new EqualityBlock(this.EqualityScript, hashBlock, variable);
+		return new EqualityBlock(this.EqualityScript, hashBlock, variable);
 #else
-            return new EqualityBlock(this.EqualityScript, hashBlock, [variable]);
+		return new EqualityBlock(this.EqualityScript, hashBlock, [variable]);
 #endif
-        }
+	}
 
-        protected override Type GetEqualityForType()
-        {
-            return this.KeyType ??= typeof(object);
-        }
-        protected override Type[]? GetGenericTypes()
-        {
-            Type objType = typeof(object);
-            this.KeyType ??= objType;
-            this.ValueType ??= objType;
+	protected override Type GetEqualityForType()
+	{
+		return this.KeyType ??= typeof(object);
+	}
+	protected override Type[]? GetGenericTypes()
+	{
+		Type objType = typeof(object);
+		this.KeyType ??= objType;
+		this.ValueType ??= objType;
 
-            return !objType.Equals(this.KeyType) || !objType.Equals(this.ValueType)
-                ? new Type[] { this.KeyType, this.ValueType }
-                : null;
-        }
-        private static MethodInfo GetHashtableAddMethod(Expression<Action<Hashtable>> addExpression)
-        {
-            return addExpression.Body is MethodCallExpression methodCall
-                ? methodCall.Method
-                : throw new ArgumentException("What the hell? That's not a method call...");
-        }
+		return !objType.Equals(this.KeyType) || !objType.Equals(this.ValueType)
+			? new Type[] { this.KeyType, this.ValueType }
+			: null;
+	}
+	private static MethodInfo GetHashtableAddMethod(Expression<Action<Hashtable>> addExpression)
+	{
+		return addExpression.Body is MethodCallExpression methodCall
+			? methodCall.Method
+			: throw new ArgumentException("What the hell? That's not a method call...");
+	}
 
-#endregion
-    }
+	#endregion
 }
