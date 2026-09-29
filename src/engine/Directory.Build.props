@@ -23,7 +23,7 @@
 	<!-- Compiler settings shared by every project. -->
 	<PropertyGroup>
 		<RootNamespace>ListFunctions</RootNamespace>
-		<LangVersion>latest</LangVersion>
+		<LangVersion>14</LangVersion>
 		<ImplicitUsings>disable</ImplicitUsings>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	</PropertyGroup>

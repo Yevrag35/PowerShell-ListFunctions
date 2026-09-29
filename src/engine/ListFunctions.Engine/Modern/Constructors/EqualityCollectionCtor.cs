@@ -8,7 +8,6 @@ namespace ListFunctions.Modern.Constructors;
 public abstract class EqualityCollectionCtor : GenericCollectionCtor
 {
 	public static readonly Type DefaultComparerTypeDefinition = typeof(EqualityComparer<>);
-	static readonly Type _stringType = typeof(string);
 
 	IEqualityComparer? _comparer;
 
@@ -33,7 +32,7 @@ public abstract class EqualityCollectionCtor : GenericCollectionCtor
 		}
 
 		Type equalityType = this.GetTypeForEquality();
-		if (_stringType.Equals(equalityType))
+		if (typeof(string).Equals(equalityType))
 		{
 			return !this.IsCaseSensitive
 				? StringComparer.InvariantCultureIgnoreCase
@@ -43,7 +42,7 @@ public abstract class EqualityCollectionCtor : GenericCollectionCtor
 		var genStaticType = DefaultComparerTypeDefinition.MakeGenericType(equalityType);
 
 		PropertyInfo? defaultProp = genStaticType.GetProperty(
-			nameof(EqualityComparer<object>.Default), BindingFlags.Static | BindingFlags.Public);
+			nameof(EqualityComparer<>.Default), BindingFlags.Static | BindingFlags.Public);
 
 		_comparer = (IEqualityComparer)defaultProp?.GetValue(null)!;
 		return _comparer;
@@ -56,7 +55,7 @@ public abstract class EqualityCollectionCtor : GenericCollectionCtor
 
 	public static bool IsTypeObjectOrString(Type? type)
 	{
-		return null != type && (ObjectType.Equals(type) || _stringType.Equals(type));
+		return null != type && (typeof(object).Equals(type) || typeof(string).Equals(type));
 	}
 
 	protected sealed override bool ShouldConstructDefault(Type[] genericTypes)

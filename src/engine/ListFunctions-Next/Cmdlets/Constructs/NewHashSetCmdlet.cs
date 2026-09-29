@@ -144,7 +144,7 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	{
 		this.GenericType ??= typeof(object);
 
-		return new Type[] { this.GenericType };
+		return [this.GenericType];
 	}
 
 	#endregion

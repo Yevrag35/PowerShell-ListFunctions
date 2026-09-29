@@ -13,7 +13,7 @@ public sealed class DictionaryCtor : EqualityCollectionCtor<Hashtable>
 	public Type ValueType { get; }
 
 	public DictionaryCtor(IEqualityComparer? comparer, Type? keyType, Type? valueType)
-		: base(TypeDefinition, comparer, new Type[] { SetTypeOrObject(ref keyType), SetTypeOrObject(ref valueType) }, null)
+		: base(TypeDefinition, comparer, [SetTypeOrObject(ref keyType), SetTypeOrObject(ref valueType)], null)
 	{
 		this.KeyType = keyType;
 		this.ValueType = valueType;
@@ -34,7 +34,7 @@ public sealed class DictionaryCtor : EqualityCollectionCtor<Hashtable>
 	}
 	private static Type SetTypeOrObject([NotNull] ref Type? type)
 	{
-		type ??= ObjectType;
+		type ??= typeof(object);
 		return type;
 	}
 	protected override bool ShouldConstructDefault(IEqualityComparer? comparer, Type[] genericTypes)
@@ -44,7 +44,7 @@ public sealed class DictionaryCtor : EqualityCollectionCtor<Hashtable>
 			   (
 					comparer is not IEqualityBlock
 					&&
-					genericTypes.All(x => ObjectType.Equals(x))
+					genericTypes.All(x => typeof(object).Equals(x))
 			   );
 	}
 }

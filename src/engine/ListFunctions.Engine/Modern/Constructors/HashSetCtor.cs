@@ -17,9 +17,9 @@ public sealed class HashSetCtor : EqualityCollectionCtor<HashSet<object>>
 	}
 	private static Type[] ToArrayOrEmpty(Type? genericType)
 	{
-		return genericType is null
-			? new Type[] { ObjectType }
-			: new Type[] { genericType };
+		genericType ??= typeof(object);
+
+		return [genericType];
 	}
 	protected override HashSet<object> ConstructTDefault(IEqualityComparer comparer)
 	{
@@ -34,7 +34,7 @@ public sealed class HashSetCtor : EqualityCollectionCtor<HashSet<object>>
 	}
 	protected override bool ShouldConstructDefault(IEqualityComparer? comparer, Type[] genericTypes)
 	{
-		return (ObjectType.Equals(_equalityType) && (comparer is null || EqualityComparer<object>.Default.Equals(comparer)))
+		return (typeof(object).Equals(_equalityType) && (comparer is null || EqualityComparer<object>.Default.Equals(comparer)))
 			   ||
 			   base.ShouldConstructDefault(comparer, genericTypes);
 	}
@@ -58,7 +58,7 @@ public sealed class HashSetCtor : EqualityCollectionCtor<HashSet<object>>
 					? StringComparer.InvariantCultureIgnoreCase.GetHashCode(s)
 					: StringComparer.InvariantCulture.GetHashCode(s);
 			}
-			else if (LanguagePrimitives.TryConvertTo(obj, out string? resStr))
+			else if (LanguagePrimitives.TryConvertTo(obj, out string? resStr) && resStr is not null)
 			{
 				return this.IgnoreCase
 					? StringComparer.InvariantCultureIgnoreCase.GetHashCode(resStr)

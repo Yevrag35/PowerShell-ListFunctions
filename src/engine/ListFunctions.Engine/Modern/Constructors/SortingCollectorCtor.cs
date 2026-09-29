@@ -37,7 +37,7 @@ public sealed class SortingCollectorCtor : GenericCollectionCtor
 		{
 			return _comparer;
 		}
-		else if (ObjectType.Equals(_sortedType))
+		else if (typeof(object).Equals(_sortedType))
 		{
 			_comparer = new ObjectComparer(!this.IsCaseSensitive);
 			return _comparer;
@@ -61,7 +61,7 @@ public sealed class SortingCollectorCtor : GenericCollectionCtor
 	}
 	protected override bool ShouldConstructDefault(Type[] genericTypes)
 	{
-		return ObjectType.Equals(_sortedType)
+		return typeof(object).Equals(_sortedType)
 			   &&
 			   (_comparer is null
 				||

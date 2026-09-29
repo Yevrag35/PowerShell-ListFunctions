@@ -4,7 +4,6 @@ using ListFunctions.Modern;
 using ListFunctions.Modern.Constructors;
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
@@ -18,9 +17,6 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	protected const string CASE_SENSE = "CaseSensitive";
 	protected const string JUST_COPY = "JustCopy";
 	protected const string AND_COPY = WITH_CUSTOM_EQUALITY + "AndCopy";
-
-	static readonly Type _stringType = typeof(string);
-	static readonly string _addName = nameof(ICollection<>.Add);
 
 	private AddMethodInvoker _addMethod = null!;
 	private RuntimeDefinedParameter _caseSensitive = null!;

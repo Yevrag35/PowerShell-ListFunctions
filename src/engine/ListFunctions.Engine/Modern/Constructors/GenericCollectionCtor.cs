@@ -11,8 +11,6 @@ namespace ListFunctions.Modern.Constructors;
 public delegate Type CreateConstructingType(Type genericTypeDefinition, Type[] genericTypeArguments);
 public abstract class GenericCollectionCtor
 {
-	public static readonly Type ObjectType = typeof(object);
-
 	public Type ConstructingGenericType { get; private set; }
 	public Type GenericDefinitionType { get; }
 	public Type[] GenericArgumentTypes { get; private set; }

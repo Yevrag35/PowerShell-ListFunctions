@@ -16,7 +16,7 @@ public sealed class ModuleInitializer : IModuleAssemblyInitializer
 		AppDomain.CurrentDomain.AssemblyResolve += this.CurrentDomain_AssemblyResolve;
 	}
 
-	private Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs e)
+	private Assembly? CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs e)
 	{
 		string name = e.Name;
 		int index = name.IndexOf(',');
