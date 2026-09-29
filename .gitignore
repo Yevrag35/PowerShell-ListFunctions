@@ -3,6 +3,7 @@
 
 # Claude scratch directory
 .temp/
+.vs/
 
 # User-specific files
 *.suo

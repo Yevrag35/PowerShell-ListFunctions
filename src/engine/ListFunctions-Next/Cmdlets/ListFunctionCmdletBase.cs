@@ -27,6 +27,15 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 
 	private CmdletRunState _state;
 
+	/// <summary>
+	/// Gets a value that indicates whether the cmdlet is being requested to stop.
+	/// </summary>
+	/// <remarks>
+	/// This helper property checks the base <c>Stopping</c> flag and, when available,
+	/// the pipeline cancellation token to determine whether processing should halt. It centralizes the
+	/// stopping logic so callers can check a single property.
+	/// </remarks>
+	/// <value><see langword="true"/> if the cmdlet should stop; otherwise, <see langword="false"/>.</value>
 	[SuppressMessage("Style", "IDE0025", Justification = "Code includes conditional compilation")]
 	private bool IsStopping
 	{
@@ -34,12 +43,22 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 		{
 			return this.Stopping
 #if NET10_0_OR_GREATER
-								 || this.PipelineStopToken.IsCancellationRequested
+						 || this.PipelineStopToken.IsCancellationRequested
 #endif
-								 ;
+					 ;
 		}
 	}
 
+
+	/// <summary>
+	/// Begins the cmdlet processing lifecycle. This method is sealed to enforce the
+	/// framework-defined execution sequence and delegates work to <see cref="BeginCore"/>.
+	/// </summary>
+	/// <remarks>
+	/// Derived classes should override <see cref="BeginCore"/> to participate in the begin phase.
+	/// This method wraps the call and handles failures by recording state, performing cleanup, and
+	/// reporting a terminating error.
+	/// </remarks>
 	protected sealed override void BeginProcessing()
 	{
 		try
@@ -53,6 +72,15 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 			this.ThrowTerminatingError(e.ToRecord(ErrorCategory.InvalidArgument));
 		}
 	}
+	/// <summary>
+	/// Executes the process-record phase for each input object. This method is sealed and delegates
+	/// the actual work to <see cref="ProcessCore"/>.
+	/// </summary>
+	/// <remarks>
+	/// It checks for cancellation via <see cref="IsStopping"/>, honors the internal run state, and
+	/// converts exceptions into terminating errors after performing cleanup. When <see cref="ProcessCore"/>
+	/// returns <see langword="false"/>, processing is considered complete and the internal state is updated.
+	/// </remarks>
 	protected sealed override void ProcessRecord()
 	{
 		if (this.IsStopping)
@@ -80,6 +108,13 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 			this.ThrowTerminatingError(e.ToRecord(ErrorCategory.NotSpecified));
 		}
 	}
+	/// <summary>
+	/// Completes the cmdlet processing lifecycle and invokes the end-phase handler.
+	/// </summary>
+	/// <remarks>
+	/// The method calls <see cref="EndCore(CmdletRunState)"/> to allow derived classes to finalize
+	/// work and always invokes <see cref="CleanupCore"/> in a finally block to ensure cleanup runs.
+	/// </remarks>
 	protected sealed override void EndProcessing()
 	{
 		try
@@ -116,6 +151,14 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	{
 	}
 
+	/// <summary>
+	/// Calls <see cref="Cleanup"/> and converts any exceptions into a debug-time failure.
+	/// </summary>
+	/// <remarks>
+	/// This private helper centralizes the cleanup call so callers can rely on consistent exception
+	/// propagation and diagnostic reporting. Any exception thrown by <see cref="Cleanup"/> is
+	/// reported via <see cref="Debug.Fail(string)"/> and rethrown to preserve the original failure.
+	/// </remarks>
 	private void CleanupCore()
 	{
 		try
@@ -189,6 +232,12 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	/// Writes an error record for a failed type conversion, including details about the original exception, the
 	/// target type, and the item that could not be converted.
 	/// </summary>
+	/// <remarks>
+	/// This helper translates a <see cref="PSInvalidCastException"/> into an <see cref="LFInvalidCastException"/>
+	/// that captures the attempted target type and the item value. It then writes a terminating/ non-terminating
+	/// error record (depending on the caller's error handling) to the pipeline so callers and scripts can react
+	/// to the conversion failure.
+	/// </remarks>
 	/// <param name="thrownException">The exception that was thrown during the type conversion attempt. Must not be null.</param>
 	/// <param name="item">The object that failed to convert to the specified type. Can be null if the conversion was attempted on a
 	/// null value.</param>
