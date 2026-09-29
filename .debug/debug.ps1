@@ -1,4 +1,4 @@
-﻿
+
 foreach ($dll in $(Get-ChildItem -Path "$PSScriptRoot\..\src\assemblies" -Filter *.dll -Recurse -ea 0)) {
     Import-Module $dll.FullName
 }

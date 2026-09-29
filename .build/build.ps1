@@ -1,4 +1,4 @@
-﻿$builder = New-Object -TypeName "System.Text.StringBuilder"
+$builder = New-Object -TypeName "System.Text.StringBuilder"
 
 foreach ($priv in $(Get-ChildItem -Path "$PSScriptRoot\..\src\private" -Filter *.ps1 -Exclude "ComparerBuilder.ps1" -Recurse))
 {
