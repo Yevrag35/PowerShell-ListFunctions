@@ -4,77 +4,76 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace ListFunctions.Modern
+namespace ListFunctions.Modern;
+
+public static class ReflectionResolver
 {
-    public static class ReflectionResolver
-    {
-        static readonly MethodInfo _colAddMethod;
-        static readonly MethodInfo _dictAddMethod;
+	static readonly MethodInfo _colAddMethod;
+	static readonly MethodInfo _dictAddMethod;
 
-        static ReflectionResolver()
-        {
-            Type type = typeof(ReflectionResolver);
-            _colAddMethod = type.GetMethod(nameof(GetCollectionAdd))
-                ?? throw new InvalidOperationException("Unable to find method definition for GetCollectionAdd.");
-            _dictAddMethod = type.GetMethod(nameof(GetDictionaryAdd))
-                ?? throw new InvalidOperationException("Unable to find method definition for GetDictionaryAdd.");
-        }
+	static ReflectionResolver()
+	{
+		Type type = typeof(ReflectionResolver);
+		_colAddMethod = type.GetMethod(nameof(GetCollectionAdd))
+			?? throw new InvalidOperationException("Unable to find method definition for GetCollectionAdd.");
+		_dictAddMethod = type.GetMethod(nameof(GetDictionaryAdd))
+			?? throw new InvalidOperationException("Unable to find method definition for GetDictionaryAdd.");
+	}
 
-        public static MethodInfo GetAddMethod(Type collectionType, Type[] types)
-        {
-            if (typeof(Hashtable).Equals(collectionType))
-            {
-                return GetHashtableAdd();
-            }
+	public static MethodInfo GetAddMethod(Type collectionType, Type[] types)
+	{
+		if (typeof(Hashtable).Equals(collectionType))
+		{
+			return GetHashtableAdd();
+		}
 
-            Guard.NotNull(types);
-            if (types.Length <= 0 || types.Length > 2)
-            {
-                throw new ArgumentException("Wrong number of Type arguments were supplied.");
-            }
+		Guard.NotNull(types);
+		if (types.Length <= 0 || types.Length > 2)
+		{
+			throw new ArgumentException("Wrong number of Type arguments were supplied.");
+		}
 
-            MethodInfo getAdd;
-            if (typeof(IDictionary).IsAssignableFrom(collectionType) && types.Length == 2)
-            {
-                getAdd = _dictAddMethod.MakeGenericMethod(collectionType, types[0], types[1]);
-            }
-            else if ((typeof(ICollection).IsAssignableFrom(collectionType)
-                || (collectionType.IsGenericType && 
-                    typeof(HashSet<>).Equals(collectionType.GetGenericTypeDefinition())))
-                && types.Length == 1)
-            {
-                getAdd = _colAddMethod.MakeGenericMethod(collectionType, types[0]);
-            }
-            else
-            {
-                throw new ArgumentException("Type argument exception.");
-            }
+		MethodInfo getAdd;
+		if (typeof(IDictionary).IsAssignableFrom(collectionType) && types.Length == 2)
+		{
+			getAdd = _dictAddMethod.MakeGenericMethod(collectionType, types[0], types[1]);
+		}
+		else if ((typeof(ICollection).IsAssignableFrom(collectionType)
+			|| (collectionType.IsGenericType &&
+				typeof(HashSet<>).Equals(collectionType.GetGenericTypeDefinition())))
+			&& types.Length == 1)
+		{
+			getAdd = _colAddMethod.MakeGenericMethod(collectionType, types[0]);
+		}
+		else
+		{
+			throw new ArgumentException("Type argument exception.");
+		}
 
-            return getAdd.Invoke(null, null) as MethodInfo ?? throw new InvalidOperationException("Unable to get Add method.");
-        }
+		return getAdd.Invoke(null, null) as MethodInfo ?? throw new InvalidOperationException("Unable to get Add method.");
+	}
 
-        public static MethodInfo GetCollectionAdd<TCol, TItem>() where TCol : ICollection<TItem>
-        {
-            return GetCollectionAddMethod<TCol>(col => col.Add(default!));
-        }
+	public static MethodInfo GetCollectionAdd<TCol, TItem>() where TCol : ICollection<TItem>
+	{
+		return GetCollectionAddMethod<TCol>(col => col.Add(default!));
+	}
 
-        private static MethodInfo GetHashtableAdd()
-        {
-            Expression<Action<Hashtable>> exp = (x) => x.Add(default!, default!);
-            return ((MethodCallExpression)exp.Body).Method;
-        }
+	private static MethodInfo GetHashtableAdd()
+	{
+		Expression<Action<Hashtable>> exp = (x) => x.Add(default!, default!);
+		return ((MethodCallExpression)exp.Body).Method;
+	}
 
-        public static MethodInfo GetDictionaryAdd<TDict, TKey, TValue>()
-            where TDict : IDictionary<TKey, TValue>
-            where TKey : notnull
-        {
-            return GetCollectionAddMethod<TDict>(dict => dict.Add(default!, default!));
-        }
+	public static MethodInfo GetDictionaryAdd<TDict, TKey, TValue>()
+		where TDict : IDictionary<TKey, TValue>
+		where TKey : notnull
+	{
+		return GetCollectionAddMethod<TDict>(dict => dict.Add(default!, default!));
+	}
 
-        private static MethodInfo GetCollectionAddMethod<TCol>(Expression<Action<TCol>> callExpression)
-        {
-            return ((MethodCallExpression)callExpression.Body).Method;
-        }
-    }
+	private static MethodInfo GetCollectionAddMethod<TCol>(Expression<Action<TCol>> callExpression)
+	{
+		return ((MethodCallExpression)callExpression.Body).Method;
+	}
 }
 

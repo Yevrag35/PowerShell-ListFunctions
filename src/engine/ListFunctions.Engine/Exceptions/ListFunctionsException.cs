@@ -1,15 +1,12 @@
 using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace ListFunctions.Exceptions
+namespace ListFunctions.Exceptions;
+
+public class ListFunctionsException : Exception
 {
-    public class ListFunctionsException : Exception
-    {
-        public ListFunctionsException(string message, Exception? innerException)
-            : base(message, innerException)
-        {
-        }
-    }
+	public ListFunctionsException(string message, Exception? innerException)
+		: base(message, innerException)
+	{
+	}
 }
 

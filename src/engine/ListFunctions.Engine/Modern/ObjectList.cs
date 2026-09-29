@@ -1,12 +1,9 @@
-using System;
 using System.Collections.Generic;
-using System.Text;
 
-namespace ListFunctions.Modern
+namespace ListFunctions.Modern;
+
+public sealed class ObjectList : List<object?>
 {
-    public sealed class ObjectList : List<object?>
-    {
-        public ObjectList() : base(2) { }
-    }
+	public ObjectList() : base(2) { }
 }
 

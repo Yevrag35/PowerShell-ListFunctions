@@ -1,13 +1,12 @@
-namespace ListFunctions.Modern
-{
-    public interface IPoolable : IResettable
-    {
-        void Initialize();
-    }
+namespace ListFunctions.Modern;
 
-    public interface IResettable
-    {
-        bool TryReset();
-    }
+public interface IPoolable : IResettable
+{
+	void Initialize();
+}
+
+public interface IResettable
+{
+	bool TryReset();
 }
 

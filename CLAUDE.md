@@ -6,10 +6,10 @@ ListFunctions is a PowerShell binary module (published to the PowerShell Gallery
 
 ## Build
 
-The solution is `src/engine/ListFunctions.Engine.sln`. Run commands from the repo root in Bash:
+The solution is `src/engine/ListFunctions.Engine.slnx`. Run commands from the repo root in Bash:
 
 ```bash
-dotnet build src/engine/ListFunctions.Engine.sln -c Debug
+dotnet build src/engine/ListFunctions.Engine.slnx -c Debug
 dotnet build src/engine/ListFunctions-Next/ListFunctions-Next.csproj -c Debug   # PS 7 module only
 ```
 

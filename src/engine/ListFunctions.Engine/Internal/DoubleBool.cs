@@ -1,18 +1,17 @@
-﻿namespace ListFunctions.Internal
+namespace ListFunctions.Internal;
+
+internal ref struct DoubleBool
 {
-    internal ref struct DoubleBool
-    {
-        internal bool Bool1;
-        internal bool Bool2;
+	internal bool Bool1;
+	internal bool Bool2;
 
-        private DoubleBool(bool initialize)
-        {
-            Bool1 = initialize;
-            Bool2 = initialize;
-        }
+	private DoubleBool(bool initialize)
+	{
+		Bool1 = initialize;
+		Bool2 = initialize;
+	}
 
-        internal static DoubleBool InitializeNew() => new DoubleBool(false);
+	internal static DoubleBool InitializeNew() => new DoubleBool(false);
 
-        public static implicit operator bool(DoubleBool dub) => dub.Bool1 & dub.Bool2;
-    }
+	public static implicit operator bool(DoubleBool dub) => dub.Bool1 & dub.Bool2;
 }
