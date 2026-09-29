@@ -38,9 +38,9 @@ Found while rewriting `README.md` on 2026-09-28. The README describes how the mo
 
 ## Running the repros
 
-- **PowerShell 7:** run `src/engine/ListFunctions-Next/bin/Debug/net10.0/Debug.ps1`, which is what the `ListFunctions-Next` launch profile does. It copies `ZLinq.dll` from the NuGet cache and imports the module.
+- **PowerShell 7:** run `src/engine/ListFunctions-Next/bin/Debug/net10.0/Debug.ps1`, which is what the `ListFunctions-Next` launch profile does, or import `ListFunctions.Next.dll` from `src/engine/ListFunctions-Next/bin/<configuration>/net10.0/`.
 - **Windows PowerShell 5.1:** import `ListFunctions.NETFramework.dll` from `src/engine/ListFunctions-NETFramework/bin/<configuration>/net48/`.
-- Items 09 and 10 hit `Debug.Fail` (14), which ends a Debug-build session, so run them against a Release build. The Release `net10.0` output has no `ZLinq.dll`; copy it from the Debug output folder, where `Debug.ps1` puts it.
+- Items 09 and 10 hit `Debug.Fail` (14), which ends a Debug-build session, so run them against a Release build.
 
 Every repro was checked against Release builds on Windows PowerShell 5.1.26100 and PowerShell 7.6.6. The two editions behave the same unless an item says otherwise.
 
@@ -255,7 +255,7 @@ The others guard cleanup and reflection fallbacks: `ListFunctionCmdletBase.Clean
 
 ### 15 — Update the manifest and the shipped DLLs for 4.0.0
 
-- [ ] `ListFunctions/Core/` and `ListFunctions/Desk/` still hold the v3.1.0 build (commit `b459e4c`), and its Core DLLs target .NET 9. Copy in the 4.0.0 Release outputs. The Release `net10.0` folder has no `ZLinq.dll`, so take it from the NuGet cache.
+- [ ] `ListFunctions/Core/` and `ListFunctions/Desk/` still hold the v3.1.0 build (commit `b459e4c`), and its Core DLLs target .NET 9. Copy in the 4.0.0 Release outputs: `Core/` from `src/engine/ListFunctions-Next/bin/Release/net10.0/`, and `Desk/` from `src/engine/ListFunctions-NETFramework/bin/Release/net48/`.
 - [ ] The 4.0.0 `net48` Release output also contains `ZLinq.dll`, `System.Memory.dll`, `System.Collections.Immutable.dll`, `Microsoft.Bcl.Memory.dll`, `System.Buffers.dll`, `System.Numerics.Vectors.dll`, and `System.Runtime.CompilerServices.Unsafe.dll`. `Desk/` doesn't ship them, and `FileList` doesn't list them.
 - [ ] `DotNetFrameworkVersion = '4.7.1'` in `ListFunctions/ListFunctions.psd1` doesn't match the `net48` target.
 - [ ] Nothing enforces PowerShell 7.6 or later, which the README states. `ListFunctions/ListFunctions.psm1` imports `Core\ListFunctions.Next.dll` on any 7.x, but a `net10.0` assembly can't load on PowerShell 7.5 (.NET 9) or earlier.
