@@ -28,4 +28,13 @@
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	</PropertyGroup>
 
+	<!--
+		PowerShell loads a module's dependencies from the module's folder and ignores its deps.json, so every
+		build output needs its NuGet packages' runtime assemblies. The SDK copies them by default only for net48.
+		PowerShell's own packages exclude their runtime and native assets so that no part of PowerShell is copied.
+	-->
+	<PropertyGroup>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+	</PropertyGroup>
+
 </Project>

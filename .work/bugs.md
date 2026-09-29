@@ -215,6 +215,18 @@ New-Dictionary [int] -EqualityScript { $x -eq $y } -HashCodeScript { $_.GetHashC
 (1..3 | ConvertTo-Dictionary -KeySelector { $_ * 10 }).Count   # 3
 ```
 
+The regex also rewrites `$_` in places where `$args[0]` means something else. These selectors run without an error but return the wrong result:
+
+```powershell
+('x', 'y' | ConvertTo-Dictionary -KeySelector { "$_" }).Keys -join ','    # Expected: x,y. Actual: x[0],y[0]
+
+$people = [pscustomobject]@{ Name = 'Ann'; Tags = 'a', 'b' }, [pscustomobject]@{ Name = 'Bob'; Tags = 'c' }
+($people | ConvertTo-Dictionary Name -ValueSelector { @($_.Tags | Where-Object { $_ -ne 'b' }).Count })['Ann']    # Expected: 1. Actual: 2
+```
+
+- Inside a double-quoted string, `"$_"` becomes `"$args[0]"`. PowerShell expands `$args` but not the index, so `[0]` stays in the key as text.
+- The rewrite also reaches nested script blocks. `Where-Object` passes no arguments to its filter, so `$args[0]` is `$null` there, and `$null -ne 'b'` keeps every tag.
+
 **Fix idea:** Rewrite from the AST, using the `VariableExpressionAst` extents, instead of a regex. Or run the selectors with `InvokeWithContext` and set `$_`, the way the other commands do.
 
 ### 13 — Assert-AllObject gives different answers for empty input
