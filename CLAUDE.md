@@ -15,7 +15,7 @@ dotnet build src/engine/ListFunctions-Next/ListFunctions-Next.csproj -c Debug   
 
 - There are no test projects. To verify a change, build it and run it in a real PowerShell session.
 - All three projects are SDK-style and use central package management. Package versions live only in `src/engine/Directory.Packages.props`.
-- `ListFunctions-NETFramework` gets its runtime dependencies (ZLinq, System.Memory, System.Collections.Immutable, and so on) from Engine's `netstandard2.0` package references. It references only `Microsoft.PowerShell.5.ReferenceAssemblies` directly, with `ExcludeAssets="runtime"`.
+- `ListFunctions-NETFramework` gets its runtime dependencies (ZLinq, System.Memory, System.Collections.Immutable, and so on) from Engine's `netstandard2.0` package references. Its only direct package references are `Microsoft.PowerShell.5.ReferenceAssemblies`, with `ExcludeAssets="runtime"`, and `PolySharp`. As of PolySharp 1.16.0, Engine's generated polyfills (the nullable attributes and others) are not visible to it through InternalsVisibleTo, so it generates its own.
 - Engine's `PowerShellStandard.Library` is marked `PrivateAssets="all"` so that no `System.Management.Automation.dll` gets copied into the Windows PowerShell output. Keep PowerShell reference assemblies out of the build outputs.
 - `.build/build.ps1` and `.debug/debug.ps1` are left over from the old script-based module. They build `src/ListFunctions.psm1` and read from `src/assemblies`, and neither path exists anymore. Don't use them to build the current module.
 

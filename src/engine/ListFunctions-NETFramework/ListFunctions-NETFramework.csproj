@@ -38,6 +38,14 @@
 		<PackageReference Include="Microsoft.PowerShell.5.ReferenceAssemblies" ExcludeAssets="runtime" />
 	</ItemGroup>
 
+	<!-- As of PolySharp 1.16.0, Engine's generated polyfills (the nullable attributes and others) are not visible here, so this assembly generates its own. -->
+	<ItemGroup>
+		<PackageReference Include="PolySharp">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+	</ItemGroup>
+
 	<ItemGroup>
 		<ProjectReference Include="..\ListFunctions.Engine\ListFunctions.Engine.csproj" />
 	</ItemGroup>
