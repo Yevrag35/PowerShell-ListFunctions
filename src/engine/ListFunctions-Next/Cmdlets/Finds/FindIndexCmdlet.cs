@@ -22,8 +22,12 @@ namespace ListFunctions.Cmdlets.Finds;
 /// </para>
 /// <para>
 /// The index counts elements across every pipeline record, so it is the position of the match in the full input
-/// sequence rather than within a single <see cref="InputObject"/> array. After the first match, the cmdlet stops
-/// evaluating the condition and ignores the remaining pipeline input.
+/// sequence rather than within a single <see cref="InputObject"/> array.
+/// </para>
+/// <para>
+/// After the first match, the cmdlet writes the index and stops evaluating the condition. When its input comes from
+/// the pipeline, it also stops the commands that send the input, the way <c>Select-Object -First</c> does. Those
+/// commands don't run their end blocks.
 /// </para>
 /// <para>
 /// A terminating error thrown by the condition script block ends the cmdlet with a terminating error.

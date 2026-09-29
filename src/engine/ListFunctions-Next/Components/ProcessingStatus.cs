@@ -11,6 +11,8 @@ public enum CmdletRunFlags : uint
 	FoundMatch = 2,
 	BeginFailed = 4,
 	ProcessFailed = 8,
+	/// <summary>The end phase ran, either from EndProcessing or early, when the cmdlet stopped its upstream commands.</summary>
+	Ended = 16,
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -25,6 +27,7 @@ public readonly struct CmdletRunState
 	public bool HadError => (_flags & (uint)(CmdletRunFlags.BeginFailed | CmdletRunFlags.ProcessFailed)) != 0;
 	public bool BeginFailed => (_flags & (uint)CmdletRunFlags.BeginFailed) != 0;
 	public bool ProcessFailed => (_flags & (uint)CmdletRunFlags.ProcessFailed) != 0;
+	public bool Ended => (_flags & (uint)CmdletRunFlags.Ended) != 0;
 
 	public bool ShouldSkipProcess
 	{

@@ -66,7 +66,7 @@ New-List ([System.Collections.Generic.KeyValuePair[string, int]])
 
 Aliases: `Any`, `Any-Object`, `Assert-Any`
 
-Returns `$true` if at least one input element satisfies `-Condition`. Without a condition, it returns `$true` if the input has at least one element that isn't `$null`. After the first match, it doesn't run the condition for the remaining elements.
+Returns `$true` if at least one input element satisfies `-Condition`. Without a condition, it returns `$true` if the input has at least one element that isn't `$null`. After the first match, it stops: it doesn't test the remaining elements, and it [stops the commands that send it pipeline input](#stopping-early).
 
 ```powershell
 $numbers = 1, 2, 3
@@ -92,7 +92,7 @@ if (Get-ChildItem -File | Any { $_.Length -gt 1GB }) {
 
 Aliases: `All`, `All-Object`, `All-Objects`, `Assert-All`, `Assert-AllObjects`
 
-Returns `$true` if every input element satisfies `-Condition`. After the first element that fails, it doesn't run the condition for the remaining elements.
+Returns `$true` if every input element satisfies `-Condition`. After the first element that fails, it stops: it doesn't test the remaining elements, and it [stops the commands that send it pipeline input](#stopping-early).
 
 ```powershell
 1, 2, 3 | All { $_ -is [int] }          # True
@@ -116,7 +116,7 @@ if (-not ($array | All { $_ -is [int] })) {
 
 Aliases: `IndexOf`, `Find-Index`
 
-Returns the zero-based index of the first input element that satisfies `-Condition`, or `-1` if none does. After the first match, it doesn't run the condition for the remaining elements.
+Returns the zero-based index of the first input element that satisfies `-Condition`, or `-1` if none does. After the first match, it stops: it doesn't test the remaining elements, and it [stops the commands that send it pipeline input](#stopping-early).
 
 ```powershell
 $names = 'Ann', 'Bob', 'Cid', 'Bob'
@@ -395,6 +395,20 @@ $byDept['HR']           # Jane
 | `-ValueType` | The value type, `TValue`. Default: the type of the first object's value. |
 | `-KeyComparer` | The `IEqualityComparer` for the keys, such as `([System.StringComparer]::Ordinal)` for case-sensitive string keys. |
 | `-DuplicateKeyBehavior` | `Error`, `Skip`, or `Concatenate`. Default: `Error`. |
+
+## Stopping early
+
+`Assert-AnyObject`, `Assert-AllObject`, and `Find-IndexOf` have their answer as soon as they reach a deciding element: the first match for `Assert-AnyObject` and `Find-IndexOf`, or the first failure for `Assert-AllObject`. At that point, the command writes its result and stops the commands before it in the pipeline, the same way `Select-Object -First` does. Those commands produce no more output, so a search of a large or slow source ends as soon as it has an answer.
+
+```powershell
+# Get-ChildItem stops walking the directory tree after it finds the first file larger than 1 GB.
+Get-ChildItem -Path $HOME -File -Recurse | Any { $_.Length -gt 1GB }
+```
+
+- The stopped commands don't run their `end` blocks. On PowerShell 7.3 and later, an advanced function's `clean` block still runs.
+- Only the pipeline that contains the command stops. Statements after that pipeline still run, and so does any pipeline that runs it, for example through `ForEach-Object`.
+- With `-InputObject`, there are no commands before it to stop. PowerShell evaluates the whole argument before the command starts, so `Any -InputObject (Get-ChildItem -Recurse) { $_.Length -gt 1GB }` still walks the entire tree. To stop early, pipe the input instead.
+- `Find-LastIndexOf` and the commands that build collections always read all of their input.
 
 ## Errors in script blocks
 

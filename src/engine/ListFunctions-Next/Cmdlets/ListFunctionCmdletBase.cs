@@ -5,6 +5,12 @@ using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
+using System.Management.Automation.Internal;
+#if NET10_0_OR_GREATER
+using System.Runtime.CompilerServices;
+#else
+using System.Reflection;
+#endif
 
 #nullable enable
 
@@ -24,6 +30,22 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	const string PREFERENCE = "Preference";
 	protected const string ERROR_ACTION = "ErrorAction";
 	protected const string ERROR_ACTION_PREFERENCE = ERROR_ACTION + PREFERENCE;
+	const string STOP_UPSTREAM_TYPE = "System.Management.Automation.StopUpstreamCommandsException";
+
+#if NET10_0_OR_GREATER
+	/// <summary>
+	/// Records that the running PowerShell can't create the exception that stops upstream commands.
+	/// </summary>
+	private static bool _cannotStopUpstream;
+#else
+	/// <summary>
+	/// Holds the constructor of the exception that stops upstream commands, or <see langword="null"/> when the running
+	/// PowerShell doesn't define it.
+	/// </summary>
+	private static readonly ConstructorInfo? s_stopUpstreamCtor = typeof(PSCmdlet).Assembly
+		.GetType(STOP_UPSTREAM_TYPE, throwOnError: false)
+		?.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, binder: null, [typeof(InternalCommand)], modifiers: null);
+#endif
 
 	private CmdletRunState _state;
 
@@ -77,9 +99,17 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	/// the actual work to <see cref="ProcessCore"/>.
 	/// </summary>
 	/// <remarks>
-	/// It checks for cancellation via <see cref="IsStopping"/>, honors the internal run state, and
-	/// converts exceptions into terminating errors after performing cleanup. When <see cref="ProcessCore"/>
-	/// returns <see langword="false"/>, processing is considered complete and the internal state is updated.
+	/// <para>
+	/// The method skips the record when the pipeline is stopping, or when an earlier record failed or ended processing.
+	/// It converts exceptions into terminating errors after performing cleanup.
+	/// </para>
+	/// <para>
+	/// When <see cref="ProcessCore"/> returns <see langword="false"/>, processing is complete. If the cmdlet receives
+	/// pipeline input, the method runs <see cref="EndCore(CmdletRunState)"/> right away and then stops the commands
+	/// that send the input, the way <c>Select-Object -First</c> does. Those commands don't run their end blocks. When
+	/// the running PowerShell can't stop them, the cmdlet ignores its remaining input and runs
+	/// <see cref="EndCore(CmdletRunState)"/> from <see cref="EndProcessing"/> as usual.
+	/// </para>
 	/// </remarks>
 	protected sealed override void ProcessRecord()
 	{
@@ -94,18 +124,23 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 			return;
 		}
 
+		bool keepGoing;
 		try
 		{
-			bool keepGoing = this.ProcessCore();
-
-			if (!keepGoing)
-				_state = _state.With(CmdletRunFlags.FoundMatch);
+			keepGoing = this.ProcessCore();
 		}
 		catch (Exception e)
 		{
 			_state = _state.With(CmdletRunFlags.ProcessFailed);
 			this.CleanupCore();
 			this.ThrowTerminatingError(e.ToRecord(ErrorCategory.NotSpecified));
+			return;
+		}
+
+		if (!keepGoing)
+		{
+			_state = _state.With(CmdletRunFlags.FoundMatch);
+			this.StopUpstreamCommands();
 		}
 	}
 	/// <summary>
@@ -114,9 +149,16 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	/// <remarks>
 	/// The method calls <see cref="EndCore(CmdletRunState)"/> to allow derived classes to finalize
 	/// work and always invokes <see cref="CleanupCore"/> in a finally block to ensure cleanup runs.
+	/// It does nothing when the end phase already ran because the cmdlet stopped its upstream commands.
 	/// </remarks>
 	protected sealed override void EndProcessing()
 	{
+		if (_state.Ended)
+		{
+			return;
+		}
+
+		_state = _state.With(CmdletRunFlags.Ended);
 		try
 		{
 			this.EndCore(_state);
@@ -171,6 +213,95 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 			throw;
 		}
 	}
+	/// <summary>
+	/// Runs the end phase early and stops the commands that send pipeline input to this cmdlet.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// PowerShell doesn't call <see cref="EndProcessing"/> on a command that stops its upstream commands, so this
+	/// method calls <see cref="EndCore(CmdletRunState)"/> and <see cref="CleanupCore"/> itself before it throws. It
+	/// sets <see cref="CmdletRunFlags.Ended"/> first, so the end phase can't run twice.
+	/// </para>
+	/// <para>
+	/// The method returns without doing anything when the cmdlet has no pipeline input, or when the running PowerShell
+	/// can't create the exception. In both cases, <see cref="EndProcessing"/> runs the end phase as usual.
+	/// </para>
+	/// </remarks>
+	/// <exception cref="FlowControlException">Thrown to stop the upstream commands. PowerShell handles it without reporting an error.</exception>
+	private void StopUpstreamCommands()
+	{
+		if (!this.MyInvocation.ExpectingInput || !TryCreateStopUpstreamException(this, out Exception? stop))
+		{
+			return;
+		}
+
+		_state = _state.With(CmdletRunFlags.Ended);
+		try
+		{
+			this.EndCore(_state);
+		}
+		finally
+		{
+			this.CleanupCore();
+		}
+
+		throw stop;
+	}
+	/// <summary>
+	/// Creates the exception that PowerShell uses to stop the commands upstream of a command.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// This is the exception that <c>Select-Object -First</c> throws. Its type is internal to PowerShell, so the method
+	/// creates it through an unsafe accessor on .NET 10 and through reflection on .NET Framework.
+	/// </para>
+	/// <para>
+	/// On .NET 10, the method remembers when the type or its constructor is missing, and later calls return
+	/// <see langword="false"/> without trying again.
+	/// </para>
+	/// </remarks>
+	/// <param name="requestingCommand">The command whose upstream commands are stopped.</param>
+	/// <param name="exception">When this method returns <see langword="true"/>, contains the exception to throw; otherwise, <see langword="null"/>.</param>
+	/// <returns><see langword="true"/> if the exception was created; otherwise, <see langword="false"/>.</returns>
+	private static bool TryCreateStopUpstreamException(InternalCommand requestingCommand, [NotNullWhen(true)] out Exception? exception)
+	{
+#if NET10_0_OR_GREATER
+		if (_cannotStopUpstream)
+		{
+			exception = null;
+			return false;
+		}
+
+		try
+		{
+			exception = CreateStopUpstreamException(requestingCommand) as Exception;
+		}
+		catch (Exception e) when (e is TypeLoadException or MissingMemberException)
+		{
+			_cannotStopUpstream = true;
+			exception = null;
+		}
+#else
+		exception = s_stopUpstreamCtor?.Invoke([requestingCommand]) as Exception;
+#endif
+
+		return exception is not null;
+	}
+#if NET10_0_OR_GREATER
+	/// <summary>
+	/// Calls the constructor of the exception that PowerShell uses to stop upstream commands.
+	/// </summary>
+	/// <remarks>
+	/// The type name is assembly-qualified because the runtime resolves an unqualified name only in this assembly.
+	/// </remarks>
+	/// <param name="requestingCommand">The command whose upstream commands are stopped.</param>
+	/// <returns>The new exception.</returns>
+	/// <exception cref="TypeLoadException">Thrown when the running PowerShell doesn't define the exception type.</exception>
+	/// <exception cref="MissingMethodException">Thrown when the exception type has no constructor that takes an <see cref="InternalCommand"/>.</exception>
+	[UnsafeAccessor(UnsafeAccessorKind.Constructor)]
+	[return: UnsafeAccessorType(STOP_UPSTREAM_TYPE + ", System.Management.Automation")]
+	private static extern object CreateStopUpstreamException(InternalCommand requestingCommand);
+#endif
 	/// <summary>
 	/// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
 	/// </summary>
