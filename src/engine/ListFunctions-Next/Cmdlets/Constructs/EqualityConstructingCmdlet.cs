@@ -2,11 +2,8 @@ using ListFunctions.Components;
 using ListFunctions.Extensions;
 using ListFunctions.Modern;
 using ListFunctions.Modern.Constructors;
-using System;
-using System.Collections;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
-using System.Management.Automation;
 
 #nullable enable
 

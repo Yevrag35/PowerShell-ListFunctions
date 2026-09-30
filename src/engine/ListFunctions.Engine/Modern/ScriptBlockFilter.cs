@@ -1,9 +1,5 @@
 using ListFunctions.Internal;
 using ListFunctions.Modern.Variables;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Management.Automation;
 
 #nullable enable
 

@@ -1,5 +1,4 @@
 using ListFunctions.Extensions;
-using System;
 
 namespace ListFunctions.Modern.Exceptions;
 

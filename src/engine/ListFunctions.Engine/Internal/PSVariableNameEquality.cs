@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Management.Automation;
-
 namespace ListFunctions.Internal;
 
 internal sealed class PSVariableNameEquality : IEqualityComparer<PSVariable>

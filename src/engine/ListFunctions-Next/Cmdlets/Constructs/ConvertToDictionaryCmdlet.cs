@@ -4,12 +4,8 @@ using ListFunctions.Extensions;
 using ListFunctions.Modern;
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Management.Automation;
 using ZLinq;
 
 using PSAllowNull = System.Management.Automation.AllowNullAttribute;

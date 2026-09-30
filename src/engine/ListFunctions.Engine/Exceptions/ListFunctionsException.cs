@@ -1,5 +1,3 @@
-using System;
-
 namespace ListFunctions.Exceptions;
 
 public class ListFunctionsException : Exception

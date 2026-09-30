@@ -1,9 +1,5 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
-using System.Management.Automation;
 using System.Reflection;
 
 namespace ListFunctions.Modern.Constructors;

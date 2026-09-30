@@ -1,8 +1,3 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Management.Automation;
-
 namespace ListFunctions.Modern.Constructors;
 
 public sealed class HashSetCtor : EqualityCollectionCtor<HashSet<object>>

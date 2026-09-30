@@ -1,8 +1,6 @@
 using ListFunctions.Modern;
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
-using System;
-using System.Management.Automation;
 
 #nullable enable
 

@@ -1,6 +1,4 @@
 using ListFunctions.Internal;
-using System;
-using System.Management.Automation;
 using System.Runtime.CompilerServices;
 
 namespace ListFunctions.Modern;

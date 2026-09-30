@@ -1,7 +1,5 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
-using System.Management.Automation;
 using System.Runtime.InteropServices;
 
 namespace ListFunctions.Modern.Variables;

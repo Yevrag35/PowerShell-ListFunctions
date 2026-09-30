@@ -1,10 +1,6 @@
 using ListFunctions.Internal;
 using ListFunctions.Modern.Variables;
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Management.Automation;
 using ZLinq;
 
 namespace ListFunctions.Modern;

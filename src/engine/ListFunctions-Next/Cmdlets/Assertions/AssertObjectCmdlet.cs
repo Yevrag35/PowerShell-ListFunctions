@@ -1,7 +1,6 @@
 using ListFunctions.Components;
 using ListFunctions.Modern;
 using System.Diagnostics.CodeAnalysis;
-using System.Management.Automation;
 
 using AllowsNull = System.Diagnostics.CodeAnalysis.AllowNullAttribute;
 

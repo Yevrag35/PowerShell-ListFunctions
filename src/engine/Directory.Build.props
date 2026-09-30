@@ -29,6 +29,18 @@
 	</PropertyGroup>
 
 	<!--
+		Global usings shared by every project. Keep them unconditional so every target framework gets the same set.
+		Leave out System.Diagnostics.CodeAnalysis: its AllowNullAttribute collides with the one in
+		System.Management.Automation (CS0104).
+	-->
+	<ItemGroup>
+		<Using Include="System" />
+		<Using Include="System.Collections" />
+		<Using Include="System.Collections.Generic" />
+		<Using Include="System.Management.Automation" />
+	</ItemGroup>
+
+	<!--
 		PowerShell loads a module's dependencies from the module's folder and ignores its deps.json, so every
 		build output needs its NuGet packages' runtime assemblies. The SDK copies them by default only for net48.
 		PowerShell's own packages exclude their runtime and native assets so that no part of PowerShell is copied.

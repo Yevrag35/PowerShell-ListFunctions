@@ -1,10 +1,6 @@
 using ListFunctions.Components;
 using ListFunctions.Extensions;
 using ListFunctions.Validation;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Management.Automation;
 using ZLinq;
 using AllowsNullAttribute = System.Diagnostics.CodeAnalysis.AllowNullAttribute;
 using PSAllowNullAttribute = System.Management.Automation.AllowNullAttribute;

@@ -1,7 +1,5 @@
-using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Management.Automation;
 
 namespace ListFunctions.Extensions;
 

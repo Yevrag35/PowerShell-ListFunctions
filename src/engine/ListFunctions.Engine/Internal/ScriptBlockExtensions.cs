@@ -1,8 +1,5 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Management.Automation.Language;
-using System.Management.Automation;
 using ListFunctions.Extensions;
 using System.Diagnostics.CodeAnalysis;
 

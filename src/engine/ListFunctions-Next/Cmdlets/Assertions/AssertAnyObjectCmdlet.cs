@@ -2,7 +2,6 @@ using ListFunctions.Modern;
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
 using System.Diagnostics.CodeAnalysis;
-using System.Management.Automation;
 using AllowsNull = System.Diagnostics.CodeAnalysis.AllowNullAttribute;
 using PSAllowNull = System.Management.Automation.AllowNullAttribute;
 

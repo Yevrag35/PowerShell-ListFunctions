@@ -2,8 +2,6 @@ using ListFunctions.Components;
 using ListFunctions.Modern;
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
-using System.Collections.Generic;
-using System.Management.Automation;
 
 #nullable enable
 

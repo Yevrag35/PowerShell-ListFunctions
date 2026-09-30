@@ -1,10 +1,7 @@
 using ListFunctions.Extensions;
 using ListFunctions.Internal;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Management.Automation;
 using System.Reflection;
 using System.Runtime.Serialization;
 

@@ -1,6 +1,4 @@
 using ListFunctions.Extensions;
-using System;
-using System.Management.Automation;
 
 #nullable enable
 

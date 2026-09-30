@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -22,8 +20,10 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("LFPublish, PublicKey=0024000004800000140100000602000000240000525341310008000001000100e17bb555393c9ba9ea4c510f00814fd916d9a179760843dc3597977c796fab81086199b08bb44d2c8442c9741d24bc6bbcaf02c1c5390156cad6ad1085a68f2daa829d566849975c0254c324374e61f3d22fcd6ac2e0c9ff88613465d063c6f3363ef4ffe4fb2503721427e57d41bd7c742b8e364b5b0b29629838a454367f434143eadbe92073c389e55cc0f8f9b3a696dc6b4bf97dde7e4470a32306614bebdc83d734347df09fd095d5d5bc5fa91e7effabed78cfc4e0965e2288d3733a107dc46fc2a39cdf9ef32a2ba578fa09d43c889b47291f04c4f3e9d95d7caacc0dba69eef8e9215523d1ac21911b26ec56e900d9c55939c0fa732be8758990e8cb")]
 namespace ListFunctions.Build;
 
+[Obsolete("LFPublish no longer exists that used this.")]
 internal static class InternalFinder
 {
+	[Obsolete("LFPublish no longer exists that used this.")]
 	internal static IEnumerable<Type> GetCmdletTypes(Func<Type, bool> filter)
 	{
 		Assembly thisAss = typeof(InternalFinder).Assembly;

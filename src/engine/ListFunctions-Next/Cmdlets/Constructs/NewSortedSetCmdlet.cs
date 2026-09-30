@@ -4,10 +4,6 @@ using ListFunctions.Modern;
 using ListFunctions.Modern.Constructors;
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Management.Automation;
 
 #nullable enable
 

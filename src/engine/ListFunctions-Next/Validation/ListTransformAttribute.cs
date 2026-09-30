@@ -1,10 +1,6 @@
 using ListFunctions.Cmdlets.Constructs;
 using ListFunctions.Extensions;
 using ListFunctions.Internal;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Management.Automation;
 
 #nullable enable
 
