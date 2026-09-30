@@ -19,13 +19,24 @@ public sealed class DictionaryCtor : EqualityCollectionCtor<Hashtable>
 		this.ValueType = valueType;
 	}
 
+	/// <summary>
+	/// Creates a <see cref="Hashtable"/> whose string keys compare without regard to case unless
+	/// <see cref="EqualityCollectionCtor.IsCaseSensitive"/> is <see langword="true"/>.
+	/// </summary>
+	/// <remarks>
+	/// String keys compare with <see cref="StringComparer.OrdinalIgnoreCase"/>, or with
+	/// <see cref="StringComparer.CurrentCulture"/> when <see cref="EqualityCollectionCtor.IsCaseSensitive"/> is
+	/// <see langword="true"/>. The table has room for <see cref="EqualityCollectionCtor.Capacity"/> entries.
+	/// </remarks>
+	/// <param name="comparer">The comparer that the base class chose. This implementation uses a string comparer instead.</param>
+	/// <returns>The new, empty table.</returns>
 	protected override Hashtable ConstructTDefault(IEqualityComparer comparer)
 	{
 		var comp = this.IsCaseSensitive
 			? StringComparer.CurrentCulture
 			: StringComparer.OrdinalIgnoreCase;
 
-		return new Hashtable(comp);
+		return new Hashtable(this.Capacity, comp);
 	}
 
 	protected override Type GetTypeForEquality()

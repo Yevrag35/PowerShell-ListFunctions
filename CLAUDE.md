@@ -34,7 +34,7 @@ pwsh -NoProfile -File tests/Invoke-Tests.ps1 -Configuration Release -Output Deta
 - Each cmdlet gets its own `<Cmdlet>.Tests.ps1` file. `Module.Tests.ps1` checks that the build exports exactly the manifest's `CmdletsToExport` and `AliasesToExport`.
 - Fix each item in `.work/bugs.md` test-first. Turn its repro into a test tagged `BugNN`, watch the test fail, and then fix the bug.
 - Test files also run in Windows PowerShell 5.1, so they can't use PowerShell 7 syntax such as `??`, the ternary operator, or `&&`. Keep them ASCII, because 5.1 reads a UTF-8 file without a BOM as ANSI.
-- Use Pester 6's `Should-*` commands, not the older `Should -Be` form. `Should-BeCollection` can't take a collection of value types, such as a `List[int]`, as `-Actual`. Pass `@($list)` instead.
+- Use Pester 6's `Should-*` commands, not the older `Should -Be` form. `Should-BeCollection` can't take a collection of value types, such as a `List[int]`, as `-Actual`. Pass `([object[]]$list)` instead. Don't use `@($list)`: for a `List[object]` that a command outputs, which PowerShell wraps in a PSObject, `@()` throws "Argument types do not match". That's a PowerShell bug in both 5.1 and 7.
 
 ## Debugging
 

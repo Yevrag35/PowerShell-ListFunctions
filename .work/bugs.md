@@ -6,10 +6,10 @@ Found while rewriting `README.md` on 2026-09-28. The README describes how the mo
 
 **README accuracy**
 
-- [ ] 01 — `-HashCodeScript`'s return value is ignored
-- [ ] 02 — `-Capacity` does nothing on New-HashSet and New-Dictionary
-- [ ] 03 — New-HashSet can't combine `-GenericType` with `-CaseSensitive`
-- [ ] 04 — New-List ignores `-IncludeNullElements` unless `-GenericType` is given
+- [x] 01 — `-HashCodeScript`'s return value is ignored
+- [x] 02 — `-Capacity` does nothing on New-HashSet and New-Dictionary
+- [x] 03 — New-HashSet can't combine `-GenericType` with `-CaseSensitive`
+- [x] 04 — New-List ignores `-IncludeNullElements` unless `-GenericType` is given
 
 **Other bugs**
 
@@ -64,6 +64,8 @@ The no-variables path, `GetHashObjectAsIs`, has two more problems. It runs the s
 
 **Fix idea:** Convert the script's first output to `[int]` and return it. Throw `HashCodeScriptException` if there's no output or it can't be converted.
 
+**Fixed:** `HashBlock.GetHashCode` converts the script's first output to `[int]` with `LanguagePrimitives.ConvertTo` and returns it. Output that can't be converted throws `HashCodeScriptException`, as no output and a `$null` output already did. `GetHashObjectAsIs` is gone, so every call sets `$_`, `$this`, and `$PSItem`, with or without additional variables. The `Bug01` tests in `tests/New-HashSet.Tests.ps1` and `tests/New-Dictionary.Tests.ps1` cover the returned hash code, the conversion, both error cases, and duplicates found through `Add`, `ContainsKey`, and pipeline input.
+
 ### 02 — `-Capacity` does nothing on New-HashSet and New-Dictionary
 
 **README:** the `-Capacity` rows in the New-HashSet and New-Dictionary parameter tables.
@@ -78,6 +80,8 @@ The no-variables path, `GetHashObjectAsIs`, has two more problems. It runs the s
 
 **Fix idea:** Pass the capacity through to the constructor classes and use the `(int capacity, IEqualityComparer)` overloads, including in the default paths (`Hashtable` and `HashSet<object>`). The `HashSet<T>(int, IEqualityComparer<T>)` constructor isn't in `netstandard2.0`, so the Engine's `netstandard2.0` build can't call it directly; it does exist at run time on .NET Framework 4.7.2 and later.
 
+**Fixed:** `EqualityCollectionCtor` has a `Capacity` property, which `EqualityConstructingCmdlet.BeginCore` sets from `-Capacity`. `GetConstructorArguments` yields the capacity before the comparer, so reflection now calls the `(int, IEqualityComparer<T>)` constructors. The default paths call `Hashtable(int, IEqualityComparer)` and `HashSet<object>(int, IEqualityComparer<object>)`, which the `netstandard2.0` build reaches through `Activator.CreateInstance`. A capacity of 0 creates the same collections as before. The `Bug02` tests measure the bucket array with `tests/Get-BucketCount.ps1`, because .NET Framework has no `EnsureCapacity`.
+
 ### 03 — New-HashSet can't combine `-GenericType` with `-CaseSensitive`
 
 **README:** New-HashSet's `-CaseSensitive` row ("Available when the element type is `[object]` or `[string]`").
@@ -91,6 +95,8 @@ New-HashSet -CaseSensitive              # Works, and creates an [object] set
 
 **Fix idea:** Also put `GenericType` in the `StringSet` parameter set, with a second `[Parameter(ParameterSetName = ..., Position = 0)]`. It has to stay out of `WithCustomEquality`.
 
+**Fixed:** `GenericType` has a second `[Parameter]` for `StringSet` at position 0 and stays out of `WithCustomEquality`. Without `-CaseSensitive`, `SpecifiedType` is still chosen, so `[string]` sets stay case-insensitive by default. The `Bug03` tests in `tests/New-HashSet.Tests.ps1` cover `[string]` and `[object]` sets, pipeline input, the case-insensitive default, and the error for `[int]`, which still isn't offered `-CaseSensitive`.
+
 ### 04 — New-List ignores `-IncludeNullElements` unless `-GenericType` is given
 
 **README:** New-List's description ("`$null` elements are skipped unless you pass `-IncludeNullElements`") and its `-IncludeNullElements` row.
@@ -103,6 +109,8 @@ New-HashSet -CaseSensitive              # Works, and creates an [object] set
 ```
 
 **Fix idea:** Set `_isObjectType` in `BeginCore` from the resolved element type.
+
+**Fixed:** `BeginCore` sets `_isObjectType` from the resolved element type. The `GenericType` getter and setter no longer change it, so the two `SetToObjectType` methods are gone. The `Bug04` tests in `tests/New-List.Tests.ps1` cover `-InputObject`. A piped `$null` is still dropped until 06 is fixed, and the open question below is unchanged.
 
 **Open question:** A typed list converts `$null` instead of adding it. `New-List [int] -InputObject 1, $null -IncludeNullElements` holds `1, 0`, and a `[string]` list gets `''`. Is that intended?
 

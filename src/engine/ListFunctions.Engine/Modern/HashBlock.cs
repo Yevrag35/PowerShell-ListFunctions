@@ -2,10 +2,8 @@ using ListFunctions.Internal;
 using ListFunctions.Modern.Exceptions;
 using ListFunctions.Modern.Variables;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Management.Automation;
 
 namespace ListFunctions.Modern;
@@ -42,6 +40,23 @@ public sealed class HashBlock : ComparingBase, IHashBlock
 		_thisVar = new();
 	}
 
+	/// <summary>
+	/// Computes the hash code of the specified object by running the hash code script block.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// The script block receives <paramref name="obj"/> as <c>$_</c>, <c>$this</c>, and <c>$PSItem</c>. Only its first
+	/// output is used, and that output is converted to an <see cref="int"/> by PowerShell's conversion rules, so the
+	/// string <c>'42'</c> gives the hash code 42.
+	/// </para>
+	/// <para>
+	/// The method isn't thread-safe, because every call reuses the same list of script block variables.
+	/// </para>
+	/// </remarks>
+	/// <param name="obj">The object to compute the hash code of. This value must not be <see langword="null"/>.</param>
+	/// <param name="additionalVariables">The variables to define in the script block's scope along with the object, or <see langword="null"/> for none.</param>
+	/// <returns>The first output of the script block, converted to an <see cref="int"/>.</returns>
+	/// <exception cref="HashCodeScriptException">Thrown when <paramref name="obj"/> is null, when the script block throws, or when its first output is missing, null, or can't be converted to an <see cref="int"/>.</exception>
 	public int GetHashCode([DisallowNull] object obj, IEnumerable<PSVariable>? additionalVariables)
 	{
 		if (obj is null)
@@ -50,63 +65,39 @@ public sealed class HashBlock : ComparingBase, IHashBlock
 			throw HashCodeScriptException.FromBlockException(argNull, obj);
 		}
 
-		object? hashObj = additionalVariables is null || (additionalVariables.TryGetNonEnumeratedCount(out int varCount) && varCount == 0)
-			? this.GetHashObjectAsIs(obj, this.Script)
-			: this.GetHashCodeWithContext(obj, this.Script, additionalVariables);
-
-		return obj?.GetHashCode() ?? (int)this.ThrowNullHashCode(obj, additionalVariables);
+		object? hashObj = this.GetHashObject(obj, additionalVariables);
+		try
+		{
+			return LanguagePrimitives.ConvertTo<int>(hashObj);
+		}
+		catch (PSInvalidCastException e)
+		{
+			throw HashCodeScriptException.FromBlockException(e, obj, this.SetContextVariables(obj, additionalVariables));
+		}
 	}
 
 	/// <summary>
-	/// Returns the result of applying the specified script block to the provided object, or the object itself if no
-	/// result is produced.
+	/// Runs the hash code script block for the specified object and returns the script block's first output.
 	/// </summary>
-	/// <remarks>If the input object is enumerable and the script block returns null, the method attempts to
-	/// return the first non-null item from the enumeration. If no such item exists, an exception may be
-	/// thrown.</remarks>
-	/// <param name="obj">The object to which the script block is applied.</param>
-	/// <param name="block">The script block to invoke with the specified object as input.</param>
-	/// <returns>The value returned by the script block if it produces a non-null result; otherwise, the original object.</returns>
-	private object GetHashObjectAsIs(object obj, ScriptBlock block)
+	/// <remarks>
+	/// The method returns only when the script block succeeds and its first output isn't <see langword="null"/>. The
+	/// caller converts that output to the hash code.
+	/// </remarks>
+	/// <param name="obj">The object to pass to the script block as <c>$_</c>, <c>$this</c>, and <c>$PSItem</c>.</param>
+	/// <param name="additionalVariables">The variables to define in the script block's scope along with the object, or <see langword="null"/> for none.</param>
+	/// <returns>The first output of the script block.</returns>
+	/// <exception cref="HashCodeScriptException">Thrown when the script block throws, or when it has no output or its first output is null.</exception>
+	private object? GetHashObject(object obj, IEnumerable<PSVariable>? additionalVariables)
 	{
-		object? scriptRetValue = block.InvokeReturnAsIs(obj);
-		if (scriptRetValue is null)
+		List<PSVariable> variables = this.SetContextVariables(obj, additionalVariables);
+		if (!this.Script.TryInvokeWithContext(variables, out object? hashObj, out Exception? exception))
 		{
-			return this.ThrowNullHashCode(obj, additionalVariables: null);
-		}
-		else if (LanguagePrimitives.GetEnumerable(obj) is IEnumerable enumerable)
-		{
-			foreach (object? item in enumerable)
-			{
-				if (item is not null)
-				{
-					return item;
-				}
-			}
-
-			this.ThrowNullHashCode(obj, additionalVariables: null);
-		}
-
-		return obj;
-	}
-	/// <summary>
-	/// Invokes the specified script block with the provided object and additional variables to compute a hash code in
-	/// the given context.
-	/// </summary>
-	/// <param name="obj">The object to be used as context when invoking the script block.</param>
-	/// <param name="block">The script block to execute for computing the hash code. Must not be null.</param>
-	/// <param name="additionalVariables">A collection of additional variables to include in the script block's execution context. Can be empty.</param>
-	/// <returns>The result of the script block execution, representing the computed hash code for the given context.</returns>
-	private object? GetHashCodeWithContext(object obj, ScriptBlock block, IEnumerable<PSVariable> additionalVariables)
-	{
-		var list = this.SetContextVariables(obj, additionalVariables);
-		if (!block.TryInvokeWithContext(list, out object? hashObj, out Exception? exception))
-		{
-			if (exception is null && hashObj is null)
+			if (exception is null)
 			{
 				return this.ThrowNullHashCode(obj, additionalVariables);
 			}
 
+			// InvokeWithContext removes $_ and $this from the list it's given, so the list is rebuilt for the exception.
 			throw HashCodeScriptException.FromBlockException(exception, obj, this.SetContextVariables(obj, additionalVariables));
 		}
 

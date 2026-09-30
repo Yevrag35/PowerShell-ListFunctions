@@ -51,7 +51,8 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// Gets or sets the initial capacity requested for the dictionary.
 	/// </summary>
 	/// <remarks>
-	/// <para>TODO: The value is not currently passed to the dictionary constructor, so it has no effect on the constructed dictionary.</para>
+	/// The dictionary, or the <see cref="Hashtable"/>, is created with room for this many entries, so it doesn't have to
+	/// grow until it holds more.
 	/// </remarks>
 	/// <value>The requested initial capacity, from 0 through <see cref="int.MaxValue"/>. Defaults to 0.</value>
 	[Parameter, Alias("Size")]

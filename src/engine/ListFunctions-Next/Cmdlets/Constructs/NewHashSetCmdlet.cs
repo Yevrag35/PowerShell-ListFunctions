@@ -46,7 +46,7 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	/// Gets or sets the initial capacity requested for the set.
 	/// </summary>
 	/// <remarks>
-	/// <para>TODO: The value is not currently passed to the set constructor, so it has no effect on the constructed set.</para>
+	/// The set is created with room for this many elements, so it doesn't have to grow until it holds more.
 	/// </remarks>
 	/// <value>The requested initial capacity, from 0 through <see cref="int.MaxValue"/>. Defaults to 0.</value>
 	[Parameter, ValidateRange(0, int.MaxValue), PSDefaultValue(Value = 0)]
@@ -56,11 +56,19 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	/// Gets or sets the element type of the set.
 	/// </summary>
 	/// <remarks>
+	/// <para>
 	/// The parameter accepts a <see cref="Type"/>, a type name, or a script block that contains a type literal such
 	/// as <c>{ [int] }</c>.
+	/// </para>
+	/// <para>
+	/// The parameter also belongs to the parameter set of <c>-CaseSensitive</c>, so the two can be combined when the
+	/// element type is <see cref="object"/> or <see cref="string"/>. It can't be combined with
+	/// <see cref="EqualityScript"/> and <see cref="HashCodeScript"/>.
+	/// </para>
 	/// </remarks>
 	/// <value>The element type. Defaults to <see cref="object"/>.</value>
 	[Parameter(Mandatory = false, Position = 0, ParameterSetName = SPECIFIED_TYPE)]
+	[Parameter(Mandatory = false, Position = 0, ParameterSetName = DYN_PSET_NAME)]
 	[ArgumentToTypeTransform, Alias("Type")]
 	[PSDefaultValue(Value = typeof(object))]
 	public Type GenericType { get; set; } = null!;

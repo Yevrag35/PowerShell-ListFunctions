@@ -63,8 +63,8 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 	[AllowsNull, PSAllowNull]
 	public Type GenericType
 	{
-		get => _genericType ??= this.SetToObjectType();
-		set => _genericType = this.SetToObjectType(value);
+		get => _genericType ?? typeof(object);
+		set => _genericType = value;
 	}
 
 	/// <summary>
@@ -95,11 +95,18 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 	/// Creates the list with the configured element type and capacity.
 	/// </summary>
 	/// <remarks>
+	/// <para>
 	/// When <see cref="GenericType"/> was not specified, the method creates a <see cref="List{T}"/> of
 	/// <see cref="object"/> directly. Otherwise, it creates the closed list type through reflection.
+	/// </para>
+	/// <para>
+	/// The method also records whether the element type is <see cref="object"/>, which decides whether
+	/// <see cref="ProcessCore"/> adds elements as they are or converts them.
+	/// </para>
 	/// </remarks>
 	protected override void BeginCore()
 	{
+		_isObjectType = _genericType is null || typeof(object).Equals(_genericType);
 		_list = _genericType is null
 			? new List<object?>(this.Capacity > 0 ? this.Capacity : 4)
 			: this.CreateNewList(this.Capacity, this.GenericType, out _listIsNull)!;
@@ -134,34 +141,6 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 			return null;
 		}
 	}
-	/// <summary>
-	/// Marks the list as a list of <see cref="object"/> and returns that type.
-	/// </summary>
-	/// <returns>The <see cref="object"/> type.</returns>
-	private Type SetToObjectType()
-	{
-		_isObjectType = true;
-		return typeof(object);
-	}
-	/// <summary>
-	/// Records whether the specified element type is <see cref="object"/> and returns the type to store.
-	/// </summary>
-	/// <param name="type">The requested element type, or <see langword="null"/> to select <see cref="object"/>.</param>
-	/// <returns><paramref name="type"/>, or <see cref="object"/> when <paramref name="type"/> is <see langword="null"/>.</returns>
-	private Type SetToObjectType(Type? type)
-	{
-		if (type is null)
-			return this.SetToObjectType();
-
-		else if (typeof(object).Equals(type))
-			_isObjectType = true;
-
-		else
-			_isObjectType = false;
-
-		return type;
-	}
-
 	/// <summary>
 	/// Adds the elements of the current <see cref="InputObject"/> array to the list.
 	/// </summary>

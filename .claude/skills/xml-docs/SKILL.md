@@ -1,6 +1,6 @@
 ---
-name: realta-xml-docs
-description: XML documentation rules for the Realta solution — tag order, placement relative to attributes, American English / present tense / active voice, cross-reference syntax, constructor phrasing, public-API hygiene. Trigger when writing or editing `<summary>`, `<remarks>`, `<param>`, `<returns>`, `<exception>`, `<typeparam>`, `<value>`, or `<example>` blocks on public, internal, or protected members. Defers to `.github/copilot-instructions.md` for full detail.
+name: xml-docs
+description: XML documentation rules for the ListFunctions solution — tag order, placement relative to attributes, American English / present tense / active voice, cross-reference syntax, constructor phrasing, public-API hygiene. Trigger when writing or editing `<summary>`, `<remarks>`, `<param>`, `<returns>`, `<exception>`, `<typeparam>`, `<value>`, or `<example>` blocks on public, internal, or protected members. Defers to `.github/copilot-instructions.md` for full detail.
 ---
 
 # Realta XML Documentation Standards

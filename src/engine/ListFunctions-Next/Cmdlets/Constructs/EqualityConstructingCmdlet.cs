@@ -72,7 +72,8 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// Gets or sets the initial capacity requested for the collection.
 	/// </summary>
 	/// <remarks>
-	/// <para>TODO: The base class does not pass this value to the collection constructor, so it currently has no effect on the constructed collection.</para>
+	/// <see cref="BeginCore"/> passes the value to the collection's constructor, so the collection doesn't have to
+	/// grow until it holds more elements than this. Derived classes override the property to make it a parameter.
 	/// </remarks>
 	/// <value>The requested initial capacity.</value>
 	public virtual int Capacity { get; set; }
@@ -112,9 +113,10 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// The method resolves the generic type arguments from <see cref="GetGenericTypes"/>, gets the equality comparer
-	/// from <see cref="GetCustomEqualityComparer(Type)"/>, and constructs the collection with the
-	/// <see cref="EqualityCollectionCtor"/> returned by <see cref="GetConstructor(IEqualityComparer, Type[])"/>. It
-	/// also prepares the invoker that <see cref="AddToCollection(T, object[], bool)"/> and
+	/// from <see cref="GetCustomEqualityComparer(Type)"/>, and gets an <see cref="EqualityCollectionCtor"/> from
+	/// <see cref="GetConstructor(IEqualityComparer, Type[])"/>. It passes <see cref="Capacity"/> to that object and
+	/// constructs the collection with it. It also prepares the invoker that
+	/// <see cref="AddToCollection(T, object[], bool)"/> and
 	/// <see cref="AddToCollection(T, object[], Func{object, Type[], object})"/> use to call the collection's
 	/// <c>Add</c> method.
 	/// </remarks>
@@ -124,6 +126,7 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 		IEqualityComparer? comparer = this.GetCustomEqualityComparer(this.GetEqualityForType());
 
 		var ctor = this.GetConstructor(comparer, genericTypes);
+		ctor.Capacity = this.Capacity;
 		_collection = (T)ctor.Construct();
 
 		_collectionType = ctor.ConstructingGenericType;

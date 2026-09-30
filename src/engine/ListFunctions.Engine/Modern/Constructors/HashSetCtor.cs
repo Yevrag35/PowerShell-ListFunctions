@@ -21,12 +21,34 @@ public sealed class HashSetCtor : EqualityCollectionCtor<HashSet<object>>
 
 		return [genericType];
 	}
+	/// <summary>
+	/// Creates a <see cref="HashSet{T}"/> of <see cref="object"/> that compares its elements the way PowerShell's
+	/// <c>-eq</c> operator does.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// Strings compare without regard to case unless <see cref="EqualityCollectionCtor.IsCaseSensitive"/> is
+	/// <see langword="true"/>. The set has room for <see cref="EqualityCollectionCtor.Capacity"/> elements.
+	/// </para>
+	/// <para>
+	/// .NET Standard 2.0 doesn't define the <see cref="HashSet{T}"/> constructor that takes a capacity and a comparer,
+	/// so the .NET Standard 2.0 build calls it through reflection. .NET Framework 4.7.2 and later define it.
+	/// </para>
+	/// </remarks>
+	/// <param name="comparer">The comparer that the base class chose. This implementation uses its own comparer instead.</param>
+	/// <returns>The new, empty set.</returns>
 	protected override HashSet<object> ConstructTDefault(IEqualityComparer comparer)
 	{
-		return new HashSet<object>(new ObjectEqualityComparer()
+		var objComparer = new ObjectEqualityComparer()
 		{
 			IgnoreCase = !this.IsCaseSensitive,
-		});
+		};
+
+#if NETSTANDARD2_0
+		return (HashSet<object>)Activator.CreateInstance(typeof(HashSet<object>), this.Capacity, objComparer);
+#else
+		return new HashSet<object>(this.Capacity, objComparer);
+#endif
 	}
 	protected sealed override Type GetTypeForEquality()
 	{
