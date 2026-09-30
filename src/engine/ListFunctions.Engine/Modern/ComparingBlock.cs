@@ -1,7 +1,6 @@
 using ListFunctions.Extensions;
 using ListFunctions.Internal;
 using ListFunctions.Modern.Variables;
-using System.Linq.Expressions;
 using ZLinq;
 
 namespace ListFunctions.Modern;
@@ -16,7 +15,7 @@ public static class ComparingBlock
 	public static IComparer Create(ScriptBlock scriptBlock, Type genericType, IEnumerable<PSVariable>? additionalVariables)
 	{
 		MethodInfo genMeth = _getInit.Value.MakeGenericMethod(genericType);
-		return genMeth.Invoke(null, new object[] { scriptBlock, additionalVariables! }) as IComparer
+		return genMeth.Invoke(null, [scriptBlock, additionalVariables!]) as IComparer
 			?? throw new InvalidOperationException("Unable to create generic comparing block instance.");
 	}
 	public static ComparingBlock<T> Create<T>(ScriptBlock scriptBlock, IEnumerable<PSVariable>? additionalVariables)

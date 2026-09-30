@@ -1,5 +1,3 @@
-using System.Linq.Expressions;
-
 namespace ListFunctions.Modern.Constructors;
 
 public sealed class SortingCollectorCtor : GenericCollectionCtor

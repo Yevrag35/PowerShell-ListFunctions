@@ -1,5 +1,3 @@
-using System.Linq.Expressions;
-
 namespace ListFunctions.Modern;
 
 public static class ReflectionResolver

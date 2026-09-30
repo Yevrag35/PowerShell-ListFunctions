@@ -1,7 +1,4 @@
 using ListFunctions.Modern.Variables;
-using System;
-using System.Collections.Generic;
-using System.Management.Automation;
 
 namespace ListFunctions.Internal;
 

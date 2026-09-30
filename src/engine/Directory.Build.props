@@ -44,6 +44,7 @@
 		<Using Include="System.Diagnostics.CodeAnalysis.AllowNullAttribute" Alias="AllowsNull" />
 		<Using Include="System.Globalization" />
 		<Using Include="System.Linq" />
+		<Using Include="System.Linq.Expressions" />
 		<Using Include="System.Management.Automation" />
 		<Using Include="System.Management.Automation.AllowNullAttribute" Alias="PSAllowNull" />
 		<Using Include="System.Management.Automation.Language" />
