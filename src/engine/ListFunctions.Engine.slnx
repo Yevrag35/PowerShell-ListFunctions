@@ -4,6 +4,9 @@
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
   </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="ListFunctions.Engine.Tests/ListFunctions.Engine.Tests.csproj" />
+  </Folder>
   <Project Path="ListFunctions-NETFramework/ListFunctions-NETFramework.csproj" />
   <Project Path="ListFunctions-Next/ListFunctions-Next.csproj" />
   <Project Path="ListFunctions.Engine/ListFunctions.Engine.csproj" />

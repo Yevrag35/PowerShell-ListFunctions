@@ -13,15 +13,15 @@ dotnet build src/engine/ListFunctions.Engine.slnx -c Debug
 dotnet build src/engine/ListFunctions-Next/ListFunctions-Next.csproj -c Debug   # PS 7 module only
 ```
 
-- All three projects are SDK-style and use central package management. Package versions live only in `src/engine/Directory.Packages.props`.
+- All four projects are SDK-style and use central package management. Package versions live only in `src/engine/Directory.Packages.props`.
 - `ListFunctions-NETFramework` gets its runtime dependencies (ZLinq, System.Memory, System.Collections.Immutable, and so on) from Engine's `netstandard2.0` package references. Its only direct package references are `Microsoft.PowerShell.5.ReferenceAssemblies`, with `ExcludeAssets="runtime"`, and `PolySharp`. As of PolySharp 1.16.0, Engine's generated polyfills (the nullable attributes and others) are not visible to it through InternalsVisibleTo, so it generates its own.
 - `Directory.Build.props` sets `CopyLocalLockFileAssemblies` to `true`, so every Debug and Release output folder contains its NuGet runtime dependencies, such as `ZLinq.dll`. By default the SDK copies them only for `net48`.
-- Keep PowerShell itself out of the build outputs. `System.Management.Automation` is referenced with `ExcludeAssets="runtime;native"`. Without `native`, PowerShell's native binaries still land under `runtimes/`. Engine's `PowerShellStandard.Library` uses `ExcludeAssets="runtime"`, and `PrivateAssets="all"` so that it doesn't flow to `ListFunctions-NETFramework`.
+- Keep PowerShell itself out of the build outputs. `System.Management.Automation` is referenced with `ExcludeAssets="runtime;native"`. Without `native`, PowerShell's native binaries still land under `runtimes/`. Engine's `PowerShellStandard.Library` uses `ExcludeAssets="runtime"`, and `PrivateAssets="all"` so that it doesn't flow to `ListFunctions-NETFramework`. `ListFunctions.Engine.Tests` is the exception: it hosts PowerShell to run its tests.
 - `.build/build.ps1` and `.debug/debug.ps1` are left over from the old script-based module. They build `src/ListFunctions.psm1` and read from `src/assemblies`, and neither path exists anymore. Don't use them to build the current module.
 
 ## Tests
 
-`tests/` holds the Pester 6 tests. There's no C# test project. Build first, then run the tests from the repo root in Bash:
+`tests/` holds the Pester 6 tests, which run the cmdlets. `src/engine/ListFunctions.Engine.Tests/` holds the xUnit.net v3 tests, which call `ListFunctions.Engine` directly (see Engine tests below). Build first, then run the Pester tests from the repo root in Bash:
 
 ```bash
 pwsh -NoProfile -File tests/Invoke-Tests.ps1                              # Debug build, both editions
@@ -32,9 +32,25 @@ pwsh -NoProfile -File tests/Invoke-Tests.ps1 -Configuration Release -Output Deta
 - `Invoke-Tests.ps1` runs the tests in a new `powershell.exe` process and a new `pwsh` process. The imported DLLs unload when those processes exit, so they don't block the next build. The script exits with 1 when a test fails in either edition.
 - Every test file calls `tests/Import-ListFunctions.ps1` in a top-level `BeforeAll`. It imports `ListFunctions.Next.dll` (PowerShell 7) or `ListFunctions.NETFramework.dll` (Windows PowerShell 5.1) from the build output, never the committed DLLs under `ListFunctions/`.
 - Each cmdlet gets its own `<Cmdlet>.Tests.ps1` file. `Module.Tests.ps1` checks that the build exports exactly the manifest's `CmdletsToExport` and `AliasesToExport`.
-- Fix each item in `.work/bugs.md` test-first. Turn its repro into a test tagged `BugNN`, watch the test fail, and then fix the bug.
+- Fix each item in `.work/bugs.md` test-first. Turn its repro into a test tagged `BugNN`, watch the test fail, and then fix the bug. When the fix goes in `ListFunctions.Engine`, the test goes in the Engine tests instead, as `.work/bugs.md` explains.
 - Test files also run in Windows PowerShell 5.1, so they can't use PowerShell 7 syntax such as `??`, the ternary operator, or `&&`. Keep them ASCII, because 5.1 reads a UTF-8 file without a BOM as ANSI.
 - Use Pester 6's `Should-*` commands, not the older `Should -Be` form. `Should-BeCollection` can't take a collection of value types, such as a `List[int]`, as `-Actual`. Pass `([object[]]$list)` instead. Don't use `@($list)`: for a `List[object]` that a command outputs, which PowerShell wraps in a PSObject, `@()` throws "Argument types do not match". That's a PowerShell bug in both 5.1 and 7.
+
+### Engine tests
+
+`dotnet test` builds the project first. Run it from the repo root in Bash:
+
+```bash
+dotnet test src/engine/ListFunctions.Engine.Tests/ListFunctions.Engine.Tests.csproj -c Debug                                            # both targets
+dotnet test src/engine/ListFunctions.Engine.Tests/ListFunctions.Engine.Tests.csproj -c Debug -f net48 --filter-trait "Category=Bug10"  # one bug's tests, Windows PowerShell 5.1 only
+```
+
+- Never pass `--nologo` or `--no-incremental` to `dotnet test`. It hands options it doesn't recognize to the test app, which stops with "Zero tests ran" and exit code 5 without naming the option. Both flags are still right for `dotnet build`, and `-v q` works with either command.
+- `xunit.v3` 4.x runs on Microsoft.Testing.Platform v2, so the project builds an executable, and the root `global.json` switches `dotnet test` to that platform. Don't add `Microsoft.NET.Test.Sdk` or `xunit.runner.visualstudio`. Without `global.json`, `dotnet test` uses VSTest, and the build fails with "Testing with VSTest target is no longer supported by Microsoft.Testing.Platform on .NET 10 SDK and later."
+- The project targets `net10.0` and `net48`. `net10.0` tests Engine's `net10.0` build in PowerShell 7, hosted from the `Microsoft.PowerShell.SDK` package. Keep that package at the same version as `System.Management.Automation`. `net48` tests Engine's `netstandard2.0` build in the Windows PowerShell 5.1 that is installed with Windows, loaded from the GAC.
+- A script block runs only on a thread whose `Runspace.DefaultRunspace` is set, and that property is thread-static. Each test class takes a `RunspaceFixture` through `IClassFixture<RunspaceFixture>`, and each test that runs a script block starts with `using RunspaceScope scope = _runspace.Enter();`.
+- The test folders mirror Engine's. The tests for `Modern/HashBlock.cs` are in `Modern/HashBlockTests.cs`, in the namespace `ListFunctions.Engine.Tests.Modern`.
+- A bug's tests get `[Trait("Category", "BugNN")]`, which matches its Pester tag.
 
 ## Debugging
 
@@ -42,20 +58,21 @@ pwsh -NoProfile -File tests/Invoke-Tests.ps1 -Configuration Release -Output Deta
 
 ## Architecture
 
-There are three projects under `src/engine/`:
+There are four projects under `src/engine/`:
 
 - **`ListFunctions.Engine`** targets `netstandard2.0` and `net10.0`. It holds the reusable, non-cmdlet core:
 	- `Modern/EqualityBlock`, `HashBlock`, and `ComparingBlock` (base `ComparingBase`) turn user ScriptBlocks into `IEqualityComparer` and `IComparer` implementations.
 	- `ScriptBlockFilter` evaluates predicates for `Assert-Any`/`Assert-All`.
 	- `Modern/Constructors/*Ctor` build closed generic collection types through reflection. `AddMethodInvoker` calls their `Add` method.
 	- `Modern/Variables` injects the per-item context variables into the ScriptBlocks: `$_`, `$this`, and `$psitem` for single items, and `$left`/`$right` or `$x`/`$y` for equality.
-	- Its internals are exposed to `ListFunctions.Next` and `ListFunctions.NETFramework` through `<AssemblyAttribute>` InternalsVisibleTo items in the csproj.
+	- Its internals are exposed to `ListFunctions.Next`, `ListFunctions.NETFramework`, and `ListFunctions.Engine.Tests` through `<AssemblyAttribute>` InternalsVisibleTo items in the csproj.
 	- `Internal/VarList.cs` is excluded from compilation on purpose.
 - **`ListFunctions-Next`** targets `net10.0` and builds `ListFunctions.Next.dll`, the PowerShell 7 binary module. All cmdlets live here, under `Cmdlets/Assertions`, `Cmdlets/Constructs`, and `Cmdlets/Finds`.
 - **`ListFunctions-NETFramework`** is an SDK-style project that targets `net48` and builds `ListFunctions.NETFramework.dll`, the Windows PowerShell 5.1 module. It has almost no code of its own: a `ModuleInitializer` that adds an `AssemblyResolve` hook to load dependencies from its own folder, plus a `ValidateNotNullOrWhiteSpace` polyfill. It compiles **every `.cs` file in `ListFunctions-Next`** through a wildcard `<Compile Include>`.
 	- As a result, all code in `ListFunctions-Next` must also compile for .NET Framework 4.8 against the PowerShell 5 reference assemblies.
 	- Wrap newer BCL or PowerShell 7 APIs in `#if NETCOREAPP` or `#if NET9_0_OR_GREATER`, as the existing code does.
 	- Building only `ListFunctions-Next` does not catch these errors. Build the full solution.
+- **`ListFunctions.Engine.Tests`** targets `net10.0` and `net48` and holds the xUnit.net v3 tests for Engine (see Engine tests under Tests). It isn't part of the module.
 
 ### Cmdlet lifecycle
 

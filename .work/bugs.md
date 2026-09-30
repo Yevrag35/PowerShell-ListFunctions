@@ -42,8 +42,15 @@ Found while rewriting `README.md` on 2026-09-28. The README describes how the mo
 - **PowerShell 7:** run `src/engine/ListFunctions-Next/bin/Debug/net10.0/Debug.ps1`, which is what the `ListFunctions-Next` launch profile does, or import `ListFunctions.Next.dll` from `src/engine/ListFunctions-Next/bin/<configuration>/net10.0/`.
 - **Windows PowerShell 5.1:** import `ListFunctions.NETFramework.dll` from `src/engine/ListFunctions-NETFramework/bin/<configuration>/net48/`.
 - **Tests:** `tests/Invoke-Tests.ps1` runs the Pester tests in both editions. An item's tests are tagged with its number, so `-Tag Bug06` runs only item 06's tests.
+- **Engine tests:** `dotnet test src/engine/ListFunctions.Engine.Tests/ListFunctions.Engine.Tests.csproj -c Debug` runs the xUnit.net tests in both editions. An item's tests have the trait `Category=BugNN`, so adding `--filter-trait "Category=Bug10"` runs only item 10's tests. Don't add `--nologo` or `--no-incremental`, or the run stops with "Zero tests ran".
 
 Every repro was checked against Release builds on Windows PowerShell 5.1.26100 and PowerShell 7.6.6. The two editions behave the same unless an item says otherwise.
+
+## Where an item's tests go
+
+An Engine-specific item, whose fix goes in `src/engine/ListFunctions.Engine/`, gets its tests in the xUnit.net project `src/engine/ListFunctions.Engine.Tests/` instead of in `tests/`. Write the tests against the Engine type, such as `ComparingBlock<T>` for 10, not against the cmdlet that uses it. Put them in that type's test class, such as `Modern/ComparingBlockTests.cs`, and give each one `[Trait("Category", "BugNN")]`. The project runs every test on .NET 10 in PowerShell 7 and on .NET Framework 4.8 in Windows PowerShell 5.1, so it covers both editions, like the Pester tests. Every other item gets Pester tests in `tests/`, tagged `BugNN`.
+
+Going by their **Where:** lines, 09, 10, 12, and 20 are Engine-specific, and 05 and 13 are partly Engine-specific. For those two, test the Engine part with xUnit.net and the cmdlet part with Pester.
 
 ## README accuracy
 
