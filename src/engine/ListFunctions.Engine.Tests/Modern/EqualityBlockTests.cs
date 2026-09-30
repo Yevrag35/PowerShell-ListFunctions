@@ -24,6 +24,16 @@ public sealed class EqualityBlockTests : IClassFixture<RunspaceFixture>
 	}
 
 	[Fact]
+	[Trait("Category", "Bug05")]
+	public void Equals_PassesTheOperandsAsArgumentsInOrder()
+	{
+		using RunspaceScope scope = _runspace.Enter();
+		var block = new EqualityBlock(ScriptBlock.Create("$args[0] -eq $x -and $args[1] -eq $y"), new HashBlock(ScriptBlock.Create("0")));
+
+		Assert.True(block.Equals(1, 2));
+	}
+
+	[Fact]
 	public void Equals_ReturnsTrueForTheSameReferenceWithoutRunningTheScript()
 	{
 		using RunspaceScope scope = _runspace.Enter();

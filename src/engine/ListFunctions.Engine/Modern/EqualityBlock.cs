@@ -25,9 +25,9 @@ public interface IEqualityBlock : IEqualityComparer, IEqualityComparer<object>
 /// </summary>
 /// <remarks>
 /// <para>
-/// The equality script block sees the first object as <c>$x</c> and <c>$left</c>, and the second object as <c>$y</c>
-/// and <c>$right</c>. Hash codes come from a separate <see cref="IHashBlock"/>. Both script blocks also see the
-/// additional variables passed to the constructor.
+/// The equality script block sees the first object as <c>$x</c>, <c>$left</c>, and <c>$args[0]</c>, and the second
+/// object as <c>$y</c>, <c>$right</c>, and <c>$args[1]</c>. Hash codes come from a separate <see cref="IHashBlock"/>.
+/// Both script blocks also see the additional variables passed to the constructor.
 /// </para>
 /// <para>
 /// Instances aren't thread-safe, because every comparison reuses the same list of script block variables.
@@ -146,7 +146,7 @@ public sealed class EqualityBlock : ComparingBase, IEqualityBlock
 		_right.AddToList(y, _varList);
 		_varList.AddRange(_additionalVariables);
 
-		return this.Script.InvokeWithContext(_varList, LanguagePrimitives.IsTrue);
+		return this.Script.InvokeWithContext(_varList, [x, y], LanguagePrimitives.IsTrue);
 	}
 
 	/// <summary>

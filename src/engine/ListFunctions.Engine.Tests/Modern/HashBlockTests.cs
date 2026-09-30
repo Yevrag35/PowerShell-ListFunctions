@@ -25,6 +25,19 @@ public sealed class HashBlockTests : IClassFixture<RunspaceFixture>
 	}
 
 	[Fact]
+	[Trait("Category", "Bug05")]
+	public void GetHashCode_PassesTheObjectAsTheFirstArgument()
+	{
+		using RunspaceScope scope = _runspace.Enter();
+		var block = new HashBlock(ScriptBlock.Create("$args[0].Length"));
+		// The cmdlets always pass $ErrorActionPreference, so the test also calls the method with a variable.
+		IEnumerable<PSVariable> variables = [new PSVariable("ErrorActionPreference", ActionPreference.Stop)];
+
+		Assert.Equal(4, block.GetHashCode("abcd", additionalVariables: null));
+		Assert.Equal(4, block.GetHashCode("abcd", variables));
+	}
+
+	[Fact]
 	public void GetHashCode_ConvertsTheOutputToInt()
 	{
 		using RunspaceScope scope = _runspace.Enter();

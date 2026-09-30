@@ -87,9 +87,9 @@ public static class ComparingBlock
 /// </summary>
 /// <remarks>
 /// <para>
-/// The script block sees the first operand as <c>$x</c> and <c>$left</c>, and the second operand as <c>$y</c> and
-/// <c>$right</c>. Its first output is converted to an <see cref="int"/> by PowerShell's conversion rules and is read
-/// the same way as the result of <see cref="IComparer{T}.Compare(T, T)"/>.
+/// The script block sees the first operand as <c>$x</c>, <c>$left</c>, and <c>$args[0]</c>, and the second operand as
+/// <c>$y</c>, <c>$right</c>, and <c>$args[1]</c>. Its first output is converted to an <see cref="int"/> by PowerShell's
+/// conversion rules and is read the same way as the result of <see cref="IComparer{T}.Compare(T, T)"/>.
 /// </para>
 /// <para>
 /// Instances aren't thread-safe, because every comparison reuses the same list of script block variables.
@@ -204,7 +204,7 @@ public sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparingB
 		_right.AddToVarList(right, _varList);
 		_varList.AddRange(_additionalVariables);
 
-		return _compareScript.InvokeWithContext(_varList, x => LanguagePrimitives.ConvertTo<int>(x));
+		return _compareScript.InvokeWithContext(_varList, [left, right], x => LanguagePrimitives.ConvertTo<int>(x));
 	}
 	/// <summary>
 	/// Compares two objects by converting them to <typeparamref name="T"/> and running the script block.

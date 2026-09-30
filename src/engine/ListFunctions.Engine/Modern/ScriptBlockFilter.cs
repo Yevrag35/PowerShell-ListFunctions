@@ -10,9 +10,9 @@ namespace ListFunctions.Modern;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The script block sees the object under test as <c>$_</c>, <c>$this</c>, and <c>$PSItem</c>. Its first output is
-/// converted to a <see cref="bool"/> by PowerShell's rules, so any output that PowerShell treats as true passes. A
-/// script block with no output fails the test.
+/// The script block sees the object under test as <c>$_</c>, <c>$this</c>, <c>$PSItem</c>, and <c>$args[0]</c>. Its
+/// first output is converted to a <see cref="bool"/> by PowerShell's rules, so any output that PowerShell treats as
+/// true passes. A script block with no output fails the test.
 /// </para>
 /// <para>
 /// Instances aren't thread-safe, because every test reuses the same list of script block variables.
@@ -123,6 +123,7 @@ public sealed class ScriptBlockFilter
 
 		return _scriptBlock.InvokeWithContext(
 			variables: variables,
+			args: [value],
 			selectAs: LanguagePrimitives.IsTrue);
 	}
 }

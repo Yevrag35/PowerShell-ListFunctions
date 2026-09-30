@@ -25,6 +25,18 @@ public sealed class ComparingBlockTests : IClassFixture<RunspaceFixture>
 	}
 
 	[Fact]
+	[Trait("Category", "Bug05")]
+	public void Compare_PassesTheOperandsAsArguments()
+	{
+		using RunspaceScope scope = _runspace.Enter();
+		var block = new ComparingBlock<int>(ScriptBlock.Create("$args[0].CompareTo($args[1])"), additionalVariables: null);
+
+		Assert.Equal(-1, Math.Sign(block.Compare(1, 2)));
+		Assert.Equal(0, block.Compare(2, 2));
+		Assert.Equal(1, Math.Sign(block.Compare(3, 2)));
+	}
+
+	[Fact]
 	public void Compare_PassesAdditionalVariablesToTheScript()
 	{
 		using RunspaceScope scope = _runspace.Enter();

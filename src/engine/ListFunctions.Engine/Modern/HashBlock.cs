@@ -9,8 +9,8 @@ namespace ListFunctions.Modern;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The script block sees the object to hash as <c>$_</c>, <c>$this</c>, and <c>$PSItem</c>, along with any additional
-/// variables that the caller passes to <see cref="GetHashCode(object, IEnumerable{PSVariable})"/>.
+/// The script block sees the object to hash as <c>$_</c>, <c>$this</c>, <c>$PSItem</c>, and <c>$args[0]</c>, along
+/// with any additional variables that the caller passes to <see cref="GetHashCode(object, IEnumerable{PSVariable})"/>.
 /// </para>
 /// <para>
 /// Instances aren't thread-safe, because every call reuses the same list of script block variables.
@@ -61,9 +61,9 @@ public sealed class HashBlock : ComparingBase, IHashBlock
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	/// The script block receives <paramref name="obj"/> as <c>$_</c>, <c>$this</c>, and <c>$PSItem</c>. Only its first
-	/// output is used, and that output is converted to an <see cref="int"/> by PowerShell's conversion rules, so the
-	/// string <c>'42'</c> gives the hash code 42.
+	/// The script block receives <paramref name="obj"/> as <c>$_</c>, <c>$this</c>, <c>$PSItem</c>, and <c>$args[0]</c>.
+	/// Only its first output is used, and that output is converted to an <see cref="int"/> by PowerShell's conversion
+	/// rules, so the string <c>'42'</c> gives the hash code 42.
 	/// </para>
 	/// <para>
 	/// The method isn't thread-safe, because every call reuses the same list of script block variables.
@@ -99,14 +99,14 @@ public sealed class HashBlock : ComparingBase, IHashBlock
 	/// The method returns only when the script block succeeds and its first output isn't <see langword="null"/>. The
 	/// caller converts that output to the hash code.
 	/// </remarks>
-	/// <param name="obj">The object to pass to the script block as <c>$_</c>, <c>$this</c>, and <c>$PSItem</c>.</param>
+	/// <param name="obj">The object to pass to the script block as <c>$_</c>, <c>$this</c>, <c>$PSItem</c>, and <c>$args[0]</c>.</param>
 	/// <param name="additionalVariables">The variables to define in the script block's scope along with the object, or <see langword="null"/> for none.</param>
 	/// <returns>The first output of the script block.</returns>
 	/// <exception cref="HashCodeScriptException">Thrown when the script block throws, or when it has no output or its first output is null.</exception>
 	private object? GetHashObject(object obj, IEnumerable<PSVariable>? additionalVariables)
 	{
 		List<PSVariable> variables = this.SetContextVariables(obj, additionalVariables);
-		if (!this.Script.TryInvokeWithContext(variables, out object? hashObj, out Exception? exception))
+		if (!this.Script.TryInvokeWithContext(variables, [obj], out object? hashObj, out Exception? exception))
 		{
 			if (exception is null)
 			{

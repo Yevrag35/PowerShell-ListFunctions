@@ -24,6 +24,28 @@ public sealed class ScriptBlockFilterTests : IClassFixture<RunspaceFixture>
 		Assert.False(filter.IsTrue(2));
 	}
 
+	[Fact]
+	[Trait("Category", "Bug05")]
+	public void IsTrue_PassesTheObjectAsTheFirstArgument()
+	{
+		using RunspaceScope scope = _runspace.Enter();
+		var filter = new ScriptBlockFilter(ScriptBlock.Create("$args[0] -gt 2"));
+
+		Assert.True(filter.IsTrue(3));
+		Assert.False(filter.IsTrue(2));
+	}
+
+	[Fact]
+	[Trait("Category", "Bug05")]
+	public void IsTrue_PassesNullAndArraysAsASingleArgument()
+	{
+		using RunspaceScope scope = _runspace.Enter();
+		var filter = new ScriptBlockFilter(ScriptBlock.Create("$args.Count -eq 1"));
+
+		Assert.True(filter.IsTrue(null));
+		Assert.True(filter.IsTrue(new object[] { 1, 2 }));
+	}
+
 	[Theory]
 	[InlineData(1, true)]
 	[InlineData(0, false)]

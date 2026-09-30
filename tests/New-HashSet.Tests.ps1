@@ -38,6 +38,19 @@ Describe 'New-HashSet' {
 			$err = { $set.Add('abc') } | Should-Throw
 			Should-HaveType -Expected ([ListFunctions.Modern.Exceptions.HashCodeScriptException]) -Actual $err.Exception.InnerException
 		}
+
+		It 'passes the elements to -EqualityScript as $args[0] and $args[1]' -Tag 'Bug05' {
+			# Every element has the same Id, so each Add after the first runs -EqualityScript.
+			$set = New-HashSet -EqualityScript { $args[0].Name -eq $args[1].Name } -HashCodeScript { $_.Id.GetHashCode() }
+			$set.Add([pscustomobject]@{ Id = 1; Name = 'a' }) | Should-BeTrue
+			$set.Add([pscustomobject]@{ Id = 1; Name = 'b' }) | Should-BeTrue
+			$set.Add([pscustomobject]@{ Id = 1; Name = 'a' }) | Should-BeFalse
+		}
+
+		It 'passes the element to -HashCodeScript as $args[0]' -Tag 'Bug05' {
+			$set = New-HashSet -EqualityScript { $x -eq $y } -HashCodeScript { $args[0].Length }
+			$set.Comparer.GetHashCode('abcd') | Should-Be 4
+		}
 	}
 
 	Context 'Capacity' {

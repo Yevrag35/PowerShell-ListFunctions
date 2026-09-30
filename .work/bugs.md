@@ -13,7 +13,7 @@ Found while rewriting `README.md` on 2026-09-28. The README describes how the mo
 
 **Other bugs**
 
-- [ ] 05 — `$args[0]` and `$args[1]` pass validation but are always `$null`
+- [x] 05 — `$args[0]` and `$args[1]` pass validation but are always `$null`
 - [ ] 06 — Piped `$null` and array elements are miscounted
 - [ ] 07 — New-Dictionary ignores the equality scripts when it copies from `-InputObject`
 - [ ] 08 — New-Dictionary doesn't convert copied values to `-ValueType`
@@ -48,9 +48,13 @@ Every repro was checked against Release builds on Windows PowerShell 5.1.26100 a
 
 ## Where an item's tests go
 
-An Engine-specific item, whose fix goes in `src/engine/ListFunctions.Engine/`, gets its tests in the xUnit.net project `src/engine/ListFunctions.Engine.Tests/` instead of in `tests/`. Write the tests against the Engine type, such as `ComparingBlock<T>` for 10, not against the cmdlet that uses it. Put them in that type's test class, such as `Modern/ComparingBlockTests.cs`, and give each one `[Trait("Category", "BugNN")]`. The project runs every test on .NET 10 in PowerShell 7 and on .NET Framework 4.8 in Windows PowerShell 5.1, so it covers both editions, like the Pester tests. Every other item gets Pester tests in `tests/`, tagged `BugNN`.
+Every item has a **Tests:** line that names the files its tests go in. The rule behind those lines:
 
-Going by their **Where:** lines, 09, 10, 12, and 20 are Engine-specific, and 05 and 13 are partly Engine-specific. For those two, test the Engine part with xUnit.net and the cmdlet part with Pester.
+- **Pester**, in `tests/<Cmdlet>.Tests.ps1` and tagged `BugNN`: every bug that can surface during normal use of the module. Test it through the cmdlet, the way a user runs into it. A cmdlet that has no test file yet gets a new one.
+- **Engine**, in `src/engine/ListFunctions.Engine.Tests/` with `[Trait("Category", "BugNN")]`: every bug whose cause is in `src/engine/ListFunctions.Engine/`. Test the Engine type directly, in the test class that mirrors its source file, such as `Modern/ComparingBlockTests.cs` for `Modern/ComparingBlock.cs`. A type that has no test class yet gets a new one.
+- **Both**: an Engine bug that also surfaces through a cmdlet. The Engine test pins down the type's behavior, and the Pester test shows that the cmdlet passes the fix on to the user. Every open item with a cause in Engine is like this.
+
+Both suites run every test in PowerShell 7 and Windows PowerShell 5.1. When an item's fix idea offers a choice, its **Tests:** line says what each choice needs.
 
 ## README accuracy
 
@@ -73,6 +77,8 @@ The no-variables path, `GetHashObjectAsIs`, has two more problems. It runs the s
 
 **Fixed:** `HashBlock.GetHashCode` converts the script's first output to `[int]` with `LanguagePrimitives.ConvertTo` and returns it. Output that can't be converted throws `HashCodeScriptException`, as no output and a `$null` output already did. `GetHashObjectAsIs` is gone, so every call sets `$_`, `$this`, and `$PSItem`, with or without additional variables. The `Bug01` tests in `tests/New-HashSet.Tests.ps1` and `tests/New-Dictionary.Tests.ps1` cover the returned hash code, the conversion, both error cases, and duplicates found through `Add`, `ContainsKey`, and pipeline input.
 
+**Tests:** Both. Pester is written: `Bug01` in `tests/New-HashSet.Tests.ps1` and `tests/New-Dictionary.Tests.ps1`. On the Engine side, `Modern/HashBlockTests.cs` covers the fixed `HashBlock` behavior, but without a `Bug01` trait.
+
 ### 02 — `-Capacity` does nothing on New-HashSet and New-Dictionary
 
 **README:** the `-Capacity` rows in the New-HashSet and New-Dictionary parameter tables.
@@ -89,6 +95,8 @@ The no-variables path, `GetHashObjectAsIs`, has two more problems. It runs the s
 
 **Fixed:** `EqualityCollectionCtor` has a `Capacity` property, which `EqualityConstructingCmdlet.BeginCore` sets from `-Capacity`. `GetConstructorArguments` yields the capacity before the comparer, so reflection now calls the `(int, IEqualityComparer<T>)` constructors. The default paths call `Hashtable(int, IEqualityComparer)` and `HashSet<object>(int, IEqualityComparer<object>)`, which the `netstandard2.0` build reaches through `Activator.CreateInstance`. A capacity of 0 creates the same collections as before. The `Bug02` tests measure the bucket array with `tests/Get-BucketCount.ps1`, because .NET Framework has no `EnsureCapacity`.
 
+**Tests:** Both. Pester is written: `Bug02` in `tests/New-HashSet.Tests.ps1` and `tests/New-Dictionary.Tests.ps1`. The Engine tests aren't written yet. They go in `Modern/Constructors/HashSetCtorTests.cs` and a new `Modern/Constructors/DictionaryCtorTests.cs`, and they set `Capacity` before calling `Construct`.
+
 ### 03 — New-HashSet can't combine `-GenericType` with `-CaseSensitive`
 
 **README:** New-HashSet's `-CaseSensitive` row ("Available when the element type is `[object]` or `[string]`").
@@ -103,6 +111,8 @@ New-HashSet -CaseSensitive              # Works, and creates an [object] set
 **Fix idea:** Also put `GenericType` in the `StringSet` parameter set, with a second `[Parameter(ParameterSetName = ..., Position = 0)]`. It has to stay out of `WithCustomEquality`.
 
 **Fixed:** `GenericType` has a second `[Parameter]` for `StringSet` at position 0 and stays out of `WithCustomEquality`. Without `-CaseSensitive`, `SpecifiedType` is still chosen, so `[string]` sets stay case-insensitive by default. The `Bug03` tests in `tests/New-HashSet.Tests.ps1` cover `[string]` and `[object]` sets, pipeline input, the case-insensitive default, and the error for `[int]`, which still isn't offered `-CaseSensitive`.
+
+**Tests:** Pester only, and written: `Bug03` in `tests/New-HashSet.Tests.ps1`. The cause was the cmdlet's parameter sets.
 
 ### 04 — New-List ignores `-IncludeNullElements` unless `-GenericType` is given
 
@@ -119,13 +129,15 @@ New-HashSet -CaseSensitive              # Works, and creates an [object] set
 
 **Fixed:** `BeginCore` sets `_isObjectType` from the resolved element type. The `GenericType` getter and setter no longer change it, so the two `SetToObjectType` methods are gone. The `Bug04` tests in `tests/New-List.Tests.ps1` cover `-InputObject`. A piped `$null` is still dropped until 06 is fixed, and the open question below is unchanged.
 
+**Tests:** Pester only, and written: `Bug04` in `tests/New-List.Tests.ps1`. The cause was in the cmdlet.
+
 **Open question:** A typed list converts `$null` instead of adding it. `New-List [int] -InputObject 1, $null -IncludeNullElements` holds `1, 0`, and a `[string]` list gets `''`. Is that intended?
 
 ## Other bugs
 
 ### 05 — `$args[0]` and `$args[1]` pass validation but are always `$null`
 
-**Where:** The `ValidateScriptVariable` attributes accept `PSThisVariable.FirstArg` and `SecondArg` for `-Condition` (Assert-AnyObject, Assert-AllObject, Find-IndexOf, Find-LastIndexOf), for `-EqualityScript` and `-HashCodeScript` (New-HashSet), and for `-ComparingScript` (New-SortedSet). At run time, though, `ScriptBlockFilter.IsTrue`, `EqualityBlock.Equals`, `HashBlock.GetHashCodeWithContext`, and `ComparingBlock<T>.Compare` all call `InvokeWithContext` with an empty `args` array.
+**Where:** The `ValidateScriptVariable` attributes accept `PSThisVariable.FirstArg` and `SecondArg` for `-Condition` (Assert-AnyObject, Assert-AllObject, Find-IndexOf, Find-LastIndexOf), for `-EqualityScript` and `-HashCodeScript` (New-HashSet), and for `-ComparingScript` (New-SortedSet). At run time, though, `ScriptBlockFilter.IsTrue`, `EqualityBlock.Equals`, `HashBlock.GetHashCode`, and `ComparingBlock<T>.Compare` all call `InvokeWithContext` with an empty `args` array.
 
 ```powershell
 1, 2, 3 | Any { $args[0] -gt 2 }             # Expected: True. Actual: False
@@ -140,6 +152,12 @@ $set.Add([pscustomobject]@{ Id = 1; Name = 'b' })    # Expected: True. Actual: F
 ```
 
 **Fix idea:** Pass the elements as `args` to `InvokeWithContext`, or remove `FirstArg` and `SecondArg` from the attributes. ConvertTo-Dictionary already supports `$args[0]`, because it calls its selectors with `ScriptBlock.Invoke(item)`.
+
+**Fixed:** `InvokeWithContext<T>` and the two `TryInvokeWithContext` overloads in `src/engine/ListFunctions.Engine/Internal/ScriptBlockExtensions.cs` take an `args` array and pass it to `ScriptBlock.InvokeWithContext` in place of the shared empty array. `ScriptBlockFilter.IsTrue` and `HashBlock.GetHashCode` pass the element as `$args[0]`, and `EqualityBlock.Equals` and `ComparingBlock<T>.Compare` pass their operands as `$args[0]` and `$args[1]`, the same values that `$x` and `$y` hold. Each call builds a new array, because PowerShell doesn't copy it: a script block without a `param()` block gets that exact array as `$args`, so a shared array would change under a script block that keeps `$args`. A script block with a `param()` block now gets the elements as its parameters, the way `ScriptBlock.Invoke` does, and `$args` holds only the elements left over. The validation attributes and the cmdlets are unchanged. All four repros give their expected results in both editions, with no errors. The `Bug05` tests cover `$args` in every parameter that **Where:** lists, the order of `$args[0]` and `$args[1]`, and a `$null` or array element, which arrives as a single argument. Each of them fails when `ScriptBlockExtensions.cs` passes an empty array again.
+
+**Tests:** Both, and written. Pester: `Bug05` in `tests/Assert-AnyObject.Tests.ps1`, `tests/Assert-AllObject.Tests.ps1`, `tests/Find-IndexOf.Tests.ps1`, and `tests/Find-LastIndexOf.Tests.ps1` (all new), and in `tests/New-HashSet.Tests.ps1` and `tests/New-SortedSet.Tests.ps1`. Engine: `Category=Bug05` in `Modern/ScriptBlockFilterTests.cs`, `Modern/EqualityBlockTests.cs`, `Modern/HashBlockTests.cs`, and `Modern/ComparingBlockTests.cs`.
+
+**Open question:** New-Dictionary's `-EqualityScript` and `-HashCodeScript` run through the same `EqualityBlock` and `HashBlock`, so `$args[0]` and `$args[1]` hold the keys there now too. Its `ValidateScriptVariable` attributes don't list `FirstArg` and `SecondArg`, though, so New-Dictionary still rejects script blocks that New-HashSet accepts, such as `-EqualityScript { $args[0] -eq $args[1] }`. Should it accept them? And should the README, which doesn't mention `$args` for any parameter, list it?
 
 ### 06 — Piped `$null` and array elements are miscounted
 
@@ -160,6 +178,8 @@ Find-IndexOf -InputObject @(1, $null, 3) { $_ -eq 3 }    # 2, which is correct
 
 **Fix idea:** Count each pipeline object as one element. For example, make `InputObject` a single `object`, treat it as one element when `MyInvocation.ExpectingInput` is true, and enumerate it otherwise.
 
+**Tests:** Pester only, because the cause is in how the cmdlets bind pipeline input. The repros go in `tests/Find-IndexOf.Tests.ps1` and `tests/Find-LastIndexOf.Tests.ps1` (both new) and `tests/New-List.Tests.ps1`. The New-List tests add the piped `$null` case that 04's tests leave out.
+
 ### 07 — New-Dictionary ignores the equality scripts when it copies from `-InputObject`
 
 **Where:** `NewDictionaryCmdlet.GetCustomEqualityComparer` (`src/engine/ListFunctions-Next/Cmdlets/Constructs/NewDictionaryCmdlet.cs`) only recognizes the `WithCustomEquality` parameter set. When you also pass `-InputObject`, the set is `WithCustomEqualityAndCopy`, so the method falls back to the default comparer and the command returns a plain `Hashtable`. `-ScriptBlockErrorAction` isn't in `WithCustomEqualityAndCopy` either.
@@ -174,6 +194,8 @@ New-Dictionary -EqualityScript { $x -eq $y } -HashCodeScript { $_.GetHashCode() 
 
 **Fix idea:** Recognize both set names, and add `ScriptBlockErrorAction` to `WithCustomEqualityAndCopy`.
 
+**Tests:** Pester only, in `tests/New-Dictionary.Tests.ps1`. The cause is in the cmdlet's parameter sets.
+
 ### 08 — New-Dictionary doesn't convert copied values to `-ValueType`
 
 **Where:** `NewDictionaryCmdlet.Process` converts each key with `LanguagePrimitives.ConvertTo(de.Key, this.KeyType)`, but only clones each value, so the `Add` call rejects a value of the wrong type.
@@ -186,6 +208,8 @@ $d.Count             # Expected: 1. Actual: 0
 
 **Fix idea:** Convert each value to `ValueType` after cloning it, and report conversion failures the way New-List does.
 
+**Tests:** Pester only, in `tests/New-Dictionary.Tests.ps1`. The cause is in `NewDictionaryCmdlet.Process`.
+
 ### 09 — New-Dictionary can't use script block equality with value-type keys
 
 **Where:** `EqualityBlock` implements `IEqualityComparer<object>`. `Dictionary<string, TValue>` accepts it through contravariance, but `Dictionary<int, TValue>` needs an `IEqualityComparer<int>`, so `GenericCollectionCtor.CallActivator` finds no matching constructor.
@@ -197,6 +221,11 @@ New-Dictionary [int] -EqualityScript { $x -eq $y } -HashCodeScript { $_.GetHashC
 
 **Fix idea:** Wrap the `EqualityBlock` in a generic `IEqualityComparer<TKey>` adapter, the way `ComparingBlock<T>` works for comparers. Or reject value-type keys during parameter binding, with a clear message.
 
+**Tests:** Both with the adapter fix. Rejecting value-type keys changes only the cmdlet, so that fix needs Pester only.
+
+- Pester: `tests/New-Dictionary.Tests.ps1`. The `Bug14` test there runs this repro but checks only that the process survives. The `Bug09` test checks the dictionary that comes back, or the error message.
+- Engine, with the adapter fix: a new `Modern/Constructors/DictionaryCtorTests.cs`, where a `DictionaryCtor` with an `EqualityBlock` and an `[int]` key type creates a working dictionary. If the adapter is its own type, it gets its own test class too.
+
 ### 10 — A `-ComparingScript` result that isn't an `[int]` silently means "equal"
 
 **Where:** `ComparingBlock<T>.Compare` (`src/engine/ListFunctions.Engine/Modern/ComparingBlock.cs`) converts the script's first output with `LanguagePrimitives.ConvertTo<int>` through `PSVariableCollectionExtensions.GetFirstValue`, which catches a failed conversion and returns `0`. No output also gives `0`. Every pair then compares as equal, so the set keeps only its first element, and no error appears.
@@ -207,6 +236,11 @@ New-Dictionary [int] -EqualityScript { $x -eq $y } -HashCodeScript { $_.GetHashC
 ```
 
 **Fix idea:** Treat no output, or output that can't be converted to `[int]`, as an error in the comparing script, the way `HashBlock` treats a `$null` hash code.
+
+**Tests:** Both.
+
+- Engine: `Modern/ComparingBlockTests.cs`, where `Compare` throws for both repros. `GetFirstValue` is shared: `ScriptBlockFilter` and `EqualityBlock` reach it through `InvokeWithContext`. If the fix changes `GetFirstValue` rather than `ComparingBlock<T>`, it also gets a new `Extensions/PSVariableCollectionExtensionsTests.cs`, and the existing `ScriptBlockFilterTests.cs` and `EqualityBlockTests.cs` show whether those types changed too.
+- Pester: `tests/New-SortedSet.Tests.ps1`, where both repros produce an error. The `Bug14` test there runs the first repro but checks only that the process survives.
 
 ### 11 — A generic type split at a comma silently becomes `[object]`
 
@@ -220,6 +254,8 @@ New-Dictionary [int] -EqualityScript { $x -eq $y } -HashCodeScript { $_.GetHashC
 **Fix idea:** Throw for unsupported input. Or join an `object[]` of strings back together with `,` and parse that, which recovers the type the user meant.
 
 **Related:** A type name without brackets is rejected with a misleading message. `New-List System.String` fails with "'System.String' is not a valid .NET or custom-defined type", even though it is one; the transform only accepts bracketed type literals.
+
+**Tests:** Pester only, in `tests/New-List.Tests.ps1`, which is the cmdlet the repro uses. That file also gets the related case. The transform is in `ListFunctions-Next`, and every cmdlet that takes a type shares it.
 
 ### 12 — ConvertTo-Dictionary misses `$_` when an operator follows it
 
@@ -244,6 +280,11 @@ $people = [pscustomobject]@{ Name = 'Ann'; Tags = 'a', 'b' }, [pscustomobject]@{
 
 **Fix idea:** Rewrite from the AST, using the `VariableExpressionAst` extents, instead of a regex. Or run the selectors with `InvokeWithContext` and set `$_`, the way the other commands do.
 
+**Tests:** Both with the AST fix. The `InvokeWithContext` fix changes only the cmdlet, which then stops calling `ReplaceWithArgsZero`, so it needs Pester only.
+
+- Pester: a new `tests/ConvertTo-Dictionary.Tests.ps1`, with all three repros.
+- Engine, with the AST fix: a new `Extensions/ScriptBlockVariableExtensionsTests.cs`. It covers `ReplaceWithArgsZero` directly: an operator right after `$_`, `$_` inside a double-quoted string, and `$_` in a nested script block.
+
 ### 13 — Assert-AllObject gives different answers for empty input
 
 **Where:** `ScriptBlockFilter.All` returns `$false` for an empty collection, so `-InputObject @()` counts as a failure. With an empty pipeline, `ProcessRecord` never runs, so the result is `$true`.
@@ -254,6 +295,11 @@ Assert-AllObject -InputObject @() -Condition { $_ -is [int] }    # False
 ```
 
 **Fix idea:** Pick one answer and return it on both paths. LINQ's `All` returns `true` for an empty sequence.
+
+**Tests:** Both if the answer is `$true`, because that changes `ScriptBlockFilter.All`. If the answer is `$false`, only the cmdlet's pipeline path changes, so Pester alone covers it.
+
+- Pester: a new `tests/Assert-AllObject.Tests.ps1`, where an empty pipeline and `-InputObject @()` give the same answer.
+- Engine, if the answer is `$true`: `Modern/ScriptBlockFilterTests.cs`, where `All` returns `true` for an empty collection.
 
 ### 14 — `Debug.Fail` ends the PowerShell process in Debug builds
 
@@ -268,6 +314,8 @@ The others guard cleanup and reflection fallbacks: `ListFunctionCmdletBase.Clean
 
 **Fixed:** All five calls now use `Debug.WriteLine`, including the three that guard cleanup and reflection fallbacks. A `Debug.Fail` on any path that a cmdlet runs would end a whole test run instead of failing one test. The `Bug14` tests in `tests/New-Dictionary.Tests.ps1` and `tests/New-SortedSet.Tests.ps1` cover the two calls that user input reaches.
 
+**Tests:** Pester only, and written (see **Fixed:**). Both calls that user input reaches are in Engine, but the fix only swapped `Debug.Fail` for `Debug.WriteLine`, and the Pester tests already reach both calls in both builds.
+
 ## Release
 
 ### 15 — Update the manifest and the shipped DLLs for 4.0.0
@@ -278,6 +326,8 @@ The others guard cleanup and reflection fallbacks: `ListFunctionCmdletBase.Clean
 - [ ] Nothing enforces PowerShell 7.6 or later, which the README states. `ListFunctions/ListFunctions.psm1` imports `Core\ListFunctions.Next.dll` on any 7.x, but a `net10.0` assembly can't load on PowerShell 7.5 (.NET 9) or earlier.
 - [ ] `Tags` includes `Remove` and `Modify`, but `Remove-All` and `Remove-At` exist only in the legacy scripts under `src/public`.
 - [ ] `ReleaseNotes` is still the 3.x text.
+
+**Tests:** None. This is a release checklist, and the Pester tests import the build output, not the DLLs shipped under `ListFunctions/`. `tests/Module.Tests.ps1` already checks the build's exports against the manifest's `CmdletsToExport` and `AliasesToExport`.
 
 ## Minor
 
@@ -293,6 +343,8 @@ Assert-AnyObject and Find-IndexOf give `-ScriptBlockErrorAction` the alias `Scri
 
 **Fix idea:** Add the alias to the other two, or remove it from both.
 
+**Tests:** Pester only, because the alias is a cmdlet parameter attribute. Each condition cmdlet gets one test, in `tests/Assert-AnyObject.Tests.ps1`, `tests/Assert-AllObject.Tests.ps1`, `tests/Find-IndexOf.Tests.ps1`, and `tests/Find-LastIndexOf.Tests.ps1`, so that all four agree on `-ScriptErrorAction`.
+
 ### 17 — New-SortedSet silently skips elements it can't convert
 
 **Where:** `NewSortedSetCmdlet.ProcessCore` skips an element when `LanguagePrimitives.TryConvertTo` fails. New-List and New-HashSet write a non-terminating error in the same situation.
@@ -303,6 +355,8 @@ Assert-AnyObject and Find-IndexOf give `-ScriptBlockErrorAction` the alias `Scri
 ```
 
 **Fix idea:** Write the same conversion error that New-List writes.
+
+**Tests:** Pester only, in `tests/New-SortedSet.Tests.ps1`. The cause is in `NewSortedSetCmdlet.ProcessCore`.
 
 ### 18 — New-Dictionary's `-CaseSensitive` can't be combined with `-InputObject`
 
@@ -315,6 +369,8 @@ Assert-AnyObject and Find-IndexOf give `-ScriptBlockErrorAction` the alias `Scri
 ```
 
 **Fix idea:** Also add `-CaseSensitive` to the `JustCopy` set.
+
+**Tests:** Pester only, in `tests/New-Dictionary.Tests.ps1`. The cause is in the cmdlet's parameter sets.
 
 ### 19 — ConvertTo-Dictionary stores the whole input object when the value is `$null`
 
@@ -329,6 +385,8 @@ $d.Count     # Expected: 2, with $d['b'] -eq $null. Actual: 1
 
 **Fix idea:** Store `$null` when a value selector returns `$null`, and fall back to the input object only when there's no value selector.
 
+**Tests:** Pester only, in a new `tests/ConvertTo-Dictionary.Tests.ps1`. The cause is in `ConvertToDictionaryCmdlet.AddToDictionary`.
+
 ### 20 — New-Dictionary's `[object]` keys turn case-sensitive when `-ValueType` isn't `[object]`
 
 **Where:** New-Dictionary builds its case-insensitive `Hashtable` only when both types are `[object]` (`DictionaryCtor.ShouldConstructDefault`). With any other value type, `[object]` keys get `EqualityComparer<object>.Default`, which compares strings case-sensitively, and `-CaseSensitive` is offered but changes nothing.
@@ -341,6 +399,11 @@ $d.Count                                   # 2; the default Hashtable gives 1
 ```
 
 **Fix idea:** Decide how `[object]` keys should compare, and use that rule on both paths. New-HashSet's `ObjectEqualityComparer` is one option.
+
+**Tests:** Both.
+
+- Engine: a new `Modern/Constructors/DictionaryCtorTests.cs`. `[object]` keys follow the chosen rule whatever the value type is, and `IsCaseSensitive` changes them.
+- Pester: `tests/New-Dictionary.Tests.ps1`, with the repro, plus `-CaseSensitive` with a non-`[object]` `-ValueType`.
 
 ### 21 — Find-LastIndexOf handles condition errors differently from the other condition cmdlets
 
@@ -369,3 +432,5 @@ try { 1 | Find-LastIndexOf { if ($_) { $null.Foo() } } } catch { $_.FullyQualifi
 ```
 
 **Fix idea:** Handle exceptions the same way in all three phases. `StopUpstreamCommands` runs `EndCore` too, outside `ProcessRecord`'s `try`, so it needs the same handling. First decide what `Stop` should do: letting the `ActionPreferenceStopException` through matches `-ErrorAction Stop`. Wrap other errors in a record that names the cmdlet and keeps the original error ID and category, the way PowerShell's own wrapping does for Find-LastIndexOf's `$null.Foo()`.
+
+**Tests:** Pester only, because the cause is in `ListFunctionCmdletBase`. The repros go in `tests/Find-LastIndexOf.Tests.ps1` and `tests/Find-IndexOf.Tests.ps1`. Matching tests in `tests/Assert-AnyObject.Tests.ps1` and `tests/Assert-AllObject.Tests.ps1` keep all four cmdlets handling errors the same way.
