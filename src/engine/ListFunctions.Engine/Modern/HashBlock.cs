@@ -5,31 +5,51 @@ using ListFunctions.Modern.Variables;
 namespace ListFunctions.Modern;
 
 /// <summary>
-/// Represents a script-based hash code provider that computes hash codes for objects using a PowerShell script block
-/// and optional variable context.
+/// Represents a hash code provider that computes the hash codes of objects by running a PowerShell script block.
 /// </summary>
-/// <remarks>Use this class to customize hash code generation for objects by supplying a PowerShell script block
-/// that defines the hash logic. The script block can access the target object and additional variables, enabling
-/// advanced or domain-specific hash code strategies.</remarks>
+/// <remarks>
+/// <para>
+/// The script block sees the object to hash as <c>$_</c>, <c>$this</c>, and <c>$PSItem</c>, along with any additional
+/// variables that the caller passes to <see cref="GetHashCode(object, IEnumerable{PSVariable})"/>.
+/// </para>
+/// <para>
+/// Instances aren't thread-safe, because every call reuses the same list of script block variables.
+/// </para>
+/// </remarks>
 public sealed class HashBlock : ComparingBase, IHashBlock
 {
 	private readonly PSThisVariable _thisVar;
 	private readonly List<PSVariable> _varList;
 
 	/// <summary>
-	/// Initializes a new instance of the <see cref="HashBlock"/> class using the specified script block.
+	/// Initializes a new <see cref="HashBlock"/> instance with the specified script block.
 	/// </summary>
-	/// <param name="scriptBlock">The ScriptBlock to associate with this HashBlock. Cannot be null.</param>
+	/// <param name="scriptBlock">The script block that computes the hash code of <c>$_</c>. This value must not be <see langword="null"/>.</param>
+	/// <exception cref="ArgumentNullException">Thrown when <paramref name="scriptBlock"/> is null.</exception>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="scriptBlock"/> contains no statements.</exception>
 	public HashBlock(ScriptBlock scriptBlock) : base(scriptBlock, preValidated: false)
 	{
 		_thisVar = new();
 		_varList = new(4);
 	}
 	/// <summary>
-	/// Initializes a new instance of the <see cref="HashBlock"/> class with the specified script block and optional variable list.
+	/// Initializes a new <see cref="HashBlock"/> instance with the specified script block and variable list.
 	/// </summary>
-	/// <param name="scriptBlock">The script block to be executed by this HashBlock. Cannot be null.</param>
-	/// <param name="variables">An optional list of variables to be used within the script block. If null, an empty list is used.</param>
+	/// <remarks>
+	/// <para>
+	/// The instance keeps <paramref name="variables"/> without copying it and uses it as its working list of script
+	/// block variables. Every call to <see cref="GetHashCode(object, IEnumerable{PSVariable})"/> clears and refills the
+	/// list, so the variables it holds beforehand never reach the script block. Pass variables to
+	/// <see cref="GetHashCode(object, IEnumerable{PSVariable})"/> instead.
+	/// </para>
+	/// <para>
+	/// TODO: Clarify whether the variables in <paramref name="variables"/> are meant to reach the script block.
+	/// </para>
+	/// </remarks>
+	/// <param name="scriptBlock">The script block that computes the hash code of <c>$_</c>. This value must not be <see langword="null"/>.</param>
+	/// <param name="variables">The list to use as the working list of script block variables, or <see langword="null"/> to create one.</param>
+	/// <exception cref="ArgumentNullException">Thrown when <paramref name="scriptBlock"/> is null.</exception>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="scriptBlock"/> contains no statements.</exception>
 	public HashBlock(ScriptBlock scriptBlock, List<PSVariable>? variables) : base(scriptBlock, preValidated: false)
 	{
 		_varList = variables ?? new(4);
@@ -101,13 +121,11 @@ public sealed class HashBlock : ComparingBase, IHashBlock
 	}
 
 	/// <summary>
-	/// Prepares and returns a list of context variables for use in PowerShell script execution.
+	/// Rebuilds the list of script block variables for the specified object.
 	/// </summary>
-	/// <param name="obj">The object to assign as the value of the special context variable. May be null.</param>
-	/// <param name="additionalVariables">An optional collection of additional PowerShell variables to include in the context. If null, no additional
-	/// variables are added.</param>
-	/// <returns>A list of PowerShell variables representing the current script context, including the special context variable
-	/// and any additional variables provided.</returns>
+	/// <param name="obj">The object to expose as <c>$_</c>, <c>$this</c>, and <c>$PSItem</c>, or <see langword="null"/>.</param>
+	/// <param name="additionalVariables">The variables to append after the object's variables, or <see langword="null"/> for none.</param>
+	/// <returns>The shared variable list, which holds the object's variables followed by <paramref name="additionalVariables"/>.</returns>
 	private List<PSVariable> SetContextVariables(object? obj, IEnumerable<PSVariable>? additionalVariables)
 	{
 		_varList.Clear();
@@ -122,6 +140,16 @@ public sealed class HashBlock : ComparingBase, IHashBlock
 		return _varList;
 	}
 
+	/// <summary>
+	/// Throws the exception that reports a script block with no output or a <see langword="null"/> first output.
+	/// </summary>
+	/// <remarks>
+	/// The method never returns. Its return type lets callers use it in a <see langword="return"/> statement.
+	/// </remarks>
+	/// <param name="obj">The object whose hash code the script block failed to compute.</param>
+	/// <param name="additionalVariables">The additional variables that were passed to the script block, or <see langword="null"/> for none.</param>
+	/// <returns>The method doesn't return.</returns>
+	/// <exception cref="HashCodeScriptException">Always thrown. Its inner exception is a <see cref="RuntimeException"/> that wraps an <see cref="ArgumentOutOfRangeException"/>.</exception>
 	[DoesNotReturn]
 	private object? ThrowNullHashCode(object? obj, IEnumerable<PSVariable>? additionalVariables)
 	{

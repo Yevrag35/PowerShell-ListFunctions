@@ -5,25 +5,76 @@ using ZLinq;
 
 namespace ListFunctions.Modern;
 
+/// <summary>
+/// Defines a non-generic comparer, built from a PowerShell script block, that reports the type it compares.
+/// </summary>
 public interface IComparingBlock : IComparer
 {
+	/// <summary>
+	/// Gets the type of the objects that the comparer compares.
+	/// </summary>
+	/// <value>The type argument of the comparer.</value>
 	Type ChecksType { get; }
 }
 
+/// <summary>
+/// Provides factory methods that create <see cref="ComparingBlock{T}"/> instances.
+/// </summary>
 public static class ComparingBlock
 {
+	/// <summary>
+	/// Creates a <see cref="ComparingBlock{T}"/> for the specified element type from the specified script block.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// The method closes <see cref="Create{T}(ScriptBlock, IEnumerable{PSVariable})"/> over
+	/// <paramref name="genericType"/> and calls it through reflection.
+	/// </para>
+	/// <para>
+	/// Unlike the <see cref="ComparingBlock{T}"/> constructor, this method doesn't check that the script block contains
+	/// any statements. The caller is expected to have validated it.
+	/// </para>
+	/// </remarks>
+	/// <param name="scriptBlock">The script block that compares <c>$x</c> (or <c>$left</c>) with <c>$y</c> (or <c>$right</c>). This value must not be <see langword="null"/>.</param>
+	/// <param name="genericType">The type of the objects to compare. This value must not be <see langword="null"/>.</param>
+	/// <param name="additionalVariables">The variables to define in the script block's scope along with the operands, or <see langword="null"/> for none.</param>
+	/// <returns>A <see cref="ComparingBlock{T}"/> closed over <paramref name="genericType"/>.</returns>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="genericType"/> is null.</exception>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="genericType"/> can't be used as a generic type argument.</exception>
+	/// <exception cref="TargetInvocationException">Thrown when <paramref name="scriptBlock"/> is null. The inner exception is an <see cref="System.ArgumentNullException"/>.</exception>
+	/// <exception cref="InvalidOperationException">Thrown when the created object isn't an <see cref="IComparer"/>.</exception>
 	public static IComparer Create(ScriptBlock scriptBlock, Type genericType, IEnumerable<PSVariable>? additionalVariables)
 	{
 		MethodInfo genMeth = _getInit.Value.MakeGenericMethod(genericType);
 		return genMeth.Invoke(null, [scriptBlock, additionalVariables!]) as IComparer
 			?? throw new InvalidOperationException("Unable to create generic comparing block instance.");
 	}
+	/// <summary>
+	/// Creates a <see cref="ComparingBlock{T}"/> from the specified script block.
+	/// </summary>
+	/// <remarks>
+	/// Unlike the <see cref="ComparingBlock{T}"/> constructor, this method doesn't check that the script block contains
+	/// any statements. The caller is expected to have validated it.
+	/// </remarks>
+	/// <typeparam name="T">The type of the objects to compare.</typeparam>
+	/// <param name="scriptBlock">The script block that compares <c>$x</c> (or <c>$left</c>) with <c>$y</c> (or <c>$right</c>). This value must not be <see langword="null"/>.</param>
+	/// <param name="additionalVariables">The variables to define in the script block's scope along with the operands, or <see langword="null"/> for none.</param>
+	/// <returns>A new <see cref="ComparingBlock{T}"/>.</returns>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="scriptBlock"/> is null.</exception>
 	public static ComparingBlock<T> Create<T>(ScriptBlock scriptBlock, IEnumerable<PSVariable>? additionalVariables)
 	{
 		return new ComparingBlock<T>(scriptBlock, preValidated: true, additionalVariables);
 	}
 
 	static readonly Lazy<MethodInfo> _getInit = new Lazy<MethodInfo>(InitializeLazyMethod);
+	/// <summary>
+	/// Gets the generic method definition of <see cref="Create{T}(ScriptBlock, IEnumerable{PSVariable})"/>.
+	/// </summary>
+	/// <remarks>
+	/// The method reads the definition from an expression tree instead of looking it up by name, so the lookup can't
+	/// match the non-generic overload.
+	/// </remarks>
+	/// <returns>The open generic definition of the factory method.</returns>
 	private static MethodInfo InitializeLazyMethod()
 	{
 		Expression<Action> action = () => Create<object>(null!, null);
@@ -31,6 +82,20 @@ public static class ComparingBlock
 	}
 }
 
+/// <summary>
+/// Represents a comparer that orders objects by running a PowerShell script block.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The script block sees the first operand as <c>$x</c> and <c>$left</c>, and the second operand as <c>$y</c> and
+/// <c>$right</c>. Its first output is converted to an <see cref="int"/> by PowerShell's conversion rules and is read
+/// the same way as the result of <see cref="IComparer{T}.Compare(T, T)"/>.
+/// </para>
+/// <para>
+/// Instances aren't thread-safe, because every comparison reuses the same list of script block variables.
+/// </para>
+/// </remarks>
+/// <typeparam name="T">The type of the objects to compare.</typeparam>
 public sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparingBlock
 {
 	readonly PSVariable[] _additionalVariables;
@@ -39,21 +104,53 @@ public sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparingB
 	readonly PSComparingVariable<T> _right;
 	readonly List<PSVariable> _varList;
 
+	/// <inheritdoc/>
 	Type IComparingBlock.ChecksType => typeof(T);
 
+	/// <summary>
+	/// Gets the left operand of the current comparison.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// TODO: Nothing assigns the value this property returns, so it's always the default value of
+	/// <typeparamref name="T"/>.
+	/// </para>
+	/// </remarks>
+	/// <value>The left operand.</value>
 	public T CurrentLeft => _left.Value;
+	/// <summary>
+	/// Gets the right operand of the current comparison.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// TODO: Nothing assigns the value this property returns, so it's always the default value of
+	/// <typeparamref name="T"/>.
+	/// </para>
+	/// </remarks>
+	/// <value>The right operand.</value>
 	public T CurrentRight => _right.Value;
 
 	/// <summary>
-	///
+	/// Initializes a new <see cref="ComparingBlock{T}"/> instance with the specified script block and additional
+	/// variables.
 	/// </summary>
-	/// <param name="scriptBlock"></param>
-	/// <exception cref="ArgumentException"/>
-	/// <exception cref="ArgumentNullException"/>
+	/// <param name="scriptBlock">The script block that compares <c>$x</c> (or <c>$left</c>) with <c>$y</c> (or <c>$right</c>). This value must not be <see langword="null"/>.</param>
+	/// <param name="additionalVariables">The variables to define in the script block's scope along with the operands, or <see langword="null"/> for none. The constructor copies them.</param>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="scriptBlock"/> is null.</exception>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="scriptBlock"/> contains no statements.</exception>
 	public ComparingBlock(ScriptBlock scriptBlock, IEnumerable<PSVariable>? additionalVariables)
 		: this(scriptBlock, preValidated: false, additionalVariables)
 	{
 	}
+	/// <summary>
+	/// Initializes a new <see cref="ComparingBlock{T}"/> instance with the specified script block and additional
+	/// variables, and validates the script block unless <paramref name="preValidated"/> is <see langword="true"/>.
+	/// </summary>
+	/// <param name="scriptBlock">The script block that compares the operands. This value must not be <see langword="null"/>.</param>
+	/// <param name="preValidated"><see langword="true"/> if the caller has already validated <paramref name="scriptBlock"/>; otherwise, <see langword="false"/>.</param>
+	/// <param name="additionalVariables">The variables to define in the script block's scope along with the operands, or <see langword="null"/> for none. The constructor copies them.</param>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="scriptBlock"/> is null.</exception>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="preValidated"/> is false and <paramref name="scriptBlock"/> contains no statements.</exception>
 	internal ComparingBlock(ScriptBlock scriptBlock, bool preValidated, IEnumerable<PSVariable>? additionalVariables)
 		: base(scriptBlock, preValidated)
 	{
@@ -67,6 +164,26 @@ public sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparingB
 		_compareScript = scriptBlock;
 	}
 
+	/// <summary>
+	/// Compares two objects by running the script block and returns a value that indicates their relative order.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// The method doesn't run the script block when either operand is <see langword="null"/>. Two
+	/// <see langword="null"/> operands are equal, and a <see langword="null"/> operand sorts before any other value.
+	/// </para>
+	/// <para>
+	/// When the script block has no output, or its first output can't be converted to an <see cref="int"/>, the method
+	/// returns 0.
+	/// </para>
+	/// </remarks>
+	/// <param name="left">The first object to compare, or <see langword="null"/>.</param>
+	/// <param name="right">The second object to compare, or <see langword="null"/>.</param>
+	/// <returns>
+	/// A negative value if <paramref name="left"/> sorts before <paramref name="right"/>, 0 if they're equal, or a
+	/// positive value if <paramref name="left"/> sorts after <paramref name="right"/>.
+	/// </returns>
+	/// <exception cref="RuntimeException">Thrown when the script block throws.</exception>
 	public int Compare(T? left, T? right)
 	{
 		if (left is null && right is null)
@@ -89,6 +206,22 @@ public sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparingB
 
 		return _compareScript.InvokeWithContext(_varList, x => LanguagePrimitives.ConvertTo<int>(x));
 	}
+	/// <summary>
+	/// Compares two objects by converting them to <typeparamref name="T"/> and running the script block.
+	/// </summary>
+	/// <remarks>
+	/// The method returns 0 without converting the objects when they're the same reference or both
+	/// <see langword="null"/>. Otherwise, it converts both objects by PowerShell's conversion rules and calls
+	/// <see cref="Compare(T, T)"/>.
+	/// </remarks>
+	/// <param name="x">The first object to compare, or <see langword="null"/>.</param>
+	/// <param name="y">The second object to compare, or <see langword="null"/>.</param>
+	/// <returns>
+	/// A negative value if <paramref name="x"/> sorts before <paramref name="y"/>, 0 if they're equal, or a positive
+	/// value if <paramref name="x"/> sorts after <paramref name="y"/>.
+	/// </returns>
+	/// <exception cref="InvalidCastException">Thrown when <paramref name="x"/> or <paramref name="y"/> can't be converted to <typeparamref name="T"/>.</exception>
+	/// <exception cref="RuntimeException">Thrown when the script block throws.</exception>
 	int IComparer.Compare(object? x, object? y)
 	{
 		if (ReferenceEquals(x, y))

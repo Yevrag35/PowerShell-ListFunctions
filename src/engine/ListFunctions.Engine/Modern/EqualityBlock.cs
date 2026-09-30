@@ -5,27 +5,34 @@ using ZLinq;
 namespace ListFunctions.Modern;
 
 /// <summary>
-/// Defines a contract for objects that provide custom equality comparison logic and expose a hash code computation
-/// block.
+/// Defines an equality comparer that also exposes the hash code provider it uses.
 /// </summary>
-/// <remarks>Implementations of this interface enable advanced scenarios where equality and hash code logic can be
-/// encapsulated and reused, such as in dynamic or scriptable comparison strategies. This interface extends both <see
-/// cref="IEqualityComparer"/> and <see cref="IEqualityComparer{Object}"/>, allowing it to be used in generic and
-/// non-generic contexts.</remarks>
+/// <remarks>
+/// The interface extends both <see cref="IEqualityComparer"/> and <see cref="IEqualityComparer{T}"/> of
+/// <see cref="object"/>, so an implementation works with generic and non-generic collections.
+/// </remarks>
 public interface IEqualityBlock : IEqualityComparer, IEqualityComparer<object>
 {
 	/// <summary>
-	/// Gets the hash code block retrieval script associated with the <see cref="IEqualityBlock"/>.
+	/// Gets the hash code provider that the comparer uses.
 	/// </summary>
+	/// <value>The provider that computes hash codes for <see cref="IEqualityComparer{T}.GetHashCode(T)"/>.</value>
 	IHashBlock HashCodeBlock { get; }
 }
 
 /// <summary>
-/// Represents a block that defines custom equality and hash code logic using PowerShell script blocks and variables.
+/// Represents an equality comparer that compares objects by running a PowerShell script block.
 /// </summary>
-/// <remarks>Use this class to encapsulate equality comparison and hash code generation for objects, where the
-/// logic is provided by user-defined PowerShell script blocks. This enables advanced or dynamic comparison scenarios,
-/// such as those required in PowerShell-based data processing or custom collections.</remarks>
+/// <remarks>
+/// <para>
+/// The equality script block sees the first object as <c>$x</c> and <c>$left</c>, and the second object as <c>$y</c>
+/// and <c>$right</c>. Hash codes come from a separate <see cref="IHashBlock"/>. Both script blocks also see the
+/// additional variables passed to the constructor.
+/// </para>
+/// <para>
+/// Instances aren't thread-safe, because every comparison reuses the same list of script block variables.
+/// </para>
+/// </remarks>
 public sealed class EqualityBlock : ComparingBase, IEqualityBlock
 {
 	private readonly PSVariable[] _additionalVariables;
@@ -37,23 +44,37 @@ public sealed class EqualityBlock : ComparingBase, IEqualityBlock
 	public IHashBlock HashCodeBlock { get; }
 
 	/// <summary>
-	/// Initializes a new instance of the EqualityBlock class with the specified equality and hash code blocks.
+	/// Initializes a new <see cref="EqualityBlock"/> instance with the specified equality script block and hash code
+	/// provider.
 	/// </summary>
-	/// <param name="equalityBlock">The script block that defines the logic for determining equality between objects. Cannot be null.</param>
-	/// <param name="hashCodeBlock">The hash block that provides the logic for computing hash codes. Cannot be null.</param>
-	/// <inheritdoc cref="ComparingBase(ScriptBlock, bool)" path="/exception"/>
+	/// <remarks>
+	/// <para>
+	/// TODO: The constructor doesn't check <paramref name="hashCodeBlock"/>, so a <see langword="null"/> value fails
+	/// only when <see cref="GetHashCode(object)"/> is called.
+	/// </para>
+	/// </remarks>
+	/// <param name="equalityBlock">The script block that determines whether <c>$x</c> and <c>$y</c> are equal. This value must not be <see langword="null"/>.</param>
+	/// <param name="hashCodeBlock">The provider that computes hash codes. This value must not be <see langword="null"/>.</param>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="equalityBlock"/> is null.</exception>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="equalityBlock"/> contains no statements.</exception>
 	public EqualityBlock(ScriptBlock equalityBlock, IHashBlock hashCodeBlock) : this(equalityBlock, hashCodeBlock, additionalVariables: null)
 	{
 	}
 	/// <summary>
-	/// Initializes a new instance of the EqualityBlock class with the specified equality and hash code script blocks,
-	/// and optional additional variables.
+	/// Initializes a new <see cref="EqualityBlock"/> instance with the specified equality script block, hash code
+	/// provider, and additional variables.
 	/// </summary>
-	/// <param name="equalityBlock">The script block that defines the equality comparison logic. Cannot be null.</param>
-	/// <param name="hashCodeBlock">The hash block used to compute hash codes for objects being compared. Cannot be null.</param>
-	/// <param name="additionalVariables">An optional collection of variables to be made available within the equality and hash code script blocks. If
-	/// null, no additional variables are provided.</param>
-	/// <inheritdoc cref="ComparingBase(ScriptBlock, bool)" path="/exception"/>
+	/// <remarks>
+	/// <para>
+	/// TODO: The constructor doesn't check <paramref name="hashCodeBlock"/>, so a <see langword="null"/> value fails
+	/// only when <see cref="GetHashCode(object)"/> is called.
+	/// </para>
+	/// </remarks>
+	/// <param name="equalityBlock">The script block that determines whether <c>$x</c> and <c>$y</c> are equal. This value must not be <see langword="null"/>.</param>
+	/// <param name="hashCodeBlock">The provider that computes hash codes. This value must not be <see langword="null"/>.</param>
+	/// <param name="additionalVariables">The variables to define in the scope of both script blocks, or <see langword="null"/> for none. The constructor copies them.</param>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="equalityBlock"/> is null.</exception>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="equalityBlock"/> contains no statements.</exception>
 	public EqualityBlock(ScriptBlock equalityBlock, IHashBlock hashCodeBlock, IEnumerable<PSVariable>? additionalVariables) : base(equalityBlock, preValidated: false)
 	{
 		_additionalVariables = additionalVariables is not null
@@ -67,13 +88,20 @@ public sealed class EqualityBlock : ComparingBase, IEqualityBlock
 	}
 #if NET9_0_OR_GREATER
 	/// <summary>
-	/// Initializes a new instance of the EqualityBlock class with the specified equality and hash code script blocks
-	/// and an optional set of additional variables.
+	/// Initializes a new <see cref="EqualityBlock"/> instance with the specified equality script block, hash code
+	/// provider, and span of additional variables.
 	/// </summary>
-	/// <param name="equalityBlock">The script block used to determine equality between objects. Cannot be null.</param>
-	/// <param name="hashCodeBlock">The hash code block used to compute hash codes for objects. Cannot be null.</param>
-	/// <param name="variables">A read-only span of additional variables to be used within the equality and hash code blocks. May be empty.</param>
-	/// <inheritdoc cref="ComparingBase(ScriptBlock, bool)" path="/exception"/>
+	/// <remarks>
+	/// <para>
+	/// TODO: The constructor doesn't check <paramref name="hashCodeBlock"/>, so a <see langword="null"/> value fails
+	/// only when <see cref="GetHashCode(object)"/> is called.
+	/// </para>
+	/// </remarks>
+	/// <param name="equalityBlock">The script block that determines whether <c>$x</c> and <c>$y</c> are equal. This value must not be <see langword="null"/>.</param>
+	/// <param name="hashCodeBlock">The provider that computes hash codes. This value must not be <see langword="null"/>.</param>
+	/// <param name="variables">The variables to define in the scope of both script blocks. The span can be empty. The constructor copies it.</param>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="equalityBlock"/> is null.</exception>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="equalityBlock"/> contains no statements.</exception>
 	public EqualityBlock(ScriptBlock equalityBlock, IHashBlock hashCodeBlock, params ReadOnlySpan<PSVariable> variables) : base(equalityBlock, preValidated: false)
 	{
 		_additionalVariables = !variables.IsEmpty
@@ -89,14 +117,23 @@ public sealed class EqualityBlock : ComparingBase, IEqualityBlock
 #endif
 
 	/// <summary>
-	/// Determines whether the specified objects are considered equal according to the configured equality script block.
+	/// Determines whether the specified objects are equal by running the equality script block.
 	/// </summary>
-	/// <remarks>This method uses the equality script block provided to the <see cref="EqualityBlock"/> instance to evaluate
-	/// equality. Both objects and any additional variables are passed to the script block for comparison. Null values
-	/// are supported and are considered equal if both parameters are null.</remarks>
-	/// <param name="x">The first object to compare. May be null.</param>
-	/// <param name="y">The second object to compare. May be null.</param>
-	/// <returns>true if the objects are considered equal; otherwise, false.</returns>
+	/// <remarks>
+	/// <para>
+	/// The method returns <see langword="true"/> without running the script block when the objects are the same
+	/// reference or both <see langword="null"/>. When only one is <see langword="null"/>, the script block still runs
+	/// and sees <see langword="null"/> for that object.
+	/// </para>
+	/// <para>
+	/// The first output of the script block is converted to a <see cref="bool"/> by PowerShell's rules. A script block
+	/// with no output means the objects aren't equal.
+	/// </para>
+	/// </remarks>
+	/// <param name="x">The first object to compare, or <see langword="null"/>.</param>
+	/// <param name="y">The second object to compare, or <see langword="null"/>.</param>
+	/// <returns><see langword="true"/> if the objects are equal; otherwise, <see langword="false"/>.</returns>
+	/// <exception cref="RuntimeException">Thrown when the script block throws.</exception>
 	public new bool Equals(object? x, object? y)
 	{
 		if (ReferenceEquals(x, y))
@@ -113,22 +150,52 @@ public sealed class EqualityBlock : ComparingBase, IEqualityBlock
 	}
 
 	/// <summary>
-	/// Returns a hash code for the specified object using the configured hash code computation logic.
+	/// Computes the hash code of the specified object with the hash code provider.
 	/// </summary>
-	/// <param name="obj">The object for which to compute the hash code. Cannot be null.</param>
-	/// <returns>An integer hash code for the specified object.</returns>
+	/// <remarks>
+	/// The method passes the additional variables from the constructor to the provider.
+	/// </remarks>
+	/// <param name="obj">The object to compute the hash code of. This value must not be <see langword="null"/>.</param>
+	/// <returns>The hash code that <see cref="HashCodeBlock"/> computes for <paramref name="obj"/>.</returns>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="obj"/> is null.</exception>
+	/// <exception cref="Exceptions.HashCodeScriptException">Thrown when <see cref="HashCodeBlock"/> is a <see cref="HashBlock"/> and its script block fails.</exception>
 	public int GetHashCode([DisallowNull] object obj)
 	{
 		Guard.NotNull(obj);
 		return this.HashCodeBlock.GetHashCode(obj, _additionalVariables);
 	}
 
+	/// <summary>
+	/// Represents one operand of the equality script block as the pair of variables <c>$x</c> and <c>$left</c>, or
+	/// <c>$y</c> and <c>$right</c>.
+	/// </summary>
+	/// <remarks>
+	/// The instance creates its <see cref="PSVariable"/> objects once and reuses them for every comparison.
+	/// </remarks>
 	private sealed class ObjVariable : PSComparingVariable
 	{
 		private readonly PSVariable[] _variables;
 
+		/// <summary>
+		/// Gets or sets the operand value.
+		/// </summary>
+		/// <remarks>
+		/// <para>
+		/// TODO: Nothing assigns this value. <see cref="AddToList(object, List{PSVariable})"/> sets only the values of
+		/// the variables, so this property is always <see langword="null"/>.
+		/// </para>
+		/// </remarks>
+		/// <value>The operand value.</value>
 		internal object? Value { get; set; }
+		/// <summary>
+		/// Gets the operand value.
+		/// </summary>
+		/// <value>The value of <see cref="Value"/>.</value>
 		public override object? InstanceValue => this.Value;
+		/// <summary>
+		/// Initializes a new <see cref="ObjVariable"/> instance for the left or right operand.
+		/// </summary>
+		/// <param name="isLeft"><see langword="true"/> to create the <c>$x</c> and <c>$left</c> variables; <see langword="false"/> to create the <c>$y</c> and <c>$right</c> variables.</param>
 		internal ObjVariable(bool isLeft)
 		{
 			ReadOnlySpan<string> names = (isLeft ? LeftNames : RightNames).AsSpan();
@@ -140,6 +207,15 @@ public sealed class EqualityBlock : ComparingBase, IEqualityBlock
 			}
 		}
 
+		/// <summary>
+		/// Sets every variable of this operand to the specified value and appends them to the specified list.
+		/// </summary>
+		/// <remarks>
+		/// The method adds the same <see cref="PSVariable"/> instances on every call. Clear the list between comparisons,
+		/// or it collects duplicates.
+		/// </remarks>
+		/// <param name="value">The operand value to assign, or <see langword="null"/>.</param>
+		/// <param name="list">The list to append the variables to.</param>
 		internal void AddToList(object? value, List<PSVariable> list)
 		{
 #if NETCOREAPP
