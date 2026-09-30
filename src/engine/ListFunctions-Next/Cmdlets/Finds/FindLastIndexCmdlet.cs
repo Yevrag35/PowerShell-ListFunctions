@@ -1,6 +1,5 @@
 using ListFunctions.Components;
 using ListFunctions.Modern;
-using ListFunctions.Modern.Pools;
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
 using System.Collections.Generic;
@@ -27,7 +26,7 @@ namespace ListFunctions.Cmdlets.Finds;
 /// <para>
 /// A terminating error thrown by the condition script block ends the cmdlet with a terminating error.
 /// </para>
-/// <para><b>Performance:</b> The cmdlet buffers all input in a pooled list before evaluating, so memory use grows
+/// <para><b>Performance:</b> The cmdlet buffers all input before evaluating, so memory use grows
 /// with the size of the input. The condition runs only for the elements from the end of the sequence through the
 /// last match.</para>
 /// </remarks>
@@ -37,7 +36,7 @@ namespace ListFunctions.Cmdlets.Finds;
 public sealed class FindLastIndexCmdlet : ListFunctionCmdletBase
 {
 	private ScriptBlockFilter _filter = null!;
-	private List<object?> _list = null!;
+	private readonly List<object?> _list = new();
 
 	/// <summary>
 	/// Gets or sets the script block that tests each input element.
@@ -78,12 +77,11 @@ public sealed class FindLastIndexCmdlet : ListFunctionCmdletBase
 	public ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.SilentlyContinue;
 
 	/// <summary>
-	/// Creates the filter that evaluates <see cref="Condition"/> and rents the list that buffers the input.
+	/// Creates the filter that evaluates <see cref="Condition"/> with the configured <see cref="ScriptBlockErrorAction"/>.
 	/// </summary>
 	protected override void BeginCore()
 	{
 		_filter = new ScriptBlockFilter(this.Condition, new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction));
-		_list = ListPool<object?>.Rent();
 	}
 	/// <summary>
 	/// Appends the elements of the current <see cref="InputObject"/> array to the input buffer.
@@ -124,24 +122,6 @@ public sealed class FindLastIndexCmdlet : ListFunctionCmdletBase
 		}
 
 		this.WriteObject(-1);
-	}
-
-	/// <summary>
-	/// Releases the filter and returns the input buffer to its pool.
-	/// </summary>
-	protected override void Cleanup()
-	{
-		if (_filter is not null)
-		{
-			_filter.Dispose();
-			_filter = null!;
-		}
-
-		if (_list is not null)
-		{
-			ListPool<object?>.Return(_list);
-			_list = null!;
-		}
 	}
 }
 

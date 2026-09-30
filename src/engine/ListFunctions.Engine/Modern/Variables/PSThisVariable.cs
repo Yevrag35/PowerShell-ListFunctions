@@ -14,7 +14,7 @@ namespace ListFunctions.Modern.Variables;
 /// <remarks>This class provides access to commonly used contextual variables in PowerShell, allowing
 /// their values to be set and inserted into variable lists as needed. It is typically used to manage the values of
 /// these variables during script execution or when emulating PowerShell behavior in custom hosts or engines.</remarks>
-public sealed class PSThisVariable : IPoolable, ICloneable
+public sealed class PSThisVariable : ICloneable
 {
 	public const string Underscore = "_";
 	public const string This = "this";
@@ -94,20 +94,6 @@ public sealed class PSThisVariable : IPoolable, ICloneable
 
 		Array.Sort(array, VariableComparer.Shared);
 		return array;
-	}
-
-	void IPoolable.Initialize()
-	{
-	}
-	public bool TryReset()
-	{
-		if (_variables is not null)
-		{
-			Array.Clear(_variables, 0, _variables.Length);
-		}
-
-		this.ObjValue = null;
-		return true;
 	}
 
 	private sealed class VariableComparer : IComparer<PSVariable>

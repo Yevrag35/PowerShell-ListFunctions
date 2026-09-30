@@ -48,7 +48,7 @@ There are three projects under `src/engine/`:
 	- `Modern/EqualityBlock`, `HashBlock`, and `ComparingBlock` (base `ComparingBase`) turn user ScriptBlocks into `IEqualityComparer` and `IComparer` implementations.
 	- `ScriptBlockFilter` evaluates predicates for `Assert-Any`/`Assert-All`.
 	- `Modern/Constructors/*Ctor` build closed generic collection types through reflection. `AddMethodInvoker` calls their `Add` method.
-	- `Modern/Variables` injects the per-item context variables into the ScriptBlocks: `$_`, `$this`, and `$psitem` for single items, and `$left`/`$right` or `$x`/`$y` for equality. `Modern/Pools` holds the pools for these objects.
+	- `Modern/Variables` injects the per-item context variables into the ScriptBlocks: `$_`, `$this`, and `$psitem` for single items, and `$left`/`$right` or `$x`/`$y` for equality.
 	- Its internals are exposed to `ListFunctions.Next` and `ListFunctions.NETFramework` through `<AssemblyAttribute>` InternalsVisibleTo items in the csproj.
 	- `Internal/VarList.cs` is excluded from compilation on purpose.
 - **`ListFunctions-Next`** targets `net10.0` and builds `ListFunctions.Next.dll`, the PowerShell 7 binary module. All cmdlets live here, under `Cmdlets/Assertions`, `Cmdlets/Constructs`, and `Cmdlets/Finds`.

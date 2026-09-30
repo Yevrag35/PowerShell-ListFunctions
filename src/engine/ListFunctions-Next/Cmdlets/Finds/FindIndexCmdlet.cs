@@ -124,17 +124,5 @@ public sealed class FindIndexCmdlet : ListFunctionCmdletBase
 
 		this.WriteObject(index);
 	}
-
-	/// <summary>
-	/// Releases the filter created in <see cref="BeginCore"/>.
-	/// </summary>
-	protected override void Cleanup()
-	{
-		if (_filter is not null)
-		{
-			_filter.Dispose();
-			_filter = null!;
-		}
-	}
 }
 

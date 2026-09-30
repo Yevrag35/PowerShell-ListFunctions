@@ -1,6 +1,5 @@
 using ListFunctions.Components;
 using ListFunctions.Modern;
-using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
 
@@ -19,10 +18,8 @@ namespace ListFunctions.Cmdlets.Assertions;
 /// provide the specific evaluation semantics by implementing <see cref="Process(ScriptBlockFilter)"/>
 /// and <see cref="ProcessWhenNoCondition()"/>.
 /// </remarks>
-public abstract class AssertObjectCmdlet : ListFunctionCmdletBase, IDisposable
+public abstract class AssertObjectCmdlet : ListFunctionCmdletBase
 {
-	private bool _disposed;
-
 	/// <summary>
 	/// Gets or sets the condition script block that will be evaluated for each input object.
 	/// </summary>
@@ -130,38 +127,5 @@ public abstract class AssertObjectCmdlet : ListFunctionCmdletBase, IDisposable
 	/// </summary>
 	/// <param name="scriptResult">The logical result of the assertion evaluation.</param>
 	protected abstract void End(bool scriptResult);
-
-	/// <summary>
-	/// Performs cleanup of resources. The default implementation disposes the filter and other managed resources.
-	/// </summary>
-	protected override void Cleanup()
-	{
-		this.Dispose();
-	}
-	/// <summary>
-	/// Releases resources used by the instance.
-	/// </summary>
-	public void Dispose()
-	{
-		this.Dispose(disposing: true);
-		GC.SuppressFinalize(this);
-	}
-	/// <summary>
-	/// Releases managed and unmanaged resources used by the instance.
-	/// </summary>
-	/// <param name="disposing">True when called from <see cref="Dispose()"/> and false when called from a finalizer.</param>
-	protected virtual void Dispose(bool disposing)
-	{
-		if (!_disposed)
-		{
-			if (disposing && this.Filter is not null)
-			{
-				this.Filter.Dispose();
-				this.Filter = null;
-			}
-
-			_disposed = true;
-		}
-	}
 }
 

@@ -2,8 +2,6 @@
 
 Found while rewriting `README.md` on 2026-09-28. The README describes how the module is meant to work, so each item under **README accuracy** makes a README statement false until it's fixed.
 
-**Pooling:** All custom pooling code is slated for removal soon, because it adds unnecessary overhead. That covers `ListPool<T>` and `ObjPool<T>` in `src/engine/ListFunctions.Engine/Modern/Pools/`, the `IPoolable` interface that `PSThisVariable` implements, and the calls that rent and return pooled objects in `ScriptBlockFilter` and `FindLastIndexCmdlet`.
-
 ## Checklist
 
 **README accuracy**
@@ -37,6 +35,7 @@ Found while rewriting `README.md` on 2026-09-28. The README describes how the mo
 - [ ] 18 — New-Dictionary's `-CaseSensitive` can't be combined with `-InputObject`
 - [ ] 19 — ConvertTo-Dictionary stores the whole input object when the value is `$null`
 - [ ] 20 — New-Dictionary's `[object]` keys turn case-sensitive when `-ValueType` isn't `[object]`
+- [ ] 21 — Find-LastIndexOf handles condition errors differently from the other condition cmdlets
 
 ## Running the repros
 
@@ -327,3 +326,31 @@ $d.Count                                   # 2; the default Hashtable gives 1
 ```
 
 **Fix idea:** Decide how `[object]` keys should compare, and use that rule on both paths. New-HashSet's `ObjectEqualityComparer` is one option.
+
+### 21 — Find-LastIndexOf handles condition errors differently from the other condition cmdlets
+
+**Where:** `ListFunctionCmdletBase` (`src/engine/ListFunctions-Next/Cmdlets/ListFunctionCmdletBase.cs`). `BeginProcessing` and `ProcessRecord` catch exceptions and rethrow them with `ThrowTerminatingError(e.ToRecord(...))`. `EndProcessing` runs `EndCore` in a `try`/`finally` with no `catch`, so exceptions from `EndCore` reach PowerShell unchanged. Find-LastIndexOf is the only cmdlet that runs a script block in `EndCore`. Its condition errors take the second path, and those of Assert-AnyObject, Assert-AllObject, and Find-IndexOf take the first. The two paths differ in two ways:
+
+- **What the error stops.** With `-ScriptBlockErrorAction Stop`, an error that the condition writes stops the whole script when it comes from Find-LastIndexOf, the way `-ErrorAction Stop` does for an ordinary command. From the other three cmdlets, it stops only the current statement, because `ThrowTerminatingError` wraps the `ActionPreferenceStopException` in an error that ends just the statement. A `throw` or a failed method call stops only the statement from all four.
+- **The error record.** From Find-LastIndexOf, a `throw` or a `Stop` error keeps its original record, whose error ID and category don't mention the cmdlet. PowerShell wraps other errors, such as a failed method call, in a record that keeps their error ID and category and adds the cmdlet. The other three cmdlets always name themselves, but `ProcessRecord` rebuilds the record with `ToRecord`, which drops the original error ID and category in favor of the exception's type name and `NotSpecified`.
+
+```powershell
+1 | Find-IndexOf { if ($_) { Write-Error 'oops' } } -ScriptBlockErrorAction Stop; 'still running'
+# An error from Find-IndexOf, then: still running
+1 | Find-LastIndexOf { if ($_) { Write-Error 'oops' } } -ScriptBlockErrorAction Stop; 'still running'
+# An error from Write-Error, and nothing else
+
+try { 1 | Find-IndexOf { if ($_) { throw 'boom' } } } catch { $_.FullyQualifiedErrorId; "$($_.CategoryInfo)" }
+# System.Management.Automation.RuntimeException,ListFunctions.Cmdlets.Finds.FindIndexCmdlet
+# NotSpecified: (:) [Find-IndexOf], RuntimeException
+try { 1 | Find-LastIndexOf { if ($_) { throw 'boom' } } } catch { $_.FullyQualifiedErrorId; "$($_.CategoryInfo)" }
+# boom
+# OperationStopped: (boom:String) [], RuntimeException
+
+try { 1 | Find-IndexOf { if ($_) { $null.Foo() } } } catch { $_.FullyQualifiedErrorId }
+# System.Management.Automation.RuntimeException,ListFunctions.Cmdlets.Finds.FindIndexCmdlet
+try { 1 | Find-LastIndexOf { if ($_) { $null.Foo() } } } catch { $_.FullyQualifiedErrorId }
+# InvokeMethodOnNull,ListFunctions.Cmdlets.Finds.FindLastIndexCmdlet
+```
+
+**Fix idea:** Handle exceptions the same way in all three phases. `StopUpstreamCommands` runs `EndCore` too, outside `ProcessRecord`'s `try`, so it needs the same handling. First decide what `Stop` should do: letting the `ActionPreferenceStopException` through matches `-ErrorAction Stop`. Wrap other errors in a record that names the cmdlet and keeps the original error ID and category, the way PowerShell's own wrapping does for Find-LastIndexOf's `$null.Foo()`.
