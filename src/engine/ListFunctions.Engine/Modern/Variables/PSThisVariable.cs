@@ -3,44 +3,111 @@ using ListFunctions.Extensions;
 namespace ListFunctions.Modern.Variables;
 
 /// <summary>
-/// Represents a set of special PowerShell variables (such as '_', 'this', and 'psitem') that refer to the current
-/// object or context within a PowerShell pipeline or script block.
+/// Represents the automatic variables <c>$_</c>, <c>$this</c>, and <c>$PSItem</c> that a script block uses to refer to
+/// the current object.
 /// </summary>
-/// <remarks>This class provides access to commonly used contextual variables in PowerShell, allowing
-/// their values to be set and inserted into variable lists as needed. It is typically used to manage the values of
-/// these variables during script execution or when emulating PowerShell behavior in custom hosts or engines.</remarks>
+/// <remarks>
+/// <para>
+/// All three variables hold the same value. The instance creates its <see cref="PSVariable"/> objects once and reuses
+/// them, so setting a new value doesn't allocate new variables.
+/// </para>
+/// <para>
+/// Instances aren't thread-safe. <see cref="SetValue(object)"/> changes the variables that earlier calls to
+/// <see cref="InsertIntoList(List{PSVariable})"/> put into other lists.
+/// </para>
+/// </remarks>
 public sealed class PSThisVariable : ICloneable
 {
+	/// <summary>
+	/// The name of the <c>$_</c> variable.
+	/// </summary>
 	public const string Underscore = "_";
+	/// <summary>
+	/// The name of the <c>$this</c> variable.
+	/// </summary>
 	public const string This = "this";
+	/// <summary>
+	/// The name of the <c>$PSItem</c> variable.
+	/// </summary>
 	public const string PSItem = "psitem";
+	/// <summary>
+	/// The name that script block validation accepts for the first positional argument, <c>$args[0]</c>.
+	/// </summary>
+	/// <remarks>
+	/// This class doesn't define a variable with this name. The name exists for validation attributes that list the
+	/// variables a script block may use.
+	/// </remarks>
 	public const string FirstArg = "args[0]";
+	/// <summary>
+	/// The name that script block validation accepts for the second positional argument, <c>$args[1]</c>.
+	/// </summary>
+	/// <remarks>
+	/// This class doesn't define a variable with this name. The name exists for validation attributes that list the
+	/// variables a script block may use.
+	/// </remarks>
 	public const string SecondArg = "args[1]";
 
 	private PSVariable[]? _variables;
+	/// <summary>
+	/// Gets the value of the variables.
+	/// </summary>
+	/// <value>The current object, or <see langword="null"/> when no value has been set.</value>
 	public object? ObjValue { get; private set; }
+	/// <summary>
+	/// Initializes a new <see cref="PSThisVariable"/> instance with a <see langword="null"/> value.
+	/// </summary>
 	public PSThisVariable()
 	{
 	}
+	/// <summary>
+	/// Initializes a new <see cref="PSThisVariable"/> instance with a copy of the value of the specified instance.
+	/// </summary>
+	/// <remarks>
+	/// The value is cloned when it supports cloning, such as an <see cref="ICloneable"/> or a <see cref="PSObject"/>.
+	/// Otherwise, the new instance shares the value. The variables themselves aren't copied; the new instance creates
+	/// its own when it first needs them.
+	/// </remarks>
+	/// <param name="other">The instance to copy.</param>
 	private PSThisVariable(PSThisVariable other)
 	{
 		this.ObjValue = other.ObjValue.CloneIf();
 	}
 
 	/// <summary>
-	/// Creates a new PSThisVariable object that is a copy of the current instance.
+	/// Creates a copy of this instance.
 	/// </summary>
-	/// <returns>A new PSThisVariable object with the same values as the current instance.</returns>
+	/// <remarks>
+	/// The copy has its own variables. Its value is a clone of <see cref="ObjValue"/> when the value supports cloning,
+	/// such as an <see cref="ICloneable"/> or a <see cref="PSObject"/>; otherwise, both instances share the value.
+	/// </remarks>
+	/// <returns>A new <see cref="PSThisVariable"/> with the same value as this instance.</returns>
 	public PSThisVariable Clone()
 	{
 		return new(this);
 	}
+	/// <summary>
+	/// Creates a copy of this instance.
+	/// </summary>
+	/// <returns>A new <see cref="PSThisVariable"/>, returned as an <see cref="object"/>.</returns>
 	[DebuggerStepThrough]
 	object ICloneable.Clone()
 	{
 		return this.Clone();
 	}
 
+	/// <summary>
+	/// Inserts the <c>$_</c>, <c>$this</c>, and <c>$PSItem</c> variables at the start of the specified list.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// The variables hold <see cref="ObjValue"/>. The method inserts the same <see cref="PSVariable"/> instances on
+	/// every call, so clear the list between invocations, or it collects duplicates.
+	/// </para>
+	/// <para>
+	/// The order of the three variables isn't guaranteed.
+	/// </para>
+	/// </remarks>
+	/// <param name="list">The list to insert the variables into. This value must not be <see langword="null"/>.</param>
 	public void InsertIntoList(List<PSVariable> list)
 	{
 #if NETCOREAPP
@@ -49,12 +116,31 @@ public sealed class PSThisVariable : ICloneable
 		list.InsertRange(0, InitializeArray(ref _variables, this.ObjValue));
 	}
 
+	/// <summary>
+	/// Sets the value of the <c>$_</c>, <c>$this</c>, and <c>$PSItem</c> variables.
+	/// </summary>
+	/// <remarks>
+	/// The new value also appears in any list that already holds these variables.
+	/// </remarks>
+	/// <param name="value">The current object, or <see langword="null"/>.</param>
 	public void SetValue(object? value)
 	{
 		this.ObjValue = value;
 		_ = InitializeArray(ref _variables, value);
 	}
 
+	/// <summary>
+	/// Creates the three variables, or sets the value of the existing ones, and returns them.
+	/// </summary>
+	/// <remarks>
+	/// The method creates a new array when <paramref name="array"/> is <see langword="null"/>, doesn't hold exactly three
+	/// variables, or holds a <see langword="null"/> element. Otherwise, it updates the existing variables and sorts
+	/// them into the order <c>psitem</c>, <c>this</c>, <c>_</c>. A new array isn't sorted, so it keeps the order
+	/// <c>_</c>, <c>this</c>, <c>psitem</c>.
+	/// </remarks>
+	/// <param name="array">The array of variables to reuse, or <see langword="null"/> to create one.</param>
+	/// <param name="value">The value to assign to every variable.</param>
+	/// <returns>The array of variables, which is also stored in <paramref name="array"/>.</returns>
 	private static PSVariable[] InitializeArray([NotNull] ref PSVariable[]? array, object? value)
 	{
 		if (array is null)
@@ -91,10 +177,29 @@ public sealed class PSThisVariable : ICloneable
 		return array;
 	}
 
+	/// <summary>
+	/// Orders variables so that <c>$_</c>, <c>$this</c>, and <c>$PSItem</c> come after every other variable.
+	/// </summary>
+	/// <remarks>
+	/// Other variables sort among themselves by ordinal name, followed by <c>psitem</c>, <c>this</c>, and <c>_</c>, in
+	/// that order. A <see langword="null"/> variable sorts first.
+	/// </remarks>
 	private sealed class VariableComparer : IComparer<PSVariable>
 	{
+		/// <summary>
+		/// The shared instance of the comparer.
+		/// </summary>
 		internal static readonly VariableComparer Shared = new();
 
+		/// <summary>
+		/// Compares two variables by name and returns a value that indicates their relative order.
+		/// </summary>
+		/// <param name="x">The first variable to compare, or <see langword="null"/>.</param>
+		/// <param name="y">The second variable to compare, or <see langword="null"/>.</param>
+		/// <returns>
+		/// A negative number if <paramref name="x"/> sorts before <paramref name="y"/>, 0 if they sort the same, or a
+		/// positive number if <paramref name="x"/> sorts after <paramref name="y"/>.
+		/// </returns>
 		public int Compare(PSVariable? x, PSVariable? y)
 		{
 			if (ReferenceEquals(x, y)) return 0;
