@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace ListFunctions.Extensions;
 
 public static class TypeExtensions

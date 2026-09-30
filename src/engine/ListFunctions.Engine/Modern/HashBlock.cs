@@ -1,7 +1,6 @@
 using ListFunctions.Internal;
 using ListFunctions.Modern.Exceptions;
 using ListFunctions.Modern.Variables;
-using System.Diagnostics.CodeAnalysis;
 
 namespace ListFunctions.Modern;
 

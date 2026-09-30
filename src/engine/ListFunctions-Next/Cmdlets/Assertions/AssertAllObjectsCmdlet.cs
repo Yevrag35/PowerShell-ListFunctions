@@ -26,7 +26,7 @@ public sealed class AssertAllObjectsCmdlet : AssertObjectCmdlet
 	/// <value>The condition <see cref="ScriptBlock"/> to evaluate; must not be empty for this cmdlet.</value>
 	[Parameter(Mandatory = true, Position = 0)]
 	[Alias("ScriptBlock", "FilterScript")]
-	[AllowNull, AllowEmptyString]
+	[PSAllowNull, AllowEmptyString]
 	[ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.This, PSThisVariable.PSItem, PSThisVariable.FirstArg)]
 	public override ScriptBlock? Condition
 	{
@@ -39,7 +39,7 @@ public sealed class AssertAllObjectsCmdlet : AssertObjectCmdlet
 	/// </summary>
 	/// <value>An array of objects to test; may be empty or contain nulls.</value>
 	[Parameter(Mandatory = true, ValueFromPipeline = true)]
-	[AllowNull, AllowEmptyCollection, AllowEmptyString]
+	[PSAllowNull, AllowEmptyCollection, AllowEmptyString]
 	public object?[]? InputObject { get; set; }
 
 	/// <summary>

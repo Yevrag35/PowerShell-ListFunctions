@@ -63,7 +63,7 @@ public sealed class FindIndexCmdlet : ListFunctionCmdletBase
 	/// <value>The array of elements to evaluate, or <see langword="null"/> when no elements are supplied.</value>
 	[Parameter(Mandatory = true, ValueFromPipeline = true)]
 	[Alias("List")]
-	[AllowEmptyCollection, AllowEmptyString, AllowNull]
+	[AllowEmptyCollection, AllowEmptyString, PSAllowNull]
 	public object?[]? InputObject { get; set; }
 
 	/// <summary>

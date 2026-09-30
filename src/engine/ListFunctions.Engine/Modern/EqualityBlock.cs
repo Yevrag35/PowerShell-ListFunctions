@@ -1,6 +1,5 @@
 using ListFunctions.Internal;
 using ListFunctions.Modern.Variables;
-using System.Diagnostics.CodeAnalysis;
 using ZLinq;
 
 namespace ListFunctions.Modern;

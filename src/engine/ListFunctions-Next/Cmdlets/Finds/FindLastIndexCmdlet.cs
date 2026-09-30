@@ -59,7 +59,7 @@ public sealed class FindLastIndexCmdlet : ListFunctionCmdletBase
 	/// </remarks>
 	/// <value>The array of elements to evaluate, or <see langword="null"/> when no elements are supplied.</value>
 	[Parameter(Mandatory = true, ValueFromPipeline = true), Alias("List")]
-	[AllowEmptyCollection, AllowNull, AllowEmptyString]
+	[AllowEmptyCollection, PSAllowNull, AllowEmptyString]
 	public object?[]? InputObject { get; set; }
 
 	/// <summary>

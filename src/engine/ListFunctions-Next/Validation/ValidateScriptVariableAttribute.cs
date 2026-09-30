@@ -1,5 +1,4 @@
 using ListFunctions.Internal;
-using System.Diagnostics;
 using System.Management.Automation.Language;
 using ZLinq;
 

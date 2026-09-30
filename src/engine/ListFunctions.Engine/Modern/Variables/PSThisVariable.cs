@@ -1,6 +1,4 @@
 using ListFunctions.Extensions;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 
 namespace ListFunctions.Modern.Variables;
 

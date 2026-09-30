@@ -1,5 +1,4 @@
 using ListFunctions.Modern.Constructors;
-using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
 namespace ListFunctions.Modern;

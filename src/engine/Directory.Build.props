@@ -30,14 +30,18 @@
 
 	<!--
 		Global usings shared by every project. Keep them unconditional so every target framework gets the same set.
-		Leave out System.Diagnostics.CodeAnalysis: its AllowNullAttribute collides with the one in
-		System.Management.Automation (CS0104).
+		System.Diagnostics.CodeAnalysis and System.Management.Automation both define AllowNullAttribute, so a bare
+		[AllowNull] fails with CS0104. Use the AllowsNull and PSAllowNull aliases instead.
 	-->
 	<ItemGroup>
 		<Using Include="System" />
 		<Using Include="System.Collections" />
 		<Using Include="System.Collections.Generic" />
+		<Using Include="System.Diagnostics" />
+		<Using Include="System.Diagnostics.CodeAnalysis" />
+		<Using Include="System.Diagnostics.CodeAnalysis.AllowNullAttribute" Alias="AllowsNull" />
 		<Using Include="System.Management.Automation" />
+		<Using Include="System.Management.Automation.AllowNullAttribute" Alias="PSAllowNull" />
 	</ItemGroup>
 
 	<!--

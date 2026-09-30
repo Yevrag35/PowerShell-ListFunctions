@@ -4,11 +4,8 @@ using ListFunctions.Extensions;
 using ListFunctions.Modern;
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using ZLinq;
-
-using PSAllowNull = System.Management.Automation.AllowNullAttribute;
 
 #nullable enable
 

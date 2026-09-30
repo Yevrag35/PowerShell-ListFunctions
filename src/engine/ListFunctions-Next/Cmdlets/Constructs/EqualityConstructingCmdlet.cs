@@ -3,7 +3,6 @@ using ListFunctions.Extensions;
 using ListFunctions.Modern;
 using ListFunctions.Modern.Constructors;
 using System.Collections.ObjectModel;
-using System.Diagnostics.CodeAnalysis;
 
 #nullable enable
 

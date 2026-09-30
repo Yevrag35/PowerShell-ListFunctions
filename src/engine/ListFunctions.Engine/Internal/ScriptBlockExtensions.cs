@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Management.Automation.Language;
 using ListFunctions.Extensions;
-using System.Diagnostics.CodeAnalysis;
 
 namespace ListFunctions.Internal;
 

@@ -1,6 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics;
-
 namespace ListFunctions.Internal;
 
 [DebuggerStepThrough]

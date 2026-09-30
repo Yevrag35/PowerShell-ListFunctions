@@ -1,6 +1,3 @@
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-
 namespace ListFunctions.Extensions;
 
 public static class ExceptionExtensions

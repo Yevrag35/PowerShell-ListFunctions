@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation.Internal;
 using System.Reflection;
 using System.Runtime.CompilerServices;

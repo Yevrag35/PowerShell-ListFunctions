@@ -79,8 +79,7 @@ The `ListFunctions/` directory is the publishable module, and it contains commit
 - When cmdlets, aliases, or shipped files change, update `CmdletsToExport`, `AliasesToExport`, and `FileList` in `ListFunctions.psd1`.
 - The version (currently `4.0.0`) is set in two places: `<Version>` in `src/engine/Directory.Build.props` and `ModuleVersion` in the `.psd1`. Change both together. `AssemblyVersion` and `FileVersion` are set to `$(Version)` so they stay exactly three-part.
 - `Directory.Build.props` also holds the shared authorship and repository metadata and the common compiler settings (`RootNamespace`, `LangVersion`, `ImplicitUsings`, `AllowUnsafeBlocks`), plus `CopyLocalLockFileAssemblies`.
-	- It declares the global usings as `<Using>` items: `System`, `System.Collections`, `System.Collections.Generic`, and `System.Management.Automation`. `ImplicitUsings` stays disabled. The `<Using>` items are not conditioned on target framework, so every target gets the same set, and they sit in this shared file because `ListFunctions-NETFramework` compiles Next's files but doesn't inherit Next's MSBuild items.
-	- Don't add `System.Diagnostics.CodeAnalysis` to that list. Its `AllowNullAttribute` makes `[AllowNull]` ambiguous with PowerShell's `AllowNullAttribute` (CS0104).
+	- It declares the global usings as `<Using>` items: `System`, `System.Collections`, `System.Collections.Generic`, `System.Diagnostics`, `System.Diagnostics.CodeAnalysis`, and `System.Management.Automation`. It also declares the `AllowsNull` and `PSAllowNull` aliases (see Code style). `ImplicitUsings` stays disabled. The `<Using>` items are not conditioned on target framework, so every target gets the same set, and they sit in this shared file because `ListFunctions-NETFramework` compiles Next's files but doesn't inherit Next's MSBuild items.
 - Each csproj keeps only what differs between projects: target frameworks, `Nullable`, assembly name, and title/product.
 
 `src/public/*.ps1` and `src/private/*.ps1` contain the legacy script implementation. The module does not load them. `Remove-All` and `Remove-At` exist only there and have not been ported to cmdlets.
@@ -95,6 +94,7 @@ The `ListFunctions/` directory is the publishable module, and it contains commit
 - `this.` qualification on methods, properties, and events, and never on fields (`dotnet_style_qualification_for_field = false:error`).
 - Regular constructors, not primary constructors (`csharp_style_prefer_primary_constructors = false:warning`).
 - Block-bodied methods, constructors, and operators. Expression bodies are allowed for single-line properties, indexers, and accessors.
+- `[PSAllowNull]` for PowerShell's parameter attribute (`System.Management.Automation.AllowNullAttribute`) and `[AllowsNull]` for the nullable-analysis attribute (`System.Diagnostics.CodeAnalysis.AllowNullAttribute`). Both namespaces are global usings, so a bare `[AllowNull]` fails with CS0104. The aliases are global too, so don't redeclare them in a file.
 
 Ask before reformatting whole files that you are not otherwise changing.
 
