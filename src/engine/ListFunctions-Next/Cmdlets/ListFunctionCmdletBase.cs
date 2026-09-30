@@ -2,11 +2,6 @@ using ListFunctions.Components;
 using ListFunctions.Exceptions;
 using ListFunctions.Extensions;
 using System.Management.Automation.Internal;
-#if NET10_0_OR_GREATER
-using System.Runtime.CompilerServices;
-#else
-using System.Reflection;
-#endif
 
 #nullable enable
 

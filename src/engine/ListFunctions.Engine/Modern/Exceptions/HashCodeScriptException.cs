@@ -1,5 +1,3 @@
-using System.Runtime.Serialization;
-
 namespace ListFunctions.Modern.Exceptions;
 
 //#if !NET8_0_OR_GREATER

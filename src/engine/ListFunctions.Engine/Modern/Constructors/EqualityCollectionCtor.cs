@@ -1,5 +1,3 @@
-using System.Reflection;
-
 namespace ListFunctions.Modern.Constructors;
 
 public abstract class EqualityCollectionCtor : GenericCollectionCtor

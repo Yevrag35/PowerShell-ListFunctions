@@ -1,6 +1,3 @@
-using System.Collections.Immutable;
-using System.Runtime.InteropServices;
-
 namespace ListFunctions.Modern.Variables;
 
 /// <summary>

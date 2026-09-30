@@ -1,7 +1,3 @@
-using System.Globalization;
-using System.Runtime.CompilerServices;
-using System.Text;
-
 namespace ListFunctions;
 
 public static class Guard

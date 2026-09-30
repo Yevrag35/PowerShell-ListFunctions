@@ -1,5 +1,3 @@
-using System.Linq;
-
 namespace ListFunctions.Modern.Constructors;
 
 public sealed class DictionaryCtor : EqualityCollectionCtor<Hashtable>

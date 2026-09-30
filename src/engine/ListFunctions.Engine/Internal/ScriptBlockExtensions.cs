@@ -1,5 +1,3 @@
-using System.Collections.ObjectModel;
-using System.Management.Automation.Language;
 using ListFunctions.Extensions;
 
 namespace ListFunctions.Internal;

@@ -1,6 +1,5 @@
 using ListFunctions.Extensions;
 using ListFunctions.Modern.Exceptions;
-using System.Linq;
 
 namespace ListFunctions.Modern.Constructors;
 

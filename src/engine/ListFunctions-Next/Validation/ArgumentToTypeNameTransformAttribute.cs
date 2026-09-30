@@ -1,5 +1,4 @@
 using ListFunctions.Extensions;
-using System.Management.Automation.Language;
 
 #nullable enable
 

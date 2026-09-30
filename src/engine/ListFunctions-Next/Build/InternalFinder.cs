@@ -1,7 +1,3 @@
-using System.Linq;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-
 [assembly: AssemblyMetadata("Author", "Mike Garvey")]
 [assembly: AssemblyMetadata("CompatiblePSEditions", "Core,Desktop")]
 [assembly: AssemblyMetadata("Guid", "731eae50-355d-4718-a2df-89d9beaae89e")]

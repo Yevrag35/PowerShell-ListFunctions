@@ -1,9 +1,7 @@
 using ListFunctions.Extensions;
 using ListFunctions.Internal;
 using ListFunctions.Modern.Variables;
-using System.Linq;
 using System.Linq.Expressions;
-using System.Reflection;
 using ZLinq;
 
 namespace ListFunctions.Modern;

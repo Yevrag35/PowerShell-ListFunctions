@@ -1,5 +1,3 @@
-using System.Collections.ObjectModel;
-
 namespace ListFunctions.Extensions;
 
 public static class PSVariableCollectionExtensions

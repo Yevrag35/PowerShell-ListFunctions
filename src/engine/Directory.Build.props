@@ -37,11 +37,21 @@
 		<Using Include="System" />
 		<Using Include="System.Collections" />
 		<Using Include="System.Collections.Generic" />
+		<Using Include="System.Collections.Immutable" />
+		<Using Include="System.Collections.ObjectModel" />
 		<Using Include="System.Diagnostics" />
 		<Using Include="System.Diagnostics.CodeAnalysis" />
 		<Using Include="System.Diagnostics.CodeAnalysis.AllowNullAttribute" Alias="AllowsNull" />
+		<Using Include="System.Globalization" />
+		<Using Include="System.Linq" />
 		<Using Include="System.Management.Automation" />
 		<Using Include="System.Management.Automation.AllowNullAttribute" Alias="PSAllowNull" />
+		<Using Include="System.Management.Automation.Language" />
+		<Using Include="System.Reflection" />
+		<Using Include="System.Runtime.CompilerServices" />
+		<Using Include="System.Runtime.InteropServices" />
+		<Using Include="System.Runtime.Serialization" />
+		<Using Include="System.Text" />
 	</ItemGroup>
 
 	<!--

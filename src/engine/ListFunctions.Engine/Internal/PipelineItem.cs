@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-
 namespace ListFunctions.Internal;
 
 /// <summary>
