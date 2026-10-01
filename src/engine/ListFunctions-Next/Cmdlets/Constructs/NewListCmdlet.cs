@@ -30,7 +30,6 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 	internal static readonly Type ListTypeNoT = typeof(List<>);
 
 	private ListWrapper? _list;
-	private Type? _genericType;
 
 	/// <summary>
 	/// Gets or sets the initial capacity of the list.
@@ -52,11 +51,7 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 	[Parameter(Position = 0)]
 	[Alias("Type"), ArgumentToTypeTransform, PSDefaultValue(Value = typeof(object))]
 	[AllowsNull, PSAllowNull]
-	public Type GenericType
-	{
-		get => _genericType ?? typeof(object);
-		set => _genericType = value;
-	}
+	public Type GenericType { get => field ??= typeof(object); set; }
 
 	/// <summary>
 	/// Gets or sets the elements to add to the list. The value is accepted from the pipeline.

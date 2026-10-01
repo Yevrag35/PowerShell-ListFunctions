@@ -35,8 +35,6 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	const string CLONE_VALUES = "CloneValues";
 	const string STR_DICT = "StringDict";
 
-	bool _cloneValues;
-
 	/// <inheritdoc/>
 	protected override string CaseSensitiveParameterSetName => STR_DICT;
 
@@ -68,11 +66,7 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// <value><see langword="true"/> to clone copied values; otherwise, <see langword="false"/>.</value>
 	[Parameter(ParameterSetName = JUST_COPY)]
 	[Parameter(ParameterSetName = AND_COPY)]
-	public SwitchParameter CloneValues
-	{
-		get => _cloneValues;
-		set => _cloneValues = value;
-	}
+	public SwitchParameter CloneValues { get; set; }
 
 	/// <summary>
 	/// Gets or sets the type of the dictionary's keys.
@@ -176,7 +170,7 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 			foreach (DictionaryEntry de in this.InputObject)
 			{
 				args[0] = LanguagePrimitives.ConvertTo(de.Key, this.KeyType);
-				args[1] = CloneValue(de.Value, _cloneValues);
+				args[1] = CloneValue(de.Value, this.CloneValues);
 
 				this.AddToCollection(collection, args, false);
 			}

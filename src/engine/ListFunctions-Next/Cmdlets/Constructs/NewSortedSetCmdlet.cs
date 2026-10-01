@@ -44,7 +44,7 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 	[ArgumentToTypeTransform]
 	[PSDefaultValue(Value = typeof(object))]
 	[Alias("Type")]
-	public Type GenericType { get; set; } = null!;
+	public Type GenericType { get => field ??= typeof(object); set; }
 
 	/// <summary>
 	/// Gets or sets the script block that compares two elements to determine their sort order.
@@ -88,7 +88,6 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 	/// </summary>
 	protected override void BeginCore()
 	{
-		this.GenericType ??= typeof(object);
 		IComparer? comparer = this.GetCustomComparer(this.GenericType);
 
 		_ctor = new SortingCollectorCtor(this.GenericType, comparer);

@@ -136,15 +136,10 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// <value>The value type, or <see langword="null"/> to infer it from the first input object.</value>
 	[Parameter]
 	[ArgumentToTypeTransform]
-	public Type? ValueType
-	{
-		get => _valueType;
-		set => _valueType = value;
-	}
+	public Type? ValueType { get; set; }
 
 	private IDictionary _dictionary = null!;
 	private Type _keyType = null!;
-	private Type? _valueType;
 	private nint _addToDictionaryPtr;
 
 	/// <summary>
@@ -187,7 +182,7 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 		if (inputObjects is not null && inputObjects.Length > 0)
 		{
 			_keyType = GetTypeForElement(inputObjects, this.KeySelector);
-			_valueType = this.GetValueType(_valueType, inputObjects);
+			this.ValueType = this.GetValueType(this.ValueType, inputObjects);
 		}
 	}
 
@@ -225,10 +220,10 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	[SuppressMessage("Style", "IDE0009", Justification = "Used in nameof()")]
 	private IDictionary CreateDictionary(object?[] inputObjects)
 	{
-		if (_keyType is null || _valueType is null)
+		if (_keyType is null || this.ValueType is null)
 		{
 			_keyType = GetTypeForElement(inputObjects, this.KeySelector);
-			_valueType = this.GetValueType(_valueType, inputObjects);
+			this.ValueType = this.GetValueType(this.ValueType, inputObjects);
 		}
 
 		if (this.KeyComparer is null && _keyType.Equals(typeof(string)))
@@ -243,7 +238,7 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 		Type? dictType = null;
 		try
 		{
-			dictType = typeof(Dictionary<,>).MakeGenericType(_keyType, _valueType);
+			dictType = typeof(Dictionary<,>).MakeGenericType(_keyType, this.ValueType);
 			return Activator.CreateInstance(dictType, args) as IDictionary
 				?? throw new InvalidOperationException("Somehow, Dictionary is not an IDictionary?");
 		}
@@ -253,7 +248,7 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 			IDictionary data = ex.Data;
 			data["KeyType"] = _keyType.FullName ?? _keyType.Name;
 			data[nameof(InputObject)] = inputObjects.DeepClone();
-			data[nameof(ValueType)] = _valueType.FullName ?? _valueType.Name;
+			data[nameof(ValueType)] = this.ValueType.FullName ?? this.ValueType.Name;
 			data["DictionaryType"] = dictType?.FullName ?? dictType?.Name;
 
 			var rec = ex.ToRecord(ErrorCategory.InvalidOperation, targetObj: null);
@@ -289,7 +284,7 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 				key = LanguagePrimitives.ConvertTo(key, _keyType);
 
 				object? value = this.ValueSelector?.Invoke(item).AsValueEnumerable().FirstOrDefault().GetBaseObject() is object o
-					? LanguagePrimitives.ConvertTo(o, _valueType)
+					? LanguagePrimitives.ConvertTo(o, this.ValueType)
 					: item;
 
 				addToDictionaryAction(this, key, value);

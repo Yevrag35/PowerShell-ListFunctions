@@ -45,7 +45,6 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	private RuntimeDefinedParameter _caseSensitive = null!;
 	private T _collection = default!;
 	private Type _collectionType = null!;
-	private RuntimeDefinedParameterDictionary? _dict = null!;
 	private Type[] _genericTypes = null!;
 
 	/// <summary>
@@ -53,10 +52,7 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// </summary>
 	/// <value>The <see cref="RuntimeDefinedParameterDictionary"/> that holds the dynamic parameters.</value>
 	[MemberNotNullWhen(true, nameof(_addMethod))]
-	private RuntimeDefinedParameterDictionary DynParamLib
-	{
-		get => _dict ??= new RuntimeDefinedParameterDictionary();
-	}
+	private RuntimeDefinedParameterDictionary DynParamLib => field ??= [];
 	/// <summary>
 	/// Gets the name of the parameter set that the dynamic <c>-CaseSensitive</c> parameter belongs to.
 	/// </summary>

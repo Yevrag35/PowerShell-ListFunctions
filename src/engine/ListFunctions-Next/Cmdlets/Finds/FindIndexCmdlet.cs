@@ -95,19 +95,20 @@ public sealed class FindIndexCmdlet : ListFunctionCmdletBase
 	/// <returns><see langword="false"/> when an element matches and processing stops; otherwise <see langword="true"/>.</returns>
 	protected override bool ProcessCore()
 	{
-		if (this.InputObject is null || this.InputObject.Length == 0)
-			return true;    // keep going
-
-		for (int i = 0; i < this.InputObject.Length; i++)
+		if (this.InputObject is { } arr && arr.Length != 0)
 		{
-			if (_filter.IsTrue(this.InputObject[i]))
+			for (int i = 0; i < arr.Length; i++)
 			{
-				_currentIndex += i;
-				return false;   // stop processing
+				if (_filter.IsTrue(arr[i]))
+				{
+					_currentIndex += i;
+					return false;   // stop processing
+				}
 			}
+
+			_currentIndex += arr.Length;
 		}
 
-		_currentIndex += this.InputObject.Length;
 		return true;
 	}
 
