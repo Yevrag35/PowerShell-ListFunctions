@@ -20,6 +20,7 @@ public static class Guard
 #endif
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void NotNull([NotNull] object? obj, [CallerArgumentExpression(nameof(obj))] string? parameterName = null)
 	{
 #if NET5_0_OR_GREATER
@@ -32,6 +33,7 @@ public static class Guard
 		}
 #endif
 	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static unsafe void NotNull([NotNull] void* argument, [CallerArgumentExpression(nameof(argument))] string? paramName = null)
 	{
 #if NET5_0_OR_GREATER
@@ -65,7 +67,8 @@ public static class Guard
 		}
 #endif
 	}
-
+	
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void ThrowIfGreaterThanOrEqual(int value, int other, [CallerArgumentExpression(nameof(value))] string? parameterName = null)
 	{
 #if NET5_0_OR_GREATER
@@ -95,8 +98,13 @@ public static class Guard
 #if NETCOREAPP
 	[StackTraceHidden]
 #endif
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void ThrowIfNegativeOrGreaterThan(int value, uint other, [CallerArgumentExpression(nameof(value))] string? paramName = null)
 	{
+#if NET5_0_OR_GREATER
+		ArgumentOutOfRangeException.ThrowIfGreaterThan((uint)value, other, paramName);
+#else
+
 		Debug.Assert(other is <= int.MaxValue and not 0, "The other value should never be 0 and always less than or equal to int.MaxValue.");
 		if ((uint)value > other)
 		{
@@ -111,5 +119,6 @@ public static class Guard
 
 		//u ('4294967292') must be less than or equal to '4'. (Parameter 'u')
 		// Actual value was 4294967292.
+#endif
 	}
 }
