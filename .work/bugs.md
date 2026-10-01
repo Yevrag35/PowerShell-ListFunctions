@@ -127,11 +127,15 @@ New-HashSet -CaseSensitive              # Works, and creates an [object] set
 
 **Fix idea:** Set `_isObjectType` in `BeginCore` from the resolved element type.
 
-**Fixed:** `BeginCore` sets `_isObjectType` from the resolved element type. The `GenericType` getter and setter no longer change it, so the two `SetToObjectType` methods are gone. The `Bug04` tests in `tests/New-List.Tests.ps1` cover `-InputObject`. A piped `$null` is still dropped until 06 is fixed, and the open question below is unchanged.
+**Fixed:** `BeginCore` sets `_isObjectType` from the resolved element type. The `GenericType` getter and setter no longer change it, so the two `SetToObjectType` methods are gone. The `Bug04` tests in `tests/New-List.Tests.ps1` cover `-InputObject`. A piped `$null` is still dropped until 06 is fixed.
 
 **Tests:** Pester only, and written: `Bug04` in `tests/New-List.Tests.ps1`. The cause was in the cmdlet.
 
-**Open question:** A typed list converts `$null` instead of adding it. `New-List [int] -InputObject 1, $null -IncludeNullElements` holds `1, 0`, and a `[string]` list gets `''`. Is that intended?
+**Open question, answered on 2026-09-30:** A typed list converts `$null` instead of adding it. `New-List [int] -InputObject 1, $null -IncludeNullElements` holds `1, 0`, and a `[string]` list gets `''`. Is that intended?
+
+- **Answer:** Yes. A typed list follows PowerShell's conversion rules exactly, so it holds what `List[T].Add($null)` stores when PowerShell calls it: `0` for `[int]` and `''` for `[string]`.
+- **Bug it turned up:** `Add($null)` stores a literal `$null` for `[Nullable[T]]` and for most classes, such as `[version]`. New-List dropped that `$null` even with `-IncludeNullElements`, because `ListFunctionCmdletBase.TryConvertItem` reported a `$null` result as a failed conversion.
+- **Fixed:** `TryConvertItem` returns `true` whenever `LanguagePrimitives.ConvertTo` doesn't throw, even when the result is `$null`. `AddTypedItemsToList` adds a `$null` result only when `-IncludeNullElements` is set. The switch now decides whether any `$null` reaches a typed list, whether the input was `$null` or converted to `$null`, as `[NullString]::Value` does for `[string]`. Without the switch, every typed list behaves as before. The new `Bug04` tests cover `[int]`, `[string]`, `[Nullable[int]]`, and `[version]` lists with and without the switch, plus `[NullString]::Value` in a `[string]` list.
 
 ## Other bugs
 

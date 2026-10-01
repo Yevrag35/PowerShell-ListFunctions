@@ -77,8 +77,16 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 	/// added to the list.
 	/// </summary>
 	/// <remarks>
-	/// For a typed list, a <see langword="null"/> element is added only when it converts to a non-null value of the
-	/// element type, such as 0 for <see cref="int"/>. Otherwise, it is skipped.
+	/// <para>
+	/// For a typed list, a <see langword="null"/> element is converted to the element type by PowerShell's conversion
+	/// rules, so the list holds what <see cref="List{T}.Add(T)"/> stores when PowerShell calls it with
+	/// <see langword="null"/>. For example, the element becomes 0 for <see cref="int"/> and an empty string for
+	/// <see cref="string"/>, but it stays <see langword="null"/> for <see cref="Nullable{T}"/> and for most other
+	/// reference types, such as <see cref="Version"/>.
+	/// </para>
+	/// <para>
+	/// When this switch is not set, an element that converts to <see langword="null"/> is skipped too.
+	/// </para>
 	/// </remarks>
 	/// <value><see langword="true"/> to add <see langword="null"/> elements; otherwise, <see langword="false"/>.</value>
 	[Parameter(ParameterSetName = "InitialAdd")]
@@ -119,7 +127,7 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 		Type listType = ListTypeNoT.MakeGenericType(genericType);
 
 		object[] args = capacity > 0
-			? new[] { (object)capacity }
+			? [capacity]
 			: _defaultCapacityArgs;
 
 		try
@@ -192,7 +200,7 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// An element that cannot be converted produces a non-terminating error and is skipped. An element that converts
-	/// to <see langword="null"/> is skipped without an error.
+	/// to <see langword="null"/> is skipped without an error unless <see cref="IncludeNullElements"/> is set.
 	/// </remarks>
 	/// <param name="list">The list to add to.</param>
 	/// <param name="items">The elements to add. <see langword="null"/> elements are skipped unless <see cref="IncludeNullElements"/> is set.</param>
@@ -206,7 +214,7 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 				continue;
 			}
 
-			if (this.TryConvertItem(item, type, out object? result))
+			if (this.TryConvertItem(item, type, out object? result) && (result is not null || this.IncludeNullElements))
 			{
 				list.Add(result);
 			}
