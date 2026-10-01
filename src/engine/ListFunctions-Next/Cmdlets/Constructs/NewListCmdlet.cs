@@ -1,7 +1,7 @@
 using ListFunctions.Components;
 using ListFunctions.Extensions;
+using ListFunctions.Internal;
 using ListFunctions.Validation;
-using ZLinq;
 #nullable enable
 
 namespace ListFunctions.Cmdlets.Constructs;
@@ -28,11 +28,8 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 	/// The open generic <see cref="List{T}"/> type definition.
 	/// </summary>
 	internal static readonly Type ListTypeNoT = typeof(List<>);
-	private static readonly object[] _defaultCapacityArgs = new[] { (object)4 };
 
-	private bool _isObjectType;
-	private IList _list = Array.Empty<object>();
-	private bool _listIsNull;
+	private ListWrapper? _list;
 	private Type? _genericType;
 
 	/// <summary>
@@ -98,127 +95,54 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	/// When <see cref="GenericType"/> was not specified, the method creates a <see cref="List{T}"/> of
-	/// <see cref="object"/> directly. Otherwise, it creates the closed list type through reflection.
+	/// The method also sets the callback that the list calls for each element that cannot be converted to the element
+	/// type. The callback writes a non-terminating error. Setting it once here means that pipeline input does not
+	/// allocate a delegate for each record.
 	/// </para>
 	/// <para>
-	/// The method also records whether the element type is <see cref="object"/>, which decides whether
-	/// <see cref="ProcessCore"/> adds elements as they are or converts them.
+	/// When the list cannot be created, the method writes a non-terminating error instead of throwing, and the cmdlet
+	/// ignores all input and writes no list.
 	/// </para>
 	/// </remarks>
 	protected override void BeginCore()
 	{
-		_isObjectType = _genericType is null || typeof(object).Equals(_genericType);
-		_list = _genericType is null
-			? new List<object?>(this.Capacity > 0 ? this.Capacity : 4)
-			: this.CreateNewList(this.Capacity, this.GenericType, out _listIsNull)!;
-	}
-
-	/// <summary>
-	/// Creates a <see cref="List{T}"/> of the specified element type through reflection.
-	/// </summary>
-	/// <remarks>When construction fails, the method writes a non-terminating error instead of throwing.</remarks>
-	/// <param name="capacity">The initial capacity. A value of 0 or less uses a capacity of 4.</param>
-	/// <param name="genericType">The element type of the list.</param>
-	/// <param name="listIsNull">When this method returns, contains <see langword="true"/> if the list could not be created; otherwise, <see langword="false"/>.</param>
-	/// <returns>The new list, or <see langword="null"/> when it could not be created.</returns>
-	private IList? CreateNewList(int capacity, Type genericType, out bool listIsNull)
-	{
-		Type listType = ListTypeNoT.MakeGenericType(genericType);
-
-		object[] args = capacity > 0
-			? [capacity]
-			: _defaultCapacityArgs;
-
+		uint capacity = this.Capacity > 0 ? (uint)this.Capacity : 4u;
 		try
 		{
-			listIsNull = false;
-			return (IList)Activator.CreateInstance(listType, args)!;
+			_list = ListWrapper.CreateTyped(this.GenericType, capacity, this.IncludeNullElements);
 		}
 		catch (Exception e)
 		{
-			var rec = e.ToRecord(ErrorCategory.InvalidArgument, listType);
-			this.WriteError(rec);
-			listIsNull = true;
-			return null;
+			this.WriteError(e.ToRecord(ErrorCategory.InvalidArgument, this.GenericType));
+			return;
 		}
+
+		_list.ConversionFailed = (item, exception) => this.WriteConversionError(exception, item, this.GenericType);
 	}
+
 	/// <summary>
 	/// Adds the elements of the current <see cref="InputObject"/> array to the list.
 	/// </summary>
 	/// <remarks>
-	/// The method does nothing when the list could not be created. Elements are added to a list of
-	/// <see cref="object"/> as they are and are converted to the element type for a typed list.
+	/// <para>
+	/// The method does nothing when the list could not be created.
+	/// </para>
+	/// <para>
+	/// The list converts each element to the element type by PowerShell's conversion rules, so a list of
+	/// <see cref="object"/> receives each element as it is. An element that cannot be converted produces a
+	/// non-terminating error and is skipped. A <see langword="null"/> element, or one that converts to
+	/// <see langword="null"/>, is skipped unless <see cref="IncludeNullElements"/> is set.
+	/// </para>
 	/// </remarks>
 	/// <returns>Always <see langword="true"/>, so all pipeline input is processed.</returns>
 	protected override bool ProcessCore()
 	{
-		bool flag = true;
-		if (_listIsNull || this.InputObject is null || this.InputObject.Length == 0)
+		if (_list is not null && this.InputObject is not null)
 		{
-			return flag;
+			_list.AddRange(this.InputObject);
 		}
 
-		try
-		{
-			if (_isObjectType)
-			{
-				this.AddItemsToList(_list, this.InputObject);
-			}
-			else
-			{
-				this.AddTypedItemsToList(_list, this.InputObject, this.GenericType);
-			}
-
-			return flag;
-		}
-		catch
-		{
-			flag = false;
-			throw;
-		}
-	}
-	/// <summary>
-	/// Adds the specified elements to a list of <see cref="object"/> without conversion.
-	/// </summary>
-	/// <param name="list">The list to add to.</param>
-	/// <param name="items">The elements to add. <see langword="null"/> elements are skipped unless <see cref="IncludeNullElements"/> is set.</param>
-	private void AddItemsToList(IList list, object?[] items)
-	{
-		foreach (object? item in items.AsValueEnumerable())
-		{
-			if (item is null && !this.IncludeNullElements)
-			{
-				continue;
-			}
-
-			list.Add(item);
-		}
-	}
-	/// <summary>
-	/// Converts the specified elements to the element type and adds them to a typed list.
-	/// </summary>
-	/// <remarks>
-	/// An element that cannot be converted produces a non-terminating error and is skipped. An element that converts
-	/// to <see langword="null"/> is skipped without an error unless <see cref="IncludeNullElements"/> is set.
-	/// </remarks>
-	/// <param name="list">The list to add to.</param>
-	/// <param name="items">The elements to add. <see langword="null"/> elements are skipped unless <see cref="IncludeNullElements"/> is set.</param>
-	/// <param name="type">The element type of <paramref name="list"/>.</param>
-	private void AddTypedItemsToList(IList list, object?[] items, Type type)
-	{
-		foreach (object? item in items.AsValueEnumerable())
-		{
-			if (item is null && !this.IncludeNullElements)
-			{
-				continue;
-			}
-
-			if (this.TryConvertItem(item, type, out object? result) && (result is not null || this.IncludeNullElements))
-			{
-				list.Add(result);
-			}
-		}
+		return true;
 	}
 
 	/// <summary>
@@ -228,9 +152,9 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 	/// <param name="state">The run state of the cmdlet. When <see cref="CmdletRunState.FoundMatch"/> is <see langword="true"/>, nothing is written.</param>
 	protected override void EndCore(CmdletRunState state)
 	{
-		if (!state.FoundMatch && !_listIsNull)
+		if (!state.FoundMatch && _list is not null)
 		{
-			this.WriteObject(_list, false);
+			this.WriteObject(_list.AsList(), false);
 		}
 	}
 }

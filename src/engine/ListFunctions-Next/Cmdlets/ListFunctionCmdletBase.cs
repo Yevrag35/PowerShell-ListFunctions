@@ -325,22 +325,30 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	}
 
 	/// <summary>
-	/// Attempts to convert the specified object to the given target type.
+	/// Attempts to convert the specified object to the given type.
 	/// </summary>
-	/// <remarks>If the conversion fails due to an invalid cast, an error is written and <paramref
-	/// name="result"/> is set to null. This method does not throw an exception for conversion failures.</remarks>
-	/// <param name="item">The object to convert. This value can be null.</param>
-	/// <param name="convertTo">The type to which to attempt to convert the object. Cannot be null.</param>
-	/// <param name="result">When this method returns, contains the converted object if the conversion succeeded; otherwise, null. This
-	/// parameter is passed uninitialized.</param>
-	/// <returns>true if the conversion was successful and <paramref name="result"/> contains the converted value; otherwise,
-	/// false.</returns>
-	protected bool TryConvertItem(object? item, Type convertTo, [NotNullWhen(true)] out object? result)
+	/// <remarks>
+	/// <para>
+	/// The method converts with <see cref="LanguagePrimitives.ConvertTo(object, Type)"/>, so it follows PowerShell's
+	/// conversion rules. A successful conversion can produce <see langword="null"/>. For example,
+	/// <see langword="null"/> converts to 0 for <see cref="int"/> and to an empty string for <see cref="string"/>, but
+	/// it stays <see langword="null"/> for <see cref="Nullable{T}"/> and for most other reference types, such as
+	/// <see cref="Version"/>.
+	/// </para>
+	/// <para>
+	/// When the conversion fails, the method writes a non-terminating error instead of throwing.
+	/// </para>
+	/// </remarks>
+	/// <param name="item">The object to convert. This value can be <see langword="null"/>.</param>
+	/// <param name="convertTo">The type to convert <paramref name="item"/> to.</param>
+	/// <param name="result">When this method returns, contains the converted value, which can be <see langword="null"/>, if the conversion succeeds; otherwise, <see langword="null"/>.</param>
+	/// <returns><see langword="true"/> if the conversion succeeds, even when <paramref name="result"/> is <see langword="null"/>; otherwise, <see langword="false"/>.</returns>
+	protected bool TryConvertItem(object? item, Type convertTo, out object? result)
 	{
 		try
 		{
 			result = LanguagePrimitives.ConvertTo(item, convertTo);
-			return result is not null;
+			return true;
 		}
 		catch (PSInvalidCastException e)
 		{
@@ -364,7 +372,7 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	/// <param name="item">The object that failed to convert to the specified type. Can be null if the conversion was attempted on a
 	/// null value.</param>
 	/// <param name="convertToType">The target type to which the conversion was attempted. Must not be null.</param>
-	private void WriteConversionError(PSInvalidCastException thrownException, object? item, Type convertToType)
+	protected void WriteConversionError(PSInvalidCastException thrownException, object? item, Type convertToType)
 	{
 		string errorId = thrownException.GetType().GetTypeName();
 		ErrorCategory cat = ErrorCategory.InvalidType;
