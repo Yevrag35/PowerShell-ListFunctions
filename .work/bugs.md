@@ -257,9 +257,9 @@ New-Dictionary [int] -EqualityScript { $x -eq $y } -HashCodeScript { $_.GetHashC
 
 **Fix idea:** Throw for unsupported input. Or join an `object[]` of strings back together with `,` and parse that, which recovers the type the user meant.
 
-**Related:** A type name without brackets is rejected with a misleading message. `New-List System.String` fails with "'System.String' is not a valid .NET or custom-defined type", even though it is one; the transform only accepts bracketed type literals.
+**Related, fixed:** A type name without brackets was rejected with a misleading message. `New-List System.String` failed with "'System.String' is not a valid .NET or custom-defined type", even though it is one. Parsed as a script, a bare type name is a command name, or a parse error when it contains a comma, so it holds no type literal. Where that parse would fail, the transform now puts the name in brackets and resolves the result only if it's a single type literal, so `string` resolves the same way as `[string]` in both editions. Input that worked before still takes the old path. PowerShell's `[type]` conversion isn't used, because in 5.1 it ignores the text after a type name and turns `'System.String bad text'` into `[string]`.
 
-**Tests:** Pester only, in `tests/New-List.Tests.ps1`, which is the cmdlet the repro uses. That file also gets the related case. The transform is in `ListFunctions-Next`, and every cmdlet that takes a type shares it.
+**Tests:** Pester only, in `tests/New-List.Tests.ps1`, which is the cmdlet the repro uses. The related case's tests are written: `Bug11` in the `GenericType` context, covering bare type names, the forms that already worked, and names that are still rejected. The transform is in `ListFunctions-Next`, and every cmdlet that takes a type shares it.
 
 ### 12 — ConvertTo-Dictionary misses `$_` when an operator follows it
 

@@ -58,4 +58,42 @@ Describe 'New-List' {
 			Should-BeCollection -Expected @('a') -Actual ([object[]]$list)
 		}
 	}
+
+	Context 'GenericType' {
+		# An unquoted argument, such as System.String or [string], reaches -GenericType as a string.
+
+		It 'creates a List[string] from the unquoted type name System.String' -Tag 'Bug11' {
+			$list = New-List System.String
+			Should-HaveType -Expected ([System.Collections.Generic.List[string]]) -Actual $list
+		}
+
+		It 'creates a list from the type name ''<Name>''' -Tag 'Bug11' -ForEach @(
+			@{ Name = 'string'; Expected = [System.Collections.Generic.List[string]] }
+			@{ Name = 'int[]'; Expected = [System.Collections.Generic.List[int[]]] }
+			@{ Name = 'System.Collections.Generic.List[int]'; Expected = [System.Collections.Generic.List[System.Collections.Generic.List[int]]] }
+			@{ Name = 'System.Collections.Generic.KeyValuePair[string, int]'; Expected = [System.Collections.Generic.List[System.Collections.Generic.KeyValuePair[string, int]]] }
+			@{ Name = 'System.String, mscorlib'; Expected = [System.Collections.Generic.List[string]] }
+		) {
+			$list = New-List $Name
+			Should-HaveType -Expected $Expected -Actual $list
+		}
+
+		It 'creates a List[string] from <Label>' -Tag 'Bug11' -ForEach @(
+			@{ Label = 'the string ''[string]'''; Value = '[string]' }
+			@{ Label = 'the script block { [string] }'; Value = { [string] } }
+			@{ Label = 'the type [string]'; Value = [string] }
+		) {
+			$list = New-List $Value
+			Should-HaveType -Expected ([System.Collections.Generic.List[string]]) -Actual $list
+		}
+
+		# Windows PowerShell 5.1 converts 'System.String bad text' to [string], because its [type] conversion ignores
+		# whatever follows a type name. -GenericType rejects it in both editions.
+		It 'rejects the type name ''<Name>''' -Tag 'Bug11' -ForEach @(
+			@{ Name = 'NotAType' }
+			@{ Name = 'System.String bad text' }
+		) {
+			{ New-List $Name } | Should-Throw -ExceptionMessage "*'$Name' is not a valid .NET or custom-defined type."
+		}
+	}
 }

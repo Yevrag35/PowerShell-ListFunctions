@@ -88,8 +88,18 @@ internal sealed class ArgumentToTypeTransformAttribute : ArgumentTransformationA
 	/// Resolves a .NET or custom-defined type from its name, optionally considering the context of a running
 	/// PowerShell module.
 	/// </summary>
-	/// <remarks>If the running module is 'PSReadLine', invalid type names are resolved to <see
-	/// cref="object"/> instead of throwing an exception.</remarks>
+	/// <remarks>
+	/// <para>
+	/// The method parses <paramref name="typeName"/> as a script and resolves the first type expression in it, such as
+	/// <c>[string]</c>. A type name without brackets, such as <c>string</c> or <c>System.String, mscorlib</c>, parses as
+	/// a command name or fails to parse, so it contains no type expression. The method then resolves it as if it were
+	/// written in brackets.
+	/// </para>
+	/// <para>
+	/// If the running module is 'PSReadLine', invalid type names are resolved to <see cref="object"/> instead of
+	/// throwing an exception.
+	/// </para>
+	/// </remarks>
 	/// <param name="typeName">The name of the type to resolve. This can be a fully qualified .NET type name or a custom-defined type name.
 	/// Cannot be null or empty.</param>
 	/// <param name="runningModule">The PowerShell module context to use when resolving custom-defined types, or null to resolve types without
@@ -101,6 +111,7 @@ internal sealed class ArgumentToTypeTransformAttribute : ArgumentTransformationA
 	private static Type ResolveFromName(string typeName, PSModuleInfo? runningModule)
 	{
 		Ast ast;
+		Type? type;
 
 		try
 		{
@@ -108,6 +119,12 @@ internal sealed class ArgumentToTypeTransformAttribute : ArgumentTransformationA
 
 			if (errors is not null && errors.Length > 0)
 			{
+				// A type name that contains a comma, such as 'System.String, mscorlib', fails to parse as a script.
+				if (TryResolveFromBareName(typeName, out type))
+				{
+					return type;
+				}
+
 				return PSREADLINE.Equals(runningModule?.Name, StringComparison.OrdinalIgnoreCase)
 					? typeof(object)
 					: throw new ArgumentException($"'{typeName}' is not a valid .NET or custom-defined type.");
@@ -118,6 +135,45 @@ internal sealed class ArgumentToTypeTransformAttribute : ArgumentTransformationA
 			throw new ArgumentException($"'{typeName}' is not a valid .NET or custom-defined type.", e);
 		}
 
+		// Any other type name without brackets, such as 'string', parses as a command name.
+		if (ast.Find(x => x is TypeExpressionAst, false) is null && TryResolveFromBareName(typeName, out type))
+		{
+			return type;
+		}
+
 		return ResolveFromAst(ast, runningModule);
+	}
+
+	/// <summary>
+	/// Attempts to resolve a type name that is written without the brackets of a type literal, such as <c>string</c> or
+	/// <c>System.Collections.Generic.List[int]</c>.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// The method wraps <paramref name="typeName"/> in brackets and parses the result, but never runs it. The name
+	/// resolves only when the result is a single type literal with nothing before or after it, and it resolves the way
+	/// that type literal does, so <c>string</c> and <c>[string]</c> always resolve to the same type.
+	/// </para>
+	/// <para>
+	/// The method doesn't use <see cref="LanguagePrimitives.ConvertTo(object, Type)"/>. In Windows PowerShell 5.1,
+	/// that conversion ignores any text that follows a type name, so it converts <c>System.String bad text</c> to
+	/// <see cref="string"/>.
+	/// </para>
+	/// </remarks>
+	/// <param name="typeName">The type name to resolve.</param>
+	/// <param name="type">When the method returns <see langword="true"/>, the resolved type; otherwise, <see langword="null"/>.</param>
+	/// <returns><see langword="true"/> if <paramref name="typeName"/> is a type name that resolves to a type; otherwise, <see langword="false"/>.</returns>
+	private static bool TryResolveFromBareName(string typeName, [NotNullWhen(true)] out Type? type)
+	{
+		string literal = $"[{typeName}]";
+		Ast ast = Parser.ParseInput(literal, out _, out ParseError[] errors);
+
+		type = errors.Length == 0
+			&& ast.Find(x => x is TypeExpressionAst, false) is TypeExpressionAst expression
+			&& expression.Extent.Text.Length == literal.Length
+				? expression.TypeName.GetReflectionType()
+				: null;
+
+		return type is not null;
 	}
 }
