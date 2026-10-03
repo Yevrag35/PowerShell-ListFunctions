@@ -1,4 +1,4 @@
-namespace ListFunctions.Internal;
+namespace ListFunctions.Extensions;
 
 /// <summary>
 /// Provides <see langword="null"/>-safe equality checks for types that implement <see cref="IEquatable{T}"/>.

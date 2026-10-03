@@ -1,6 +1,4 @@
-using ListFunctions.Extensions;
-
-namespace ListFunctions.Internal;
+namespace ListFunctions.Extensions;
 
 /// <summary>
 /// Provides helpers that validate script blocks and invoke them with injected variables.

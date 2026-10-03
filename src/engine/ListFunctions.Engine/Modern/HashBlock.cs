@@ -1,4 +1,4 @@
-using ListFunctions.Internal;
+using ListFunctions.Extensions;
 using ListFunctions.Modern.Exceptions;
 using ListFunctions.Modern.Variables;
 

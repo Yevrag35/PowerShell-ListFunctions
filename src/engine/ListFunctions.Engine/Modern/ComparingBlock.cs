@@ -1,5 +1,4 @@
 using ListFunctions.Extensions;
-using ListFunctions.Internal;
 using ListFunctions.Modern.Variables;
 using ZLinq;
 
