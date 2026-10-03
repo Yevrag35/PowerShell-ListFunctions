@@ -62,7 +62,6 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 		}
 	}
 
-
 	/// <summary>
 	/// Begins the cmdlet processing lifecycle. This method is sealed to enforce the
 	/// framework-defined execution sequence and delegates work to <see cref="BeginCore"/>.

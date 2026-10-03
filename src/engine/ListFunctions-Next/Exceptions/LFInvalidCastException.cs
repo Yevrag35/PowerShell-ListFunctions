@@ -15,7 +15,7 @@ public sealed class LFInvalidCastException : PSInvalidCastException
 {
 	const string MSG_FORMAT = "Cannot convert value \"{0}\" of type \"{1}\" to type \"{2}\".";
 	const string ADD_FORMAT = MSG_FORMAT + " Error: {3}";
-	static readonly string? _namespace = typeof(LFInvalidCastException).Namespace;
+	static readonly string? s_namespace = typeof(LFInvalidCastException).Namespace;
 
 	readonly string? _itemAsStr;
 	readonly string _message;
@@ -25,7 +25,7 @@ public sealed class LFInvalidCastException : PSInvalidCastException
 	public override string? StackTrace => _stackTrace ?? base.StackTrace;
 	public override string? Source
 	{
-		get => base.Source ?? _namespace;
+		get => base.Source ?? s_namespace;
 		set => base.Source = value;
 	}
 
