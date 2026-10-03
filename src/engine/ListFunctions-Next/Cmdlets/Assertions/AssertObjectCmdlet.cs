@@ -6,25 +6,32 @@ using ListFunctions.Modern;
 namespace ListFunctions.Cmdlets.Assertions;
 
 /// <summary>
-/// Base implementation for object-assertion cmdlets that evaluate a condition against a sequence of objects.
+/// Provides the base class for cmdlets that assert a condition over their input objects.
 /// </summary>
 /// <remarks>
-/// This abstract class encapsulates the common lifecycle for assertion-style cmdlets: preparing a compiled
-/// <see cref="ScriptBlockFilter"/>, processing each pipeline input, and finalizing the result. Derived types
-/// provide the specific evaluation semantics by implementing <see cref="Process(ScriptBlockFilter)"/>
-/// and <see cref="ProcessWhenNoCondition()"/>.
+/// <para>
+/// The begin, process, and end phases are sealed. The begin phase creates a <see cref="ScriptBlockFilter"/> from
+/// <see cref="Condition"/>. For each pipeline record, the class calls <see cref="Process(ScriptBlockFilter)"/>, or
+/// <see cref="ProcessWhenNoCondition"/> when no condition is set, and the end phase passes the outcome to
+/// <see cref="End(bool)"/>.
+/// </para>
+/// <para>
+/// When <see cref="Process(ScriptBlockFilter)"/> or <see cref="ProcessWhenNoCondition"/> returns
+/// <see langword="true"/>, the result of the assertion is decided. The cmdlet processes no more input and, when its
+/// input comes from the pipeline, stops the commands that send it.
+/// </para>
 /// </remarks>
 public abstract class AssertObjectCmdlet : ListFunctionCmdletBase
 {
 	/// <summary>
-	/// Gets or sets the condition script block that will be evaluated for each input object.
+	/// Gets or sets the script block that tests each input object.
 	/// </summary>
 	/// <remarks>
-	/// When set, the implementation creates a <see cref="ScriptBlockFilter"/> during <see cref="BeginCore"/>.
-	/// The property setter also updates <see cref="HasCondition"/> based on whether the provided script block
-	/// contains executable content.
+	/// A script block that is <see langword="null"/>, empty, or only white space counts as no condition, and the cmdlet
+	/// calls <see cref="ProcessWhenNoCondition"/> instead of testing input with it. Derived classes override the
+	/// property to make it a parameter.
 	/// </remarks>
-	/// <value>The condition <see cref="ScriptBlock"/>, or <see langword="null"/> when none was provided.</value>
+	/// <value>The condition <see cref="ScriptBlock"/>, or <see langword="null"/> when none is set.</value>
 	public virtual ScriptBlock? Condition
 	{
 		get;
@@ -35,36 +42,46 @@ public abstract class AssertObjectCmdlet : ListFunctionCmdletBase
 		}
 	}
 	/// <summary>
-	/// Gets or sets the <see cref="ActionPreference"/> applied when the condition script block raises an error.
+	/// Gets or sets the error action preference applied while the condition script block runs.
 	/// </summary>
-	/// <remarks>Derived cmdlets must provide a default value for this preference.</remarks>
+	/// <remarks>
+	/// The value is assigned to <c>$ErrorActionPreference</c> in the script block's scope. It doesn't change the
+	/// cmdlet's own <c>-ErrorAction</c> behavior. Derived classes override the property to make it a parameter and
+	/// give it a default value.
+	/// </remarks>
+	/// <value>The error action preference for script block execution.</value>
 	public abstract ActionPreference ScriptBlockErrorAction { get; set; }
 
-	[AllowsNull]
 	/// <summary>
-	/// Gets the compiled filter used to evaluate the <see cref="Condition"/> script block.
+	/// Gets the filter that tests input objects with <see cref="Condition"/>.
 	/// </summary>
 	/// <remarks>
-	/// The filter is created during <see cref="BeginCore"/> when <see cref="HasCondition"/> is true.
-	/// It may be <see langword="null"/> when no condition was supplied.
+	/// <see cref="BeginCore"/> creates the filter when <see cref="HasCondition"/> is <see langword="true"/>.
 	/// </remarks>
+	/// <value>The condition filter, or <see langword="null"/> when no condition is set.</value>
+	[AllowsNull]
 	private protected ScriptBlockFilter? Filter { get; private set; }
 
-	[MemberNotNullWhen(true, nameof(Condition), nameof(Filter))]
 	/// <summary>
-	/// Gets a value that indicates whether a non-empty condition has been provided.
+	/// Gets a value that indicates whether <see cref="Condition"/> is a script block with content.
 	/// </summary>
 	/// <remarks>
-	/// When <see langword="true"/>, <see cref="Filter"/> is guaranteed to be non-null after <see cref="BeginCore"/>.
+	/// The <see cref="Condition"/> setter updates the value. When it is <see langword="true"/>, <see cref="Filter"/>
+	/// isn't <see langword="null"/> after <see cref="BeginCore"/> runs.
 	/// </remarks>
+	/// <value>
+	/// <see langword="true"/> when <see cref="Condition"/> isn't <see langword="null"/>, empty, or only white space;
+	/// otherwise, <see langword="false"/>.
+	/// </value>
+	[MemberNotNullWhen(true, nameof(Condition), nameof(Filter))]
 	private protected bool HasCondition { get; set; }
 
 	/// <summary>
-	/// Prepares resources required for processing, creating the <see cref="Filter"/> when a condition exists.
+	/// Creates the <see cref="ScriptBlockFilter"/> for <see cref="Condition"/> when a condition is set.
 	/// </summary>
 	/// <remarks>
-	/// The method constructs a <see cref="ScriptBlockFilter"/> using the configured <see cref="Condition"/>
-	/// and the configured <see cref="ScriptBlockErrorAction"/> preference.
+	/// The filter runs the condition with <c>$ErrorActionPreference</c> set to <see cref="ScriptBlockErrorAction"/>.
+	/// When no condition is set, the method creates nothing.
 	/// </remarks>
 	protected sealed override void BeginCore()
 	{
@@ -88,10 +105,13 @@ public abstract class AssertObjectCmdlet : ListFunctionCmdletBase
 	}
 
 	/// <summary>
-	/// Implements the process logic used by the base lifecycle. The result indicates whether processing
-	/// should continue or stop.
+	/// Tests the current pipeline input by calling <see cref="Process(ScriptBlockFilter)"/>, or
+	/// <see cref="ProcessWhenNoCondition"/> when no condition is set.
 	/// </summary>
-	/// <returns><see langword="true"/> to continue processing; <see langword="false"/> to stop.</returns>
+	/// <returns>
+	/// <see langword="false"/> when the called method returns <see langword="true"/> and the cmdlet stops processing
+	/// input; otherwise, <see langword="true"/>.
+	/// </returns>
 	protected sealed override bool ProcessCore()
 	{
 		return this.HasCondition
@@ -99,29 +119,49 @@ public abstract class AssertObjectCmdlet : ListFunctionCmdletBase
 			: !this.ProcessWhenNoCondition();
 	}
 	/// <summary>
-	/// Evaluates the compiled <see cref="ScriptBlockFilter"/> against the current input set.
+	/// When implemented in a derived class, tests the current pipeline input with the condition filter.
 	/// </summary>
-	/// <param name="filter">The compiled filter to execute. Will not be <see langword="null"/> when <see cref="HasCondition"/> is true.</param>
-	/// <returns><see langword="true"/> when a match was found; otherwise <see langword="false"/>.</returns>
+	/// <remarks>
+	/// The base class calls this method only when <see cref="Condition"/> is a script block with content. An exception
+	/// from this method, including one thrown by the condition script block, becomes a terminating error.
+	/// </remarks>
+	/// <param name="filter">The filter that tests objects with <see cref="Condition"/>. This value isn't <see langword="null"/>.</param>
+	/// <returns>
+	/// <see langword="true"/> when the result of the assertion is decided and the cmdlet stops processing input;
+	/// otherwise, <see langword="false"/>.
+	/// </returns>
 	protected abstract bool Process(ScriptBlockFilter filter);
 	/// <summary>
-	/// Performs evaluation when no condition script block is supplied.
+	/// When implemented in a derived class, processes the current pipeline input when no condition is set.
 	/// </summary>
-	/// <returns>Behavior depends on the concrete implementation; implementations must indicate whether a match exists.</returns>
+	/// <remarks>
+	/// The base class calls this method when <see cref="Condition"/> is <see langword="null"/>, empty, or only white
+	/// space. An exception from this method becomes a terminating error.
+	/// </remarks>
+	/// <returns>
+	/// <see langword="true"/> when the result of the assertion is decided and the cmdlet stops processing input;
+	/// otherwise, <see langword="false"/>.
+	/// </returns>
 	protected abstract bool ProcessWhenNoCondition();
 
 	/// <summary>
-	/// Translates the internal run state into the public end-phase call for derived classes.
+	/// Passes the outcome of the process phase to <see cref="End(bool)"/>.
 	/// </summary>
-	/// <param name="state">The current cmdlet run state.</param>
+	/// <param name="state">
+	/// The run state of the cmdlet. Its <see cref="CmdletRunState.FoundMatch"/> value indicates whether
+	/// <see cref="Process(ScriptBlockFilter)"/> or <see cref="ProcessWhenNoCondition"/> returned <see langword="true"/>.
+	/// </param>
 	protected sealed override void EndCore(CmdletRunState state)
 	{
 		this.End(state.FoundMatch);
 	}
 	/// <summary>
-	/// Called during the end phase to allow the derived cmdlet to write the final result to the pipeline.
+	/// When implemented in a derived class, writes the result of the assertion to the pipeline.
 	/// </summary>
-	/// <param name="scriptResult">The logical result of the assertion evaluation.</param>
+	/// <param name="scriptResult">
+	/// <see langword="true"/> when <see cref="Process(ScriptBlockFilter)"/> or <see cref="ProcessWhenNoCondition"/>
+	/// returned <see langword="true"/> for a pipeline record; otherwise, <see langword="false"/>.
+	/// </param>
 	protected abstract void End(bool scriptResult);
 }
 
