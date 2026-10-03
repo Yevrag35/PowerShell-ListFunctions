@@ -94,4 +94,24 @@ Describe 'New-HashSet' {
 			{ New-HashSet [int] -CaseSensitive } | Should-Throw -FullyQualifiedErrorId 'NamedParameterNotFound,*'
 		}
 	}
+
+	Context 'Pipeline input' {
+		It 'adds a piped array to an [object] set as one element' -Tag 'Bug06' {
+			$set = @(1, @(2, 3)) | New-HashSet
+			$set.Count | Should-Be 2
+		}
+
+		It "writes an error for a piped array that can't be converted to the element type" -Tag 'Bug06' {
+			$set = @(1, @(2, 3)) | New-HashSet [int] -ErrorVariable err -ErrorAction SilentlyContinue
+			Should-BeCollection -Expected @(1) -Actual ([object[]]$set)
+			$err.Count | Should-Be 1
+		}
+
+		It 'adds a piped $null to an [object] set' -Tag 'Bug06' {
+			# -InputObject 1, $null adds $null to an [object] set too.
+			$set = 1, $null | New-HashSet
+			$set.Count | Should-Be 2
+			$set.Contains($null) | Should-BeTrue
+		}
+	}
 }

@@ -73,7 +73,8 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// </summary>
 	/// <remarks>
 	/// The parameter accepts a <see cref="Type"/>, a type name, or a script block that contains a type literal such
-	/// as <c>{ [int] }</c>. Keys copied from <see cref="InputObject"/> are converted to this type.
+	/// as <c>{ [int] }</c>. Keys copied from <see cref="InputObject"/> are converted to this type, and a key that
+	/// can't be converted produces a non-terminating error for its entry.
 	/// </remarks>
 	/// <value>The key type. When not specified, the cmdlet uses <see cref="object"/>.</value>
 	[Parameter(Position = 0)]
@@ -85,8 +86,8 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// </summary>
 	/// <remarks>
 	/// The parameter accepts a <see cref="Type"/>, a type name, or a script block that contains a type literal such
-	/// as <c>{ [int] }</c>. Values copied from <see cref="InputObject"/> are not converted, so each value must already
-	/// be assignable to this type or the cmdlet writes a non-terminating error for that entry.
+	/// as <c>{ [int] }</c>. Values copied from <see cref="InputObject"/> are converted to this type, and a value that
+	/// can't be converted produces a non-terminating error for its entry.
 	/// </remarks>
 	/// <value>The value type. Defaults to <see cref="object"/>.</value>
 	[Parameter(Position = 1)]
@@ -99,8 +100,9 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// pipeline.
 	/// </summary>
 	/// <remarks>
-	/// Each key is converted to <see cref="KeyType"/>. Entries whose value is <see langword="null"/> are skipped, and
-	/// an entry that cannot be added, such as a duplicate key, produces a non-terminating error.
+	/// Each key is converted to <see cref="KeyType"/>, and each value to <see cref="ValueType"/>. Entries whose value is
+	/// <see langword="null"/> are skipped. An entry whose key or value can't be converted, or that can't be added, such
+	/// as a duplicate key, produces a non-terminating error.
 	/// </remarks>
 	/// <value>The source <see cref="Hashtable"/>.</value>
 	[Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = JUST_COPY)]
@@ -112,31 +114,29 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// Gets or sets the script block that determines whether two keys are equal.
 	/// </summary>
 	/// <remarks>
-	/// <para>
-	/// The script block receives the two keys as <c>$x</c> and <c>$y</c>, or as <c>$left</c> and <c>$right</c>. It
-	/// must reference one variable for each key. Its output is converted to a <see cref="bool"/> by using
-	/// PowerShell's truthiness rules.
-	/// </para>
-	/// <para>TODO: The script-based comparer is built only in the custom equality parameter set. When <see cref="InputObject"/> is also supplied, this script block and <see cref="HashCodeScript"/> are currently ignored.</para>
+	/// The script block receives the two keys as <c>$x</c> and <c>$y</c>, as <c>$left</c> and <c>$right</c>, or as
+	/// <c>$args[0]</c> and <c>$args[1]</c>. It must reference one variable for each key. Its output is converted to a
+	/// <see cref="bool"/> by using PowerShell's truthiness rules.
 	/// </remarks>
 	/// <value>The key equality <see cref="ScriptBlock"/>.</value>
 	[Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
 	[Parameter(Mandatory = true, ParameterSetName = AND_COPY)]
-	[ValidateScriptVariable(PSComparingVariable.X, PSComparingVariable.LEFT)]
-	[ValidateScriptVariable(PSComparingVariable.Y, PSComparingVariable.RIGHT)]
+	[ValidateScriptVariable(PSComparingVariable.X, PSComparingVariable.LEFT, PSThisVariable.FirstArg)]
+	[ValidateScriptVariable(PSComparingVariable.Y, PSComparingVariable.RIGHT, PSThisVariable.SecondArg)]
 	public ScriptBlock EqualityScript { get; set; } = null!;
 
 	/// <summary>
 	/// Gets or sets the script block that computes the hash code of a key.
 	/// </summary>
 	/// <remarks>
-	/// The script block receives the key as <c>$_</c>, <c>$this</c>, or <c>$PSItem</c> and must reference at least
-	/// one of them. Keys that <see cref="EqualityScript"/> considers equal must produce the same hash code.
+	/// The script block receives the key as <c>$_</c>, <c>$this</c>, <c>$PSItem</c>, or <c>$args[0]</c> and must
+	/// reference at least one of them. Keys that <see cref="EqualityScript"/> considers equal must produce the same hash
+	/// code.
 	/// </remarks>
 	/// <value>The key hash code <see cref="ScriptBlock"/>.</value>
 	[Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
 	[Parameter(Mandatory = true, ParameterSetName = AND_COPY)]
-	[ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.This, PSThisVariable.PSItem)]
+	[ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.This, PSThisVariable.PSItem, PSThisVariable.FirstArg)]
 	public ScriptBlock HashCodeScript { get; set; } = null!;
 
 	/// <summary>
@@ -149,6 +149,7 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// </remarks>
 	/// <value>The error action preference for script block execution. Defaults to <see cref="ActionPreference.Stop"/>.</value>
 	[Parameter(ParameterSetName = WITH_CUSTOM_EQUALITY)]
+	[Parameter(ParameterSetName = AND_COPY)]
 	[PSDefaultValue(Value = ActionPreference.Stop)]
 	public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.Stop;
 
@@ -156,8 +157,15 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// Copies the entries of <see cref="InputObject"/> into the dictionary.
 	/// </summary>
 	/// <remarks>
-	/// Each key is converted to <see cref="KeyType"/>, and each value is cloned when <see cref="CloneValues"/> is set.
-	/// A key that cannot be converted throws, which ends the cmdlet with a terminating error.
+	/// <para>
+	/// Each key is converted to <see cref="KeyType"/>. Each value is cloned when <see cref="CloneValues"/> is set, and
+	/// is then converted to <see cref="ValueType"/> unless that type is <see cref="object"/>.
+	/// </para>
+	/// <para>
+	/// A key or value that can't be converted produces a non-terminating error, and its entry is skipped. The
+	/// remaining entries are still copied. A <see langword="null"/> value isn't converted, and its entry is skipped
+	/// without an error.
+	/// </para>
 	/// </remarks>
 	/// <param name="collection">The dictionary to copy entries into.</param>
 	/// <param name="collectionType">The closed generic type of the dictionary.</param>
@@ -166,12 +174,26 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	{
 		if (null != this.InputObject && this.InputObject.Count > 0)
 		{
+			Type keyType = this.KeyType ?? typeof(object);
+			Type valueType = this.ValueType ?? typeof(object);
+			bool convertValues = !typeof(object).Equals(valueType);
+
 			object?[] args = new object?[2];
 			foreach (DictionaryEntry de in this.InputObject)
 			{
-				args[0] = LanguagePrimitives.ConvertTo(de.Key, this.KeyType);
-				args[1] = CloneValue(de.Value, this.CloneValues);
+				if (!this.TryConvertItem(de.Key, keyType, out object? key))
+				{
+					continue;
+				}
 
+				object? value = CloneValue(de.Value, this.CloneValues);
+				if (convertValues && value is not null && !this.TryConvertItem(value, valueType, out value))
+				{
+					continue;
+				}
+
+				args[0] = key;
+				args[1] = value;
 				this.AddToCollection(collection, args, false);
 			}
 		}
@@ -247,17 +269,19 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	}
 	/// <summary>
 	/// Returns the key equality comparer, building one from <see cref="EqualityScript"/> and
-	/// <see cref="HashCodeScript"/> in the custom equality parameter set.
+	/// <see cref="HashCodeScript"/> in the custom equality parameter sets.
 	/// </summary>
 	/// <remarks>
-	/// In any other parameter set, the method defers to the base implementation. The script-based comparer runs its
-	/// script blocks with <c>$ErrorActionPreference</c> set to <see cref="ScriptBlockErrorAction"/>.
+	/// The custom equality parameter sets are the one without <see cref="InputObject"/> and the one with it. In any
+	/// other parameter set, the method defers to the base implementation. The script-based comparer runs its script
+	/// blocks with <c>$ErrorActionPreference</c> set to <see cref="ScriptBlockErrorAction"/>.
 	/// </remarks>
 	/// <param name="genericType">The key type.</param>
 	/// <returns>The key equality comparer, or <see langword="null"/> to use the default for the key type.</returns>
 	protected override IEqualityComparer? GetCustomEqualityComparer(Type genericType)
 	{
-		if (!WITH_CUSTOM_EQUALITY.Equals(this.ParameterSetName, StringComparison.OrdinalIgnoreCase))
+		if (!WITH_CUSTOM_EQUALITY.Equals(this.ParameterSetName, StringComparison.OrdinalIgnoreCase)
+			&& !AND_COPY.Equals(this.ParameterSetName, StringComparison.OrdinalIgnoreCase))
 		{
 			return base.GetCustomEqualityComparer(genericType);
 		}

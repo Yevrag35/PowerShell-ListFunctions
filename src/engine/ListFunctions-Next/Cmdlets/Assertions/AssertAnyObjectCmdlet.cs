@@ -12,7 +12,7 @@ namespace ListFunctions.Cmdlets.Assertions;
 /// <remarks>
 /// <para>
 /// The cmdlet evaluates the <see cref="Condition"/> script block against each element of <see cref="InputObject"/>,
-/// across every pipeline record. It writes <see langword="true"/> when any element satisfies the condition and
+/// across every pipeline object. It writes <see langword="true"/> when any element satisfies the condition and
 /// <see langword="false"/> otherwise.
 /// </para>
 /// <para>
@@ -37,13 +37,14 @@ public sealed class AssertAnyObjectCmdlet : AssertObjectCmdlet
 	/// Gets or sets the objects to test. The value is accepted from the pipeline.
 	/// </summary>
 	/// <remarks>
-	/// A <see langword="null"/> or empty array contributes no elements. <see langword="null"/> and empty-string
-	/// elements are evaluated like any other element when a condition is set.
+	/// Each pipeline object is one element, even when it's <see langword="null"/> or an array. An array passed to the
+	/// parameter supplies its elements, and <see langword="null"/> supplies none. <see langword="null"/> and
+	/// empty-string elements are evaluated like any other element when a condition is set.
 	/// </remarks>
-	/// <value>The array of objects to test, or <see langword="null"/> when no objects are supplied.</value>
+	/// <value>The current pipeline object, or the argument of the parameter. The value can be <see langword="null"/>.</value>
 	[Parameter(Mandatory = true, ValueFromPipeline = true)]
 	[AllowEmptyCollection, PSAllowNull, AllowEmptyString]
-	public object?[]? InputObject { get; set; }
+	public object? InputObject { get; set; }
 
 	/// <summary>
 	/// Gets or sets the script block that tests each input object.
@@ -77,7 +78,7 @@ public sealed class AssertAnyObjectCmdlet : AssertObjectCmdlet
 	public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.SilentlyContinue;
 
 	/// <summary>
-	/// Tests the elements of the current <see cref="InputObject"/> array with the condition.
+	/// Tests the elements of the current <see cref="InputObject"/> with the condition.
 	/// </summary>
 	/// <remarks>
 	/// The method stops at the first element that satisfies the condition.
@@ -86,23 +87,19 @@ public sealed class AssertAnyObjectCmdlet : AssertObjectCmdlet
 	/// <returns><see langword="true"/> when an element satisfies the condition; otherwise, <see langword="false"/>.</returns>
 	protected override bool Process(ScriptBlockFilter filter)
 	{
-		return filter.Any(this.InputObject);
+		return filter.Any(this.GetInputElements(this.InputObject));
 	}
 	/// <summary>
-	/// Determines whether the current <see cref="InputObject"/> array contains an element that isn't
-	/// <see langword="null"/>.
+	/// Determines whether the current <see cref="InputObject"/> has an element that isn't <see langword="null"/>.
 	/// </summary>
-	/// <returns><see langword="true"/> when the array contains an element that isn't <see langword="null"/>; otherwise, <see langword="false"/>.</returns>
+	/// <returns><see langword="true"/> when an element isn't <see langword="null"/>; otherwise, <see langword="false"/>.</returns>
 	protected override bool ProcessWhenNoCondition()
 	{
-		if (this.InputObject is not null)
+		foreach (object? item in this.GetInputElements(this.InputObject))
 		{
-			foreach (object? item in this.InputObject)
+			if (item is not null)
 			{
-				if (item is not null)
-				{
-					return true;
-				}
+				return true;
 			}
 		}
 

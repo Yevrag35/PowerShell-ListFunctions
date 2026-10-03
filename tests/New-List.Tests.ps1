@@ -57,6 +57,32 @@ Describe 'New-List' {
 			$list = New-List ([string]) -InputObject 'a', ([System.Management.Automation.Language.NullString]::Value)
 			Should-BeCollection -Expected @('a') -Actual ([object[]]$list)
 		}
+
+		It 'adds a piped $null to a <Name> list with -IncludeNullElements' -Tag 'Bug06' -ForEach @(
+			@{ Name = '[object]'; Type = [object]; Expected = @(1, $null, 2) }
+			@{ Name = '[int]'; Type = [int]; Expected = @(1, 0, 2) }
+		) {
+			$list = 1, $null, 2 | New-List $Type -IncludeNullElements
+			Should-BeCollection -Expected $Expected -Actual ([object[]]$list)
+		}
+
+		It 'skips a piped $null when -IncludeNullElements is absent' -Tag 'Bug06' {
+			$list = 1, $null, 2 | New-List
+			Should-BeCollection -Expected @(1, 2) -Actual ([object[]]$list)
+		}
+	}
+
+	Context 'Pipeline input' {
+		It 'adds a piped array as one element' -Tag 'Bug06' {
+			$list = @(1, @(2, 3)) | New-List
+			$list.Count | Should-Be 2
+			Should-BeCollection -Expected @(2, 3) -Actual ([object[]]$list[1])
+		}
+
+		It 'adds the elements of an array passed to -InputObject' -Tag 'Bug06' {
+			$list = New-List -InputObject @(1, @(2, 3))
+			$list.Count | Should-Be 2
+		}
 	}
 
 	Context 'GenericType' {

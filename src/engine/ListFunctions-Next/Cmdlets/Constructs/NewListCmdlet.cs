@@ -57,12 +57,14 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 	/// Gets or sets the elements to add to the list. The value is accepted from the pipeline.
 	/// </summary>
 	/// <remarks>
-	/// <see langword="null"/> elements are skipped unless <see cref="IncludeNullElements"/> is set.
+	/// Each pipeline object is one element, even when it's <see langword="null"/> or an array. An array passed to the
+	/// parameter supplies its elements, and <see langword="null"/> supplies none. <see langword="null"/> elements are
+	/// skipped unless <see cref="IncludeNullElements"/> is set.
 	/// </remarks>
-	/// <value>The elements to add, or <see langword="null"/> when no elements are supplied.</value>
+	/// <value>The current pipeline object, or the argument of the parameter. The value can be <see langword="null"/>.</value>
 	[Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "InitialAdd")]
 	[AllowEmptyCollection, PSAllowNull, AllowEmptyString]
-	public object?[]? InputObject { get; set; }
+	public object? InputObject { get; set; }
 
 	/// <summary>
 	/// Gets or sets a value that indicates whether <see langword="null"/> elements of <see cref="InputObject"/> are
@@ -116,7 +118,7 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 	}
 
 	/// <summary>
-	/// Adds the elements of the current <see cref="InputObject"/> array to the list.
+	/// Adds the elements of the current <see cref="InputObject"/> to the list.
 	/// </summary>
 	/// <remarks>
 	/// <para>
@@ -132,11 +134,7 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 	/// <returns>Always <see langword="true"/>, so all pipeline input is processed.</returns>
 	protected override bool ProcessCore()
 	{
-		if (_list is not null && this.InputObject is not null)
-		{
-			_list.AddRange(this.InputObject);
-		}
-
+		_list?.AddRange(this.GetInputElements(this.InputObject));
 		return true;
 	}
 

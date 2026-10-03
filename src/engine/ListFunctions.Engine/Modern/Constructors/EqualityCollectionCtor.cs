@@ -11,6 +11,11 @@ namespace ListFunctions.Modern.Constructors;
 /// <see langword="true"/>.
 /// </para>
 /// <para>
+/// A comparer that is passed doesn't have to be an <see cref="IEqualityComparer{T}"/> of that type. Any other
+/// <see cref="IEqualityComparer"/>, such as an <see cref="EqualityBlock"/> for a collection of <see cref="int"/>, is
+/// wrapped in an <see cref="EqualityComparerAdapter{T}"/>.
+/// </para>
+/// <para>
 /// Instances aren't thread-safe. The object caches the default comparer the first time it needs one.
 /// </para>
 /// </remarks>
@@ -112,17 +117,23 @@ public abstract class EqualityCollectionCtor : GenericCollectionCtor
 	/// Returns the comparer passed to the constructor, or a default comparer for the type used for equality.
 	/// </summary>
 	/// <remarks>
+	/// <para>
+	/// The comparer passed to the constructor goes through <see cref="AdaptComparer(IEqualityComparer, Type)"/>, so the
+	/// result is always an <see cref="IEqualityComparer{T}"/> of the type used for equality.
+	/// </para>
+	/// <para>
 	/// For <see cref="string"/>, the method returns <see cref="StringComparer.InvariantCultureIgnoreCase"/>, or
 	/// <see cref="StringComparer.InvariantCulture"/> when <see cref="IsCaseSensitive"/> is <see langword="true"/>, and
 	/// reads <see cref="IsCaseSensitive"/> on every call. For any other type, it returns
 	/// <see cref="EqualityComparer{T}.Default"/> and caches it in place of the constructor's comparer.
+	/// </para>
 	/// </remarks>
 	/// <returns>The equality comparer for the collection.</returns>
 	private IEqualityComparer GetComparerOrDefault()
 	{
 		if (_comparer is not null)
 		{
-			return _comparer;
+			return AdaptComparer(_comparer, this.GetTypeForEquality());
 		}
 
 		Type equalityType = this.GetTypeForEquality();
@@ -142,13 +153,43 @@ public abstract class EqualityCollectionCtor : GenericCollectionCtor
 		return _comparer;
 	}
 	/// <summary>
+	/// Returns the specified comparer as an <see cref="IEqualityComparer{T}"/> of the specified type, and wraps it in an
+	/// <see cref="EqualityComparerAdapter{T}"/> when it isn't one.
+	/// </summary>
+	/// <remarks>
+	/// A comparer of a less derived type already qualifies through contravariance, so an <see cref="EqualityBlock"/>,
+	/// which is an <see cref="IEqualityComparer{T}"/> of <see cref="object"/>, is returned as it is for any reference
+	/// type. For a value type, such as <see cref="int"/> or a <see cref="Nullable{T}"/>, it's wrapped, because the
+	/// collection's constructor wouldn't accept it.
+	/// </remarks>
+	/// <param name="comparer">The comparer to adapt. This value must not be <see langword="null"/>.</param>
+	/// <param name="equalityType">The type that the collection compares for equality.</param>
+	/// <returns><paramref name="comparer"/>, or an <see cref="EqualityComparerAdapter{T}"/> of <paramref name="equalityType"/> that wraps it.</returns>
+	private static IEqualityComparer AdaptComparer(IEqualityComparer comparer, Type equalityType)
+	{
+		if (typeof(IEqualityComparer<>).MakeGenericType(equalityType).IsInstanceOfType(comparer))
+		{
+			return comparer;
+		}
+
+		Type adapterType = typeof(EqualityComparerAdapter<>).MakeGenericType(equalityType);
+		return (IEqualityComparer)Activator.CreateInstance(adapterType, comparer)!;
+	}
+	/// <summary>
 	/// Returns the arguments for the collection's constructor that takes a capacity and an equality comparer.
 	/// </summary>
 	/// <remarks>
+	/// <para>
 	/// The comparer is the one passed to this object's constructor. When that comparer is <see langword="null"/>, the
 	/// method uses <see cref="EqualityComparer{T}.Default"/> for the type used for equality. For <see cref="string"/>,
 	/// it uses <see cref="StringComparer.InvariantCultureIgnoreCase"/> instead, or
 	/// <see cref="StringComparer.InvariantCulture"/> when <see cref="IsCaseSensitive"/> is <see langword="true"/>.
+	/// </para>
+	/// <para>
+	/// When the comparer passed to the constructor isn't an <see cref="IEqualityComparer{T}"/> of the type used for
+	/// equality, such as an <see cref="EqualityBlock"/> for a value type, the method wraps it in an
+	/// <see cref="EqualityComparerAdapter{T}"/>.
+	/// </para>
 	/// </remarks>
 	/// <param name="genericTypes">The generic type arguments of the collection. This implementation doesn't use them.</param>
 	/// <returns><see cref="Capacity"/>, followed by the equality comparer.</returns>

@@ -50,9 +50,16 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 	/// Gets or sets the script block that compares two elements to determine their sort order.
 	/// </summary>
 	/// <remarks>
+	/// <para>
 	/// The script block receives the two elements as <c>$x</c> and <c>$y</c>, as <c>$left</c> and <c>$right</c>, or
 	/// as <c>$args[0]</c> and <c>$args[1]</c>. It must reference one variable for each element and return an integer
 	/// that is less than zero, zero, or greater than zero, as <see cref="IComparer{T}.Compare(T, T)"/> does.
+	/// </para>
+	/// <para>
+	/// Its first output is converted to an <see cref="int"/>. When it returns no value, <see langword="null"/>, or a
+	/// value that can't be converted, the element being added isn't added, and the cmdlet writes a non-terminating
+	/// error.
+	/// </para>
 	/// </remarks>
 	/// <value>The comparison <see cref="ScriptBlock"/>.</value>
 	[Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
@@ -64,12 +71,14 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 	/// Gets or sets the elements to add to the set. The value is accepted from the pipeline.
 	/// </summary>
 	/// <remarks>
-	/// Each element is converted to <see cref="GenericType"/>. <see langword="null"/> elements and elements that
-	/// cannot be converted are skipped without an error.
+	/// Each pipeline object is one element, even when it's <see langword="null"/> or an array. An array passed to the
+	/// parameter supplies its elements, and <see langword="null"/> supplies none. Each element is converted to
+	/// <see cref="GenericType"/>. <see langword="null"/> elements and elements that cannot be converted are skipped
+	/// without an error.
 	/// </remarks>
-	/// <value>The elements to add, or <see langword="null"/> to create an empty set.</value>
+	/// <value>The current pipeline object, or the argument of the parameter. The value can be <see langword="null"/>.</value>
 	[Parameter(ValueFromPipeline = true)]
-	public object[] InputObject { get; set; } = null!;
+	public object? InputObject { get; set; }
 
 	/// <summary>
 	/// Gets or sets the error action preference applied while <see cref="ComparingScript"/> runs.
@@ -95,17 +104,19 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 
 	}
 	/// <summary>
-	/// Converts the elements of the current <see cref="InputObject"/> array and adds them to the set.
+	/// Converts the elements of the current <see cref="InputObject"/> and adds them to the set.
 	/// </summary>
 	/// <remarks>
 	/// <see langword="null"/> elements and elements that cannot be converted to <see cref="GenericType"/> are skipped
-	/// without an error. When adding an element throws, the method writes a non-terminating error and continues.
+	/// without an error. When adding an element throws, for example because <see cref="ComparingScript"/> fails, the
+	/// method writes a non-terminating error for the exception that the set threw, and continues.
 	/// </remarks>
 	/// <returns>Always <see langword="true"/>, so all pipeline input is processed.</returns>
 	protected override bool ProcessCore()
 	{
 		bool flag = true;
-		if (this.InputObject is null || this.InputObject.Length == 0)
+		object?[] elements = this.GetInputElements(this.InputObject);
+		if (elements.Length == 0)
 		{
 			return flag;
 		}
@@ -113,7 +124,7 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 		_addMethod ??= new AddMethodInvoker(_ctor);
 		_arr ??= new object[1];
 
-		foreach (object? item in this.InputObject)
+		foreach (object? item in elements)
 		{
 			if (item is null || !LanguagePrimitives.TryConvertTo(item, this.GenericType, out object? result))
 			{
@@ -123,7 +134,9 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 			_arr[0] = result;
 			if (!_addMethod.TryInvoke(_set, _arr, false, out Exception? caught))
 			{
-				this.WriteError(caught.ToRecord(ErrorCategory.InvalidType, item));
+				// The set's Add method runs through reflection, which wraps what it throws.
+				Exception error = caught is TargetInvocationException { InnerException: { } inner } ? inner : caught;
+				this.WriteError(error.ToRecord(ErrorCategory.InvalidType, item));
 			}
 		}
 

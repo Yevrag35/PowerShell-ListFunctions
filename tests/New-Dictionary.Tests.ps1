@@ -4,28 +4,103 @@ BeforeAll {
 }
 
 Describe 'New-Dictionary' {
-	It 'treats keys as equal when -EqualityScript matches them and -HashCodeScript gives them the same hash code' -Tag 'Bug01' {
-		$dict = New-Dictionary -EqualityScript { [string]::Equals($x, $y, 'OrdinalIgnoreCase') } -HashCodeScript { $_.ToUpperInvariant().GetHashCode() }
-		$dict.Add('abc', 1)
-		$dict.ContainsKey('ABC') | Should-BeTrue
-	}
-
-	It 'passes -Capacity to a <Description>' -Tag 'Bug02' -ForEach @(
-		@{ Description = 'Hashtable'; Parameters = @{} }
-		@{ Description = 'Dictionary[string, int]'; Parameters = @{ KeyType = '[string]'; ValueType = '[int]' } }
-		@{ Description = 'dictionary with script block key equality'; Parameters = @{ EqualityScript = { $x -eq $y }; HashCodeScript = { $_.GetHashCode() } } }
-	) {
-		$dict = New-Dictionary @Parameters -Capacity 1000
-		Get-BucketCount $dict | Should-BeGreaterThanOrEqual 1000
-	}
-
-	It "doesn't end the process when [int] keys get script block equality" -Tag 'Bug14' {
-		# The test passes if control comes back. Debug builds used to end the process here through Debug.Fail.
-		try {
-			$null = New-Dictionary [int] -EqualityScript { $x -eq $y } -HashCodeScript { $_.GetHashCode() }
+	Context 'Script block key equality' {
+		It 'treats keys as equal when -EqualityScript matches them and -HashCodeScript gives them the same hash code' -Tag 'Bug01' {
+			$dict = New-Dictionary -EqualityScript { [string]::Equals($x, $y, 'OrdinalIgnoreCase') } -HashCodeScript { $_.ToUpperInvariant().GetHashCode() }
+			$dict.Add('abc', 1)
+			$dict.ContainsKey('ABC') | Should-BeTrue
 		}
-		catch {
-			# Whether this call should throw is bug 09.
+
+		It 'passes the keys to -EqualityScript as $args[0] and $args[1]' -Tag 'Bug05' {
+			# Every key has the same Id, so each lookup runs -EqualityScript.
+			$dict = New-Dictionary -EqualityScript { $args[0].Name -eq $args[1].Name } -HashCodeScript { $_.Id.GetHashCode() }
+			$dict.Add([pscustomobject]@{ Id = 1; Name = 'a' }, 1)
+			$dict.Add([pscustomobject]@{ Id = 1; Name = 'b' }, 2)
+			$dict.Count | Should-Be 2
+			$dict.ContainsKey([pscustomobject]@{ Id = 1; Name = 'a' }) | Should-BeTrue
+		}
+
+		It 'passes the key to -HashCodeScript as $args[0]' -Tag 'Bug05' {
+			$dict = New-Dictionary -EqualityScript { $x -eq $y } -HashCodeScript { $args[0].Length }
+			$dict.Comparer.GetHashCode('abcd') | Should-Be 4
+		}
+
+		It 'uses -EqualityScript and -HashCodeScript when it copies from -InputObject' -Tag 'Bug07' {
+			# Keys of the same length are equal, which a Hashtable's default comparison doesn't do.
+			$dict = @{ abc = 1 } | New-Dictionary -EqualityScript { $x.Length -eq $y.Length } -HashCodeScript { $_.Length }
+			Should-HaveType -Expected ([System.Collections.Generic.Dictionary[object, object]]) -Actual $dict
+			$dict['xyz'] | Should-Be 1
+		}
+
+		It 'applies -ScriptBlockErrorAction when it copies from -InputObject' -Tag 'Bug07' {
+			# With the default of Stop, Write-Error would stop -HashCodeScript, and the entry wouldn't be copied.
+			$dict = New-Dictionary -EqualityScript { $x -eq $y } -HashCodeScript { Write-Error 'oops'; $_.Length } -InputObject @{ abc = 1 } -ScriptBlockErrorAction SilentlyContinue
+			$dict['abc'] | Should-Be 1
+		}
+
+		It 'uses -EqualityScript and -HashCodeScript with [<Name>] keys' -Tag 'Bug09' -ForEach @(
+			@{ Name = 'int'; KeyType = [int]; Expected = [System.Collections.Generic.Dictionary[int, object]] }
+			@{ Name = 'Nullable[int]'; KeyType = [Nullable[int]]; Expected = [System.Collections.Generic.Dictionary[Nullable[int], object]] }
+		) {
+			# Keys that end in the same digit are equal.
+			$dict = New-Dictionary $KeyType -EqualityScript { $x % 10 -eq $y % 10 } -HashCodeScript { $_ % 10 }
+			Should-HaveType -Expected $Expected -Actual $dict
+			$dict.Add(1, 'a')
+			$dict.ContainsKey(11) | Should-BeTrue
+			$dict.ContainsKey(2) | Should-BeFalse
+		}
+
+		It 'copies -InputObject into a dictionary with [int] keys and script block equality' -Tag 'Bug09' {
+			$dict = @{ 1 = 'a'; 12 = 'b' } | New-Dictionary [int] [string] -EqualityScript { $x % 10 -eq $y % 10 } -HashCodeScript { $_ % 10 }
+			$dict.Count | Should-Be 2
+			$dict[21] | Should-Be 'a'
+			$dict[2] | Should-Be 'b'
+		}
+	}
+
+	Context 'Copying from InputObject' {
+		It 'converts copied values to -ValueType' -Tag 'Bug08' {
+			$dict = @{ a = '1' } | New-Dictionary [string] [int]
+			$dict.Count | Should-Be 1
+			Should-HaveType -Expected ([int]) -Actual $dict['a']
+			$dict['a'] | Should-Be 1
+		}
+
+		It "writes an error for a <Label> that can't be converted, and copies the other entries" -Tag 'Bug08' -ForEach @(
+			@{ Label = 'value'; Source = @{ a = '1'; b = 'x' }; KeyType = [string]; Key = 'a'; Expected = 1 }
+			@{ Label = 'key'; Source = @{ x = 1; 2 = 2 }; KeyType = [int]; Key = 2; Expected = 2 }
+		) {
+			$dict = $Source | New-Dictionary $KeyType ([int]) -ErrorVariable err -ErrorAction SilentlyContinue
+			$dict.Count | Should-Be 1
+			$dict[$Key] | Should-Be $Expected
+			$err.Count | Should-Be 1
+			Should-HaveType -Expected ([ListFunctions.Exceptions.LFInvalidCastException]) -Actual $err[0].Exception
+			$err[0].TargetObject | Should-Be 'x'
+		}
+
+		It 'clones values with -CloneValues before it converts them' -Tag 'Bug08' {
+			$source = @{ Items = [System.Collections.ArrayList]@(1, 2) }
+			$dict = $source | New-Dictionary [string] ([System.Collections.ArrayList]) -CloneValues
+			Should-BeCollection -Expected @(1, 2) -Actual ([object[]]$dict['Items'])
+			[object]::ReferenceEquals($source.Items, $dict['Items']) | Should-BeFalse
+		}
+	}
+
+	Context 'Capacity' {
+		It 'passes -Capacity to a <Description>' -Tag 'Bug02' -ForEach @(
+			@{ Description = 'Hashtable'; Parameters = @{} }
+			@{ Description = 'Dictionary[string, int]'; Parameters = @{ KeyType = '[string]'; ValueType = '[int]' } }
+			@{ Description = 'dictionary with script block key equality'; Parameters = @{ EqualityScript = { $x -eq $y }; HashCodeScript = { $_.GetHashCode() } } }
+		) {
+			$dict = New-Dictionary @Parameters -Capacity 1000
+			Get-BucketCount $dict | Should-BeGreaterThanOrEqual 1000
+		}
+
+		It "doesn't end the process when the dictionary can't be constructed" -Tag 'Bug14' {
+			# The test passes if control comes back. Debug builds used to end the process here through Debug.Fail. No
+			# array can hold [int]::MaxValue buckets, so the dictionary's constructor fails before it allocates anything.
+			# Until bug 09 was fixed, the test ran 09's repro, which failed in the same place.
+			{ New-Dictionary [string] [int] -Capacity ([int]::MaxValue) } | Should-Throw
 		}
 	}
 }

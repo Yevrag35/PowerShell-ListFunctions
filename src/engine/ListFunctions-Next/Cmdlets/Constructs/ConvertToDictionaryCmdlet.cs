@@ -21,10 +21,10 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// output of <see cref="ValueSelector"/>, or, when neither is supplied, from the object itself.
 /// </para>
 /// <para>
-/// The key type is inferred from the key of the first input object. The value type is <see cref="ValueType"/>, or
-/// is inferred from the value of the first input object. When an inferred type is a PowerShell custom object, or
-/// the first key or value is <see langword="null"/>, <see cref="object"/> is used. Later keys and values are
-/// converted to these types.
+/// The key type is inferred from the key of the first input object that isn't <see langword="null"/>. The value type
+/// is <see cref="ValueType"/>, or is inferred from the value of that object. When an inferred type is a PowerShell
+/// custom object, or the first key or value is <see langword="null"/>, <see cref="object"/> is used. Later keys and
+/// values are converted to these types.
 /// </para>
 /// <para>
 /// <see cref="DuplicateKeyBehavior"/> controls what happens when a key repeats. <see cref="string"/> keys compare
@@ -42,12 +42,14 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// Gets or sets the objects to convert. The value is accepted from the pipeline.
 	/// </summary>
 	/// <remarks>
-	/// <see langword="null"/> elements are skipped, as are elements whose key is <see langword="null"/>.
+	/// Each pipeline object is one input object, even when it's an array. An array passed to the parameter supplies its
+	/// elements, and <see langword="null"/> supplies none. <see langword="null"/> elements are skipped, as are elements
+	/// whose key is <see langword="null"/>.
 	/// </remarks>
-	/// <value>The objects to convert, or <see langword="null"/> when no objects are supplied.</value>
+	/// <value>The current pipeline object, or the argument of the parameter. The value can be <see langword="null"/>.</value>
 	[Parameter(Mandatory = true, ValueFromPipeline = true)]
 	[AllowEmptyCollection, PSAllowNull, AllowEmptyString]
-	public object?[]? InputObject { get; set; }
+	public object? InputObject { get; set; }
 
 	/// <summary>
 	/// Gets or sets the behavior to use when an input object produces a key that is already in the dictionary.
@@ -178,27 +180,30 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 					: null;
 		}
 
-		object?[]? inputObjects = this.InputObject;
-		if (inputObjects is not null && inputObjects.Length > 0)
+		if (!this.MyInvocation.ExpectingInput && FindFirstObject(this.GetInputElements(this.InputObject)) is { } firstObject)
 		{
-			_keyType = GetTypeForElement(inputObjects, this.KeySelector);
-			this.ValueType = this.GetValueType(this.ValueType, inputObjects);
+			_keyType = GetTypeForElement(firstObject, this.KeySelector);
+			this.ValueType = this.GetValueType(this.ValueType, firstObject);
 		}
 	}
 
 	/// <summary>
-	/// Adds an entry to the dictionary for each object in the current <see cref="InputObject"/> array.
+	/// Adds an entry to the dictionary for each object in the current <see cref="InputObject"/>.
 	/// </summary>
-	/// <remarks>The dictionary is created when the first non-empty array arrives.</remarks>
+	/// <remarks>The dictionary is created when the first input object that isn't <see langword="null"/> arrives.</remarks>
 	/// <returns><see langword="true"/> to continue processing pipeline input; otherwise, <see langword="false"/>.</returns>
 	protected override bool ProcessCore()
 	{
-		bool flag = true;
-		object?[]? inputObjects = this.InputObject;
-		if (inputObjects is null || inputObjects.Length == 0)
-			return flag;
+		object?[] inputObjects = this.GetInputElements(this.InputObject);
+		if (_dictionary is null)
+		{
+			if (FindFirstObject(inputObjects) is not { } firstObject)
+			{
+				return true;
+			}
 
-		_dictionary ??= this.CreateDictionary(inputObjects);
+			_dictionary = this.CreateDictionary(inputObjects, firstObject);
+		}
 
 		unsafe
 		{
@@ -207,23 +212,42 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	}
 
 	/// <summary>
+	/// Returns the first of the specified input objects that isn't <see langword="null"/>.
+	/// </summary>
+	/// <param name="inputObjects">The input objects to search.</param>
+	/// <returns>The first input object that isn't <see langword="null"/>, or <see langword="null"/> when there's none.</returns>
+	private static object? FindFirstObject(object?[] inputObjects)
+	{
+		foreach (object? item in inputObjects)
+		{
+			if (item is not null)
+			{
+				return item;
+			}
+		}
+
+		return null;
+	}
+
+	/// <summary>
 	/// Creates the dictionary for the resolved key and value types.
 	/// </summary>
 	/// <remarks>
-	/// The key and value types are inferred from <paramref name="inputObjects"/> when they were not resolved during
+	/// The key and value types are inferred from <paramref name="firstObject"/> when they were not resolved during
 	/// the begin phase. When <see cref="KeyComparer"/> is <see langword="null"/> and the key type is
 	/// <see cref="string"/>, the method sets it to <see cref="StringComparer.OrdinalIgnoreCase"/>.
 	/// </remarks>
-	/// <param name="inputObjects">The first non-empty array of input objects.</param>
+	/// <param name="inputObjects">The input objects that hold <paramref name="firstObject"/>. The method adds them to the error that it writes when the dictionary can't be constructed.</param>
+	/// <param name="firstObject">The first input object that isn't <see langword="null"/>.</param>
 	/// <returns>The new, empty dictionary.</returns>
 	/// <exception cref="PipelineStoppedException">Thrown after a terminating error is written because the dictionary cannot be constructed.</exception>
 	[SuppressMessage("Style", "IDE0009", Justification = "Used in nameof()")]
-	private IDictionary CreateDictionary(object?[] inputObjects)
+	private IDictionary CreateDictionary(object?[] inputObjects, object firstObject)
 	{
 		if (_keyType is null || this.ValueType is null)
 		{
-			_keyType = GetTypeForElement(inputObjects, this.KeySelector);
-			this.ValueType = this.GetValueType(this.ValueType, inputObjects);
+			_keyType = GetTypeForElement(firstObject, this.KeySelector);
+			this.ValueType = this.GetValueType(this.ValueType, firstObject);
 		}
 
 		if (this.KeyComparer is null && _keyType.Equals(typeof(string)))
@@ -332,9 +356,9 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// <see cref="object"/> and writes a warning if <paramref name="specifiedType"/> is another type.
 	/// </remarks>
 	/// <param name="specifiedType">The value type supplied by the user, or <see langword="null"/>.</param>
-	/// <param name="inputObjects">The input objects used to infer the value type.</param>
+	/// <param name="firstObject">The input object used to infer the value type.</param>
 	/// <returns>The value type for the dictionary.</returns>
-	private Type GetValueType(Type? specifiedType, object?[] inputObjects)
+	private Type GetValueType(Type? specifiedType, object firstObject)
 	{
 		if (this.DuplicateKeyBehavior == DuplicateKeyBehavior.Concatenate)
 		{
@@ -346,27 +370,27 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 			return typeof(object);
 		}
 
-		return specifiedType ?? GetTypeForElement(inputObjects, this.ValueSelector);
+		return specifiedType ?? GetTypeForElement(firstObject, this.ValueSelector);
 	}
 	/// <summary>
-	/// Infers a type from the first input object, optionally through a selector script block.
+	/// Infers a type from an input object, optionally through a selector script block.
 	/// </summary>
-	/// <param name="inputObj">The input objects. The first element is used for inference.</param>
-	/// <param name="selector">The selector to invoke with the first element as <c>$args[0]</c>, or <see langword="null"/> to use the first element itself.</param>
+	/// <param name="inputObject">The input object to infer the type from.</param>
+	/// <param name="selector">The selector to invoke with <paramref name="inputObject"/> as <c>$args[0]</c>, or <see langword="null"/> to use the input object itself.</param>
 	/// <returns>
-	/// The runtime type of the first element or of the selector's first output, or <see cref="object"/> when that value
+	/// The runtime type of the input object or of the selector's first output, or <see cref="object"/> when that value
 	/// is <see langword="null"/>, a <see cref="PSObject"/>, or a <see cref="PSCustomObject"/>.
 	/// </returns>
-	private static Type GetTypeForElement(object?[] inputObj, ScriptBlock? selector)
+	private static Type GetTypeForElement(object inputObject, ScriptBlock? selector)
 	{
 		Type? type;
 		if (selector is null)
 		{
-			type = inputObj[0].GetBaseObject()?.GetType();
+			type = inputObject.GetBaseObject()?.GetType();
 		}
 		else
 		{
-			var firstObj = selector.Invoke(inputObj).AsValueEnumerable().FirstOrDefault();
+			var firstObj = selector.Invoke(inputObject).AsValueEnumerable().FirstOrDefault();
 			if (firstObj is null)
 			{
 				return typeof(object);

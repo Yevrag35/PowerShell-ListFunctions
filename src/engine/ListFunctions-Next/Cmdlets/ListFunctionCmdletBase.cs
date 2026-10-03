@@ -71,6 +71,10 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	/// Holds the outcomes that this run has recorded so far.
 	/// </summary>
 	private CmdletRunState _state;
+	/// <summary>
+	/// Holds the single-element array that <see cref="GetInputElements(object)"/> returns for each pipeline object.
+	/// </summary>
+	private object?[]? _pipelineElement;
 
 	/// <summary>
 	/// Gets a value that indicates whether PowerShell is stopping the pipeline.
@@ -396,6 +400,62 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 		return errorObj is ActionPreference actionPref
 			? actionPref
 			: ActionPreference.Continue;
+	}
+
+	/// <summary>
+	/// Returns the elements of the specified input object, which is the value of a derived cmdlet's pipeline input
+	/// parameter.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// When the cmdlet receives pipeline input, each pipeline object is one element, even when it's
+	/// <see langword="null"/> or a collection, the same way <c>ForEach-Object</c> sees it. The method removes the
+	/// <see cref="PSObject"/> that PowerShell wraps around the object, unless the object is a custom object such as one
+	/// that <c>[pscustomobject]@{}</c> creates.
+	/// </para>
+	/// <para>
+	/// Otherwise, the input object is the argument of the parameter. A list, such as an array, supplies its elements,
+	/// and <see langword="null"/> supplies none. Any other argument is one element, as it is, including a string, a
+	/// dictionary, and a collection that isn't a list. These are the elements that PowerShell binds to a parameter of
+	/// type <see cref="object"/>[].
+	/// </para>
+	/// <para>
+	/// For pipeline input, the method returns the same array on every call. Don't keep the array or change it.
+	/// </para>
+	/// </remarks>
+	/// <param name="inputObject">The value of the cmdlet's pipeline input parameter, or <see langword="null"/>.</param>
+	/// <returns>The elements of <paramref name="inputObject"/>. The array can be empty.</returns>
+	protected object?[] GetInputElements(object? inputObject)
+	{
+		if (this.MyInvocation.ExpectingInput)
+		{
+			object?[] element = _pipelineElement ??= new object?[1];
+			element[0] = inputObject.GetBaseObject();
+			return element;
+		}
+
+		return inputObject.GetBaseObject() switch
+		{
+			null => [],
+			object[] array => array,
+			IList list => CopyToArray(list),
+			_ => [inputObject],
+		};
+	}
+	/// <summary>
+	/// Copies the elements of the specified list into a new array.
+	/// </summary>
+	/// <param name="list">The list to copy. This value must not be <see langword="null"/>.</param>
+	/// <returns>A new array that holds the elements of <paramref name="list"/> in order.</returns>
+	private static object?[] CopyToArray(IList list)
+	{
+		object?[] array = new object?[list.Count];
+		for (int i = 0; i < array.Length; i++)
+		{
+			array[i] = list[i];
+		}
+
+		return array;
 	}
 
 	/// <summary>

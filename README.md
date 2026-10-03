@@ -30,14 +30,27 @@ ListFunctions runs on Windows PowerShell 5.1 (.NET Framework 4.8) and on PowerSh
 | [New-Dictionary](#new-dictionary) | | `Dictionary[TKey, TValue]` or `Hashtable` | Creates a dictionary, optionally with script block key equality. |
 | [ConvertTo-Dictionary](#convertto-dictionary) | | `Dictionary[TKey, TValue]` | Indexes objects in a dictionary by a property or a computed key. |
 
+## Input
+
+Every command except `New-Dictionary` takes its elements from the pipeline or from `-InputObject`:
+
+- Each object that comes through the pipeline is one element, even when it's `$null` or an array, the same as with `ForEach-Object`.
+- An array or a list that you pass to `-InputObject` supplies its elements, and `$null` supplies none. Any other value, such as a string or a hashtable, is one element.
+
+```powershell
+1, $null, 3 | Find-IndexOf { $_ -eq 3 }              # 2
+@(1, @(2, 3), 4) | Find-IndexOf { $_ -is [array] }   # 1
+Find-IndexOf -InputObject 1, 2, 3 { $_ -eq 3 }       # 2
+```
+
 ## Script blocks
 
 Most commands take script blocks, which they run once for each element or once for each pair of elements they compare. The command sets variables that hold the elements:
 
 | Script block | Parameters | Variables |
 | --- | --- | --- |
-| Receives one element | `-Condition`, `-HashCodeScript`, `-KeySelector`, `-ValueSelector` | `$_`, `$this`, or `$PSItem` |
-| Compares two elements | `-EqualityScript`, `-ComparingScript` | `$x` or `$left` for the first element, and `$y` or `$right` for the second |
+| Receives one element | `-Condition`, `-HashCodeScript`, `-KeySelector`, `-ValueSelector` | `$_`, `$this`, `$PSItem`, or `$args[0]` |
+| Compares two elements | `-EqualityScript`, `-ComparingScript` | `$x`, `$left`, or `$args[0]` for the first element, and `$y`, `$right`, or `$args[1]` for the second |
 
 A script block has to use at least one of these variables for each element it receives. Otherwise, the command fails with a parameter validation error. A variable that appears only inside a nested script block doesn't count.
 
@@ -335,7 +348,7 @@ $dict.Add([pscustomobject]@{ Id = 1; Name = 'second' }, 'b')    # Error: the key
 | `-KeyType` | Position 0. The key type, `TKey`. Default: `[object]`. |
 | `-ValueType` | Position 1. The value type, `TValue`. Default: `[object]`. |
 | `-Capacity` | Alias: `Size`. The initial capacity, which is how many entries the dictionary can hold before it has to grow. Default: `0`. |
-| `-InputObject` | Alias: `CopyFrom`. A hashtable whose entries are copied into the new dictionary. Accepts pipeline input. |
+| `-InputObject` | Alias: `CopyFrom`. A hashtable whose entries are copied into the new dictionary. Its keys and values are converted to `-KeyType` and `-ValueType`, and an entry that can't be converted writes a non-terminating error and isn't copied. Accepts pipeline input. |
 | `-CloneValues` | Clones the values copied from `-InputObject`, so the new dictionary doesn't share them with the hashtable. Applies to values that implement `ICloneable` and to `PSObject` values. |
 | `-CaseSensitive` | Compares string keys with regard to case. Available when the key type is `[object]` or `[string]`. |
 | `-EqualityScript` | A script block that returns whether two keys are equal. Requires `-HashCodeScript`. |

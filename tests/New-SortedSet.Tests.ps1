@@ -13,13 +13,32 @@ Describe 'New-SortedSet' {
 		Should-BeCollection -Expected @(5, 3, 1) -Actual ([object[]]$set)
 	}
 
+	It 'treats a piped array as one element' -Tag 'Bug06' {
+		# The array can't be converted to [int], so only 3 is added.
+		$set = @(3, @(1, 2)) | New-SortedSet [int]
+		Should-BeCollection -Expected @(3) -Actual ([object[]]$set)
+	}
+
+	It "writes an error when the output of -ComparingScript <Label>" -Tag 'Bug10' -ForEach @(
+		@{ Label = "can't be converted to [int]"; Script = { 'x' + $x + $y } }
+		@{ Label = 'is missing'; Script = { $null = $x, $y } }
+		@{ Label = 'is $null'; Script = { $null = $x, $y; $null } }
+	) {
+		# The first element is added without a comparison. Each of the other two fails.
+		$set = 5, 3, 1 | New-SortedSet [int] -ComparingScript $Script -ErrorVariable err -ErrorAction SilentlyContinue
+		Should-BeCollection -Expected @(5) -Actual ([object[]]$set)
+		$err.Count | Should-Be 2
+		Should-HaveType -Expected ([ListFunctions.Modern.Exceptions.ComparingScriptException]) -Actual $err[0].Exception
+	}
+
 	It "doesn't end the process when -ComparingScript returns something that isn't an [int]" -Tag 'Bug14' {
-		# The test passes if control comes back. Debug builds used to end the process here through Debug.Fail.
+		# The test passes if control comes back. Debug builds used to end the process here through Debug.Fail. Since
+		# bug 10 was fixed, the command writes an error for this output instead of converting it to 0.
 		try {
-			$null = 5, 3, 1 | New-SortedSet [int] -ComparingScript { 'x' + $x + $y }
+			$null = 5, 3, 1 | New-SortedSet [int] -ComparingScript { 'x' + $x + $y } -ErrorAction SilentlyContinue
 		}
 		catch {
-			# What the command should do with this output is bug 10.
+			# Any error is fine. The test checks only that the process survives.
 		}
 	}
 }

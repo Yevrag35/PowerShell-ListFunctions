@@ -1,4 +1,5 @@
 using ListFunctions.Extensions;
+using ListFunctions.Modern.Exceptions;
 using ListFunctions.Modern.Variables;
 using ZLinq;
 
@@ -88,7 +89,9 @@ public static class ComparingBlock
 /// <para>
 /// The script block sees the first operand as <c>$x</c>, <c>$left</c>, and <c>$args[0]</c>, and the second operand as
 /// <c>$y</c>, <c>$right</c>, and <c>$args[1]</c>. Its first output is converted to an <see cref="int"/> by PowerShell's
-/// conversion rules and is read the same way as the result of <see cref="IComparer{T}.Compare(T, T)"/>.
+/// conversion rules and is read the same way as the result of <see cref="IComparer{T}.Compare(T, T)"/>. When the
+/// script block returns no value, <see langword="null"/>, or a value that can't be converted, the comparison throws a
+/// <see cref="ComparingScriptException"/>.
 /// </para>
 /// <para>
 /// Instances aren't thread-safe, because every comparison reuses the same list of script block variables.
@@ -172,8 +175,8 @@ public sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparingB
 	/// <see langword="null"/> operands are equal, and a <see langword="null"/> operand sorts before any other value.
 	/// </para>
 	/// <para>
-	/// When the script block has no output, or its first output can't be converted to an <see cref="int"/>, the method
-	/// returns 0.
+	/// The first output of the script block is converted to an <see cref="int"/> by PowerShell's conversion rules, so
+	/// the string <c>'-1'</c> means that <paramref name="left"/> sorts first. Any later output is ignored.
 	/// </para>
 	/// </remarks>
 	/// <param name="left">The first object to compare, or <see langword="null"/>.</param>
@@ -182,6 +185,7 @@ public sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparingB
 	/// A negative value if <paramref name="left"/> sorts before <paramref name="right"/>, 0 if they're equal, or a
 	/// positive value if <paramref name="left"/> sorts after <paramref name="right"/>.
 	/// </returns>
+	/// <exception cref="ComparingScriptException">Thrown when the script block has no output, or when its first output is null or can't be converted to an <see cref="int"/>.</exception>
 	/// <exception cref="RuntimeException">Thrown when the script block throws.</exception>
 	public int Compare(T? left, T? right)
 	{
@@ -203,7 +207,20 @@ public sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparingB
 		_right.AddToVarList(right, _varList);
 		_varList.AddRange(_additionalVariables);
 
-		return _compareScript.InvokeWithContext(_varList, [left, right], x => LanguagePrimitives.ConvertTo<int>(x));
+		Collection<PSObject> output = _compareScript.InvokeWithContext(null, _varList, [left, right]);
+		if (output.Count == 0 || !output[0].TryGetBaseObject(out object? result))
+		{
+			throw this.CreateNoResultException(left);
+		}
+
+		try
+		{
+			return LanguagePrimitives.ConvertTo<int>(result);
+		}
+		catch (PSInvalidCastException e)
+		{
+			throw ComparingScriptException.FromBlockException(e, in left, _varList);
+		}
 	}
 	/// <summary>
 	/// Compares two objects by converting them to <typeparamref name="T"/> and running the script block.
@@ -220,6 +237,7 @@ public sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparingB
 	/// value if <paramref name="x"/> sorts after <paramref name="y"/>.
 	/// </returns>
 	/// <exception cref="InvalidCastException">Thrown when <paramref name="x"/> or <paramref name="y"/> can't be converted to <typeparamref name="T"/>.</exception>
+	/// <exception cref="ComparingScriptException">Thrown when the script block has no output, or when its first output is null or can't be converted to an <see cref="int"/>.</exception>
 	/// <exception cref="RuntimeException">Thrown when the script block throws.</exception>
 	int IComparer.Compare(object? x, object? y)
 	{
@@ -236,5 +254,22 @@ public sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparingB
 		{
 			throw new InvalidCastException($"Unable to cast either x or y as {typeof(T).GetTypeName()}.");
 		}
+	}
+
+	/// <summary>
+	/// Creates the exception that reports a script block with no output or a <see langword="null"/> first output.
+	/// </summary>
+	/// <remarks>
+	/// The exception records the variables of the comparison that just ran, so call this method before the next
+	/// comparison changes them.
+	/// </remarks>
+	/// <param name="left">The first object that the script block compared.</param>
+	/// <returns>A <see cref="ComparingScriptException"/> whose inner exception describes the missing result.</returns>
+	private ComparingScriptException CreateNoResultException(T left)
+	{
+		var noResult = new PSInvalidOperationException(
+			"The comparing script block returned no value or $null. It must return an [int] that is less than zero, zero, or greater than zero.");
+
+		return ComparingScriptException.FromBlockException(noResult, in left, _varList);
 	}
 }

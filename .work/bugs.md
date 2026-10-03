@@ -14,11 +14,11 @@ Found while rewriting `README.md` on 2026-09-28. The README describes how the mo
 **Other bugs**
 
 - [x] 05 — `$args[0]` and `$args[1]` pass validation but are always `$null`
-- [ ] 06 — Piped `$null` and array elements are miscounted
-- [ ] 07 — New-Dictionary ignores the equality scripts when it copies from `-InputObject`
-- [ ] 08 — New-Dictionary doesn't convert copied values to `-ValueType`
-- [ ] 09 — New-Dictionary can't use script block equality with value-type keys
-- [ ] 10 — A `-ComparingScript` result that isn't an `[int]` silently means "equal"
+- [x] 06 — Piped `$null` and array elements are miscounted
+- [x] 07 — New-Dictionary ignores the equality scripts when it copies from `-InputObject`
+- [x] 08 — New-Dictionary doesn't convert copied values to `-ValueType`
+- [x] 09 — New-Dictionary can't use script block equality with value-type keys
+- [x] 10 — A `-ComparingScript` result that isn't an `[int]` silently means "equal"
 - [ ] 11 — A generic type split at a comma silently becomes `[object]`
 - [ ] 12 — ConvertTo-Dictionary misses `$_` when an operator follows it
 - [ ] 13 — Assert-AllObject gives different answers for empty input
@@ -157,11 +157,14 @@ $set.Add([pscustomobject]@{ Id = 1; Name = 'b' })    # Expected: True. Actual: F
 
 **Fix idea:** Pass the elements as `args` to `InvokeWithContext`, or remove `FirstArg` and `SecondArg` from the attributes. ConvertTo-Dictionary already supports `$args[0]`, because it calls its selectors with `ScriptBlock.Invoke(item)`.
 
-**Fixed:** `InvokeWithContext<T>` and the two `TryInvokeWithContext` overloads in `src/engine/ListFunctions.Engine/Internal/ScriptBlockExtensions.cs` take an `args` array and pass it to `ScriptBlock.InvokeWithContext` in place of the shared empty array. `ScriptBlockFilter.IsTrue` and `HashBlock.GetHashCode` pass the element as `$args[0]`, and `EqualityBlock.Equals` and `ComparingBlock<T>.Compare` pass their operands as `$args[0]` and `$args[1]`, the same values that `$x` and `$y` hold. Each call builds a new array, because PowerShell doesn't copy it: a script block without a `param()` block gets that exact array as `$args`, so a shared array would change under a script block that keeps `$args`. A script block with a `param()` block now gets the elements as its parameters, the way `ScriptBlock.Invoke` does, and `$args` holds only the elements left over. The validation attributes and the cmdlets are unchanged. All four repros give their expected results in both editions, with no errors. The `Bug05` tests cover `$args` in every parameter that **Where:** lists, the order of `$args[0]` and `$args[1]`, and a `$null` or array element, which arrives as a single argument. Each of them fails when `ScriptBlockExtensions.cs` passes an empty array again.
+**Fixed:** `InvokeWithContext<T>` and the two `TryInvokeWithContext` overloads in `src/engine/ListFunctions.Engine/Extensions/ScriptBlockExtensions.cs` take an `args` array and pass it to `ScriptBlock.InvokeWithContext` in place of the shared empty array. `ScriptBlockFilter.IsTrue` and `HashBlock.GetHashCode` pass the element as `$args[0]`, and `EqualityBlock.Equals` and `ComparingBlock<T>.Compare` pass their operands as `$args[0]` and `$args[1]`, the same values that `$x` and `$y` hold. Each call builds a new array, because PowerShell doesn't copy it: a script block without a `param()` block gets that exact array as `$args`, so a shared array would change under a script block that keeps `$args`. A script block with a `param()` block now gets the elements as its parameters, the way `ScriptBlock.Invoke` does, and `$args` holds only the elements left over. The validation attributes and the cmdlets are unchanged. All four repros give their expected results in both editions, with no errors. The `Bug05` tests cover `$args` in every parameter that **Where:** lists, the order of `$args[0]` and `$args[1]`, and a `$null` or array element, which arrives as a single argument. Each of them fails when `ScriptBlockExtensions.cs` passes an empty array again.
 
 **Tests:** Both, and written. Pester: `Bug05` in `tests/Assert-AnyObject.Tests.ps1`, `tests/Assert-AllObject.Tests.ps1`, `tests/Find-IndexOf.Tests.ps1`, and `tests/Find-LastIndexOf.Tests.ps1` (all new), and in `tests/New-HashSet.Tests.ps1` and `tests/New-SortedSet.Tests.ps1`. Engine: `Category=Bug05` in `Modern/ScriptBlockFilterTests.cs`, `Modern/EqualityBlockTests.cs`, `Modern/HashBlockTests.cs`, and `Modern/ComparingBlockTests.cs`.
 
-**Open question:** New-Dictionary's `-EqualityScript` and `-HashCodeScript` run through the same `EqualityBlock` and `HashBlock`, so `$args[0]` and `$args[1]` hold the keys there now too. Its `ValidateScriptVariable` attributes don't list `FirstArg` and `SecondArg`, though, so New-Dictionary still rejects script blocks that New-HashSet accepts, such as `-EqualityScript { $args[0] -eq $args[1] }`. Should it accept them? And should the README, which doesn't mention `$args` for any parameter, list it?
+**Open question, answered on 2026-10-03:** New-Dictionary's `-EqualityScript` and `-HashCodeScript` run through the same `EqualityBlock` and `HashBlock`, so `$args[0]` and `$args[1]` hold the keys there now too. Its `ValidateScriptVariable` attributes didn't list `FirstArg` and `SecondArg`, though, so New-Dictionary rejected script blocks that New-HashSet accepts, such as `-EqualityScript { $args[0] -eq $args[1] }`. Should it accept them? And should the README, which didn't mention `$args` for any parameter, list it?
+
+- **Answer:** Yes to both.
+- **Fixed:** New-Dictionary's `-EqualityScript` accepts `$args[0]` and `$args[1]`, and its `-HashCodeScript` accepts `$args[0]`, the same as New-HashSet's. The README's Script blocks table lists `$args[0]` for script blocks that receive one element, and `$args[0]` and `$args[1]` for those that compare two. The `Bug05` tests in `tests/New-Dictionary.Tests.ps1` cover both parameters.
 
 ### 06 — Piped `$null` and array elements are miscounted
 
@@ -182,7 +185,17 @@ Find-IndexOf -InputObject @(1, $null, 3) { $_ -eq 3 }    # 2, which is correct
 
 **Fix idea:** Count each pipeline object as one element. For example, make `InputObject` a single `object`, treat it as one element when `MyInvocation.ExpectingInput` is true, and enumerate it otherwise.
 
-**Tests:** Pester only, because the cause is in how the cmdlets bind pipeline input. The repros go in `tests/Find-IndexOf.Tests.ps1` and `tests/Find-LastIndexOf.Tests.ps1` (both new) and `tests/New-List.Tests.ps1`. The New-List tests add the piped `$null` case that 04's tests leave out.
+**Scope, decided on 2026-10-03:** Assert-AnyObject, Assert-AllObject, New-HashSet, New-SortedSet, and ConvertTo-Dictionary bound pipeline input the same way, so they also dropped a piped `$null` and flattened a piped array. For example, `1, $null | Assert-AllObject { $true -or $_ }` returned `$false`, and `@(1, @(2, 3)) | New-HashSet [int]` held 1, 2, and 3. The fix covers all eight cmdlets.
+
+**Fixed:** `InputObject` is a single `object` in all eight cmdlets, and each one gets its elements from the new `ListFunctionCmdletBase.GetInputElements`:
+
+- When `MyInvocation.ExpectingInput` is true, the pipeline object is one element, even when it's `$null` or an array. The method removes the `PSObject` that PowerShell wraps around it unless the object is a custom object. The cmdlets store and test the same values that the `object[]` parameter gave them, so `1, 'abc' | New-List` still holds an `[int]` and a `[string]`.
+- Otherwise, the value is the argument of `-InputObject`, and it supplies the same elements as before. A list, such as an array or a `List[T]`, supplies its elements, and `$null` supplies none. Anything else is one element, including a string, a hashtable, and a `HashSet[T]`, which isn't a list.
+- A piped array is no longer flattened, so `@(1, @(2, 3)) | New-HashSet [int]` writes a conversion error for `@(2, 3)`. A piped `$null` reaches every cmdlet: New-List adds it with `-IncludeNullElements`, and New-HashSet adds it to an `[object]` set, the way `-InputObject 1, $null` already did.
+- ConvertTo-Dictionary infers its key and value types from the first input object that isn't `$null`. It used to infer them from the first element of `-InputObject` even when that element was `$null`, which made the keys `[object]`. A piped `$null` was skipped, and still is.
+- The README has a new Input section that describes both kinds of input.
+
+**Tests:** Pester only, and written: `Bug06` in `tests/Find-IndexOf.Tests.ps1`, `tests/Find-LastIndexOf.Tests.ps1`, `tests/New-List.Tests.ps1`, `tests/Assert-AnyObject.Tests.ps1`, `tests/Assert-AllObject.Tests.ps1`, `tests/New-HashSet.Tests.ps1`, `tests/New-SortedSet.Tests.ps1`, and a new `tests/ConvertTo-Dictionary.Tests.ps1`. The cause was in how the cmdlets bind pipeline input. The New-List tests add the piped `$null` case that 04's tests leave out. Tests in the Find-IndexOf, Find-LastIndexOf, New-List, Assert-AnyObject, Assert-AllObject, and ConvertTo-Dictionary files also check that an array passed to `-InputObject` still supplies its elements.
 
 ### 07 — New-Dictionary ignores the equality scripts when it copies from `-InputObject`
 
@@ -198,7 +211,9 @@ New-Dictionary -EqualityScript { $x -eq $y } -HashCodeScript { $_.GetHashCode() 
 
 **Fix idea:** Recognize both set names, and add `ScriptBlockErrorAction` to `WithCustomEqualityAndCopy`.
 
-**Tests:** Pester only, in `tests/New-Dictionary.Tests.ps1`. The cause is in the cmdlet's parameter sets.
+**Fixed:** `GetCustomEqualityComparer` builds the script block comparer in both `WithCustomEquality` and `WithCustomEqualityAndCopy`, and `ScriptBlockErrorAction` belongs to both sets. Both repros return a `Dictionary[object, object]` whose comparer is an `EqualityBlock`. The `TODO` about this in `EqualityScript`'s XML docs is gone.
+
+**Tests:** Pester only, and written: `Bug07` in `tests/New-Dictionary.Tests.ps1`, for script block equality and for `-ScriptBlockErrorAction`, each with `-InputObject`. The cause was in the cmdlet's parameter sets.
 
 ### 08 — New-Dictionary doesn't convert copied values to `-ValueType`
 
@@ -212,7 +227,11 @@ $d.Count             # Expected: 1. Actual: 0
 
 **Fix idea:** Convert each value to `ValueType` after cloning it, and report conversion failures the way New-List does.
 
-**Tests:** Pester only, in `tests/New-Dictionary.Tests.ps1`. The cause is in `NewDictionaryCmdlet.Process`.
+**Keys, decided on 2026-10-03:** A key that can't be converted to `-KeyType` ended the command with a terminating error, and no dictionary was written. Keys now fail the same way values do.
+
+**Fixed:** `NewDictionaryCmdlet.Process` converts each key to `KeyType`, and each value to `ValueType` after it clones the value, with `ListFunctionCmdletBase.TryConvertItem`. A key or value that can't be converted writes the same `LFInvalidCastException` error that New-List writes, and its entry is skipped. The other entries are still copied. Values aren't converted when `ValueType` is `[object]`, and a `$null` value is still skipped without an error. The repro returns a `Dictionary[string, int]` that holds `a = 1`.
+
+**Tests:** Pester only, and written: `Bug08` in `tests/New-Dictionary.Tests.ps1`, for a converted value, a value and a key that can't be converted, and a value that `-CloneValues` clones before the conversion. The cause was in `NewDictionaryCmdlet.Process`.
 
 ### 09 — New-Dictionary can't use script block equality with value-type keys
 
@@ -225,10 +244,12 @@ New-Dictionary [int] -EqualityScript { $x -eq $y } -HashCodeScript { $_.GetHashC
 
 **Fix idea:** Wrap the `EqualityBlock` in a generic `IEqualityComparer<TKey>` adapter, the way `ComparingBlock<T>` works for comparers. Or reject value-type keys during parameter binding, with a clear message.
 
-**Tests:** Both with the adapter fix. Rejecting value-type keys changes only the cmdlet, so that fix needs Pester only.
+**Fixed:** With the adapter, chosen on 2026-10-03. The new `EqualityComparerAdapter<T>` (`src/engine/ListFunctions.Engine/Modern/EqualityComparerAdapter.cs`) implements `IEqualityComparer<T>` and passes every call to a non-generic `IEqualityComparer`, which its `InnerComparer` property returns. `EqualityCollectionCtor.GetComparerOrDefault` wraps the comparer in one when the comparer isn't an `IEqualityComparer<T>` of the key or element type. `DictionaryCtor` and `HashSetCtor` therefore accept an `EqualityBlock` for any value type, including `[Nullable[T]]`. For `[object]` and other reference types, such as `[string]`, the collection gets the `EqualityBlock` itself, through contravariance, as before. The repro returns a `Dictionary[int, object]` whose comparer is an `EqualityComparerAdapter[int]` around the `EqualityBlock`.
 
-- Pester: `tests/New-Dictionary.Tests.ps1`. The `Bug14` test there runs this repro but checks only that the process survives. The `Bug09` test checks the dictionary that comes back, or the error message.
-- Engine, with the adapter fix: a new `Modern/Constructors/DictionaryCtorTests.cs`, where a `DictionaryCtor` with an `EqualityBlock` and an `[int]` key type creates a working dictionary. If the adapter is its own type, it gets its own test class too.
+**Tests:** Both, and written.
+
+- Pester: `Bug09` in `tests/New-Dictionary.Tests.ps1`, for `[int]` and `[Nullable[int]]` keys, and for copying `-InputObject` into an `[int]`-keyed dictionary. The repro succeeds now, so the `Bug14` test there passes a `-Capacity` of `[int]::MaxValue` instead, which still fails in `GenericCollectionCtor.CallActivator`.
+- Engine: `Category=Bug09` in a new `Modern/Constructors/DictionaryCtorTests.cs`, for `int` and `int?` keys, the wrapping, and `[string]` keys that get the `EqualityBlock` itself, and in a new `Modern/EqualityComparerAdapterTests.cs`.
 
 ### 10 — A `-ComparingScript` result that isn't an `[int]` silently means "equal"
 
@@ -241,10 +262,16 @@ New-Dictionary [int] -EqualityScript { $x -eq $y } -HashCodeScript { $_.GetHashC
 
 **Fix idea:** Treat no output, or output that can't be converted to `[int]`, as an error in the comparing script, the way `HashBlock` treats a `$null` hash code.
 
-**Tests:** Both.
+**Fixed:** `ComparingBlock<T>.Compare` reads the script block's first output itself instead of going through `GetFirstValue`, which is unchanged. No output, a `$null` first output, or one that `LanguagePrimitives.ConvertTo<int>` can't convert throws the new `ComparingScriptException` (`src/engine/ListFunctions.Engine/Modern/Exceptions/ComparingScriptException.cs`). It's built like `EqualityScriptException`: its `Offender` is the first operand, and its `Variables` hold both. A script block that throws still throws its own exception.
 
-- Engine: `Modern/ComparingBlockTests.cs`, where `Compare` throws for both repros. `GetFirstValue` is shared: `ScriptBlockFilter` and `EqualityBlock` reach it through `InvokeWithContext`. If the fix changes `GetFirstValue` rather than `ComparingBlock<T>`, it also gets a new `Extensions/PSVariableCollectionExtensionsTests.cs`, and the existing `ScriptBlockFilterTests.cs` and `EqualityBlockTests.cs` show whether those types changed too.
-- Pester: `tests/New-SortedSet.Tests.ps1`, where both repros produce an error. The `Bug14` test there runs the first repro but checks only that the process survives.
+- In New-SortedSet, `SortedSet.Add` throws the exception, so the element isn't added, and the command writes a non-terminating error. That error used to be the `TargetInvocationException` from calling `Add` through reflection, whose message was "Exception has been thrown by the target of an invocation." New-SortedSet now writes the exception inside it, so the message explains the failure. That applies to a script block that throws, too.
+- Both repros return a set that holds only `5`, and write two errors.
+- `ScriptBlockFilter` and `EqualityBlock` still use `GetFirstValue`, but they convert with `LanguagePrimitives.IsTrue`, which doesn't throw, so no user input reaches its `catch` anymore.
+
+**Tests:** Both, and written. The fix changed `ComparingBlock<T>` rather than `GetFirstValue`, so there's no `Extensions/PSVariableCollectionExtensionsTests.cs`.
+
+- Engine: `Category=Bug10` in `Modern/ComparingBlockTests.cs`, where `Compare` throws for both repros and for a `$null` output, and still converts output such as `'-1'`.
+- Pester: `Bug10` in `tests/New-SortedSet.Tests.ps1`, where the same three outputs write `ComparingScriptException` errors. The `Bug14` test there still runs the first repro and checks only that the process survives.
 
 ### 11 — A generic type split at a comma silently becomes `[object]`
 
@@ -319,6 +346,8 @@ The others guard cleanup and reflection fallbacks: `ListFunctionCmdletBase.Clean
 **Fixed:** All five calls now use `Debug.WriteLine`, including the three that guard cleanup and reflection fallbacks. A `Debug.Fail` on any path that a cmdlet runs would end a whole test run instead of failing one test. The `Bug14` tests in `tests/New-Dictionary.Tests.ps1` and `tests/New-SortedSet.Tests.ps1` cover the two calls that user input reaches.
 
 **Tests:** Pester only, and written (see **Fixed:**). Both calls that user input reaches are in Engine, but the fix only swapped `Debug.Fail` for `Debug.WriteLine`, and the Pester tests already reach both calls in both builds.
+
+**Since 09 and 10 were fixed:** 09's repro creates its dictionary now, so the `Bug14` test in `tests/New-Dictionary.Tests.ps1` passes a `-Capacity` of `[int]::MaxValue` instead. No array can hold that many buckets, so the constructor still fails in `CallActivator`. No user input reaches `GetFirstValue`'s `catch` anymore (see 10), so the `Bug14` test in `tests/New-SortedSet.Tests.ps1` checks only that its repro returns.
 
 ## Release
 

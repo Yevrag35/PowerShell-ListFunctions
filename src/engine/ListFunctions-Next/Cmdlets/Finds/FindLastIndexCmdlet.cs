@@ -18,8 +18,9 @@ namespace ListFunctions.Cmdlets.Finds;
 /// the cmdlet writes -1. The behavior mirrors <see cref="List{T}.FindLastIndex(System.Predicate{T})"/>.
 /// </para>
 /// <para>
-/// The index is the position of the match in the full input sequence across every pipeline record, not within a
-/// single <see cref="InputObject"/> array. The condition does not run until all pipeline input is received.
+/// The index is the position of the match in the full input sequence. Each pipeline object is one element, even when
+/// it's <see langword="null"/> or an array, and an array passed to <see cref="InputObject"/> supplies its elements.
+/// The condition doesn't run until all pipeline input is received.
 /// </para>
 /// <para>
 /// A terminating error thrown by the condition script block ends the cmdlet with a terminating error.
@@ -53,14 +54,15 @@ public sealed class FindLastIndexCmdlet : ListFunctionCmdletBase
 	/// Gets or sets the elements to search. The value is accepted from the pipeline.
 	/// </summary>
 	/// <remarks>
-	/// Each pipeline record is appended to the elements from the previous records. A <see langword="null"/> or
-	/// empty array contributes no elements. <see langword="null"/> and empty-string elements are evaluated like any
+	/// Each pipeline object is one element, even when it's <see langword="null"/> or an array, and is appended to the
+	/// elements from the previous objects. An array passed to the parameter supplies its elements, and
+	/// <see langword="null"/> supplies none. <see langword="null"/> and empty-string elements are evaluated like any
 	/// other element.
 	/// </remarks>
-	/// <value>The array of elements to evaluate, or <see langword="null"/> when no elements are supplied.</value>
+	/// <value>The current pipeline object, or the argument of the parameter. The value can be <see langword="null"/>.</value>
 	[Parameter(Mandatory = true, ValueFromPipeline = true), Alias("List")]
 	[AllowEmptyCollection, PSAllowNull, AllowEmptyString]
-	public object?[]? InputObject { get; set; }
+	public object? InputObject { get; set; }
 
 	/// <summary>
 	/// Gets or sets the error action preference applied while the condition script block runs.
@@ -82,7 +84,7 @@ public sealed class FindLastIndexCmdlet : ListFunctionCmdletBase
 		_filter = new ScriptBlockFilter(this.Condition, new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction));
 	}
 	/// <summary>
-	/// Appends the elements of the current <see cref="InputObject"/> array to the input buffer.
+	/// Appends the elements of the current <see cref="InputObject"/> to the input buffer.
 	/// </summary>
 	/// <remarks>
 	/// The condition is not evaluated here. Evaluation happens in <see cref="EndCore(CmdletRunState)"/> after all
@@ -91,11 +93,7 @@ public sealed class FindLastIndexCmdlet : ListFunctionCmdletBase
 	/// <returns>Always <see langword="true"/>, so that all pipeline input is collected.</returns>
 	protected override bool ProcessCore()
 	{
-		if (this.InputObject is not null)
-		{
-			_list.AddRange(this.InputObject);
-		}
-
+		_list.AddRange(this.GetInputElements(this.InputObject));
 		return true;
 	}
 	/// <summary>

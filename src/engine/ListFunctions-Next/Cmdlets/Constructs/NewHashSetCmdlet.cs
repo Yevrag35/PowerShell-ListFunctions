@@ -73,13 +73,19 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	/// Gets or sets the elements to add to the set. The value is accepted from the pipeline.
 	/// </summary>
 	/// <remarks>
+	/// <para>
+	/// Each pipeline object is one element, even when it's <see langword="null"/> or an array. An array passed to the
+	/// parameter supplies its elements, and <see langword="null"/> supplies none.
+	/// </para>
+	/// <para>
 	/// For a typed set, each element is converted to <see cref="GenericType"/>. An element that cannot be converted
 	/// produces a non-terminating error and is skipped, and <see langword="null"/> elements are skipped without an
-	/// error.
+	/// error. A set of <see cref="object"/> adds each element as it is, including <see langword="null"/>.
+	/// </para>
 	/// </remarks>
-	/// <value>The elements to add, or <see langword="null"/> to create an empty set.</value>
+	/// <value>The current pipeline object, or the argument of the parameter. The value can be <see langword="null"/>.</value>
 	[Parameter(ValueFromPipeline = true)]
-	public object[] InputObject { get; set; } = null!;
+	public object? InputObject { get; set; }
 
 	/// <summary>
 	/// Gets or sets the script block that determines whether two elements are equal.
@@ -124,7 +130,7 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	#region PROCESSING
 
 	/// <summary>
-	/// Adds the elements of the current <see cref="InputObject"/> array to the set.
+	/// Adds the elements of the current <see cref="InputObject"/> to the set.
 	/// </summary>
 	/// <remarks>
 	/// <para>
@@ -132,9 +138,9 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	/// converted to the element type, and a failed conversion produces a non-terminating error.
 	/// </para>
 	/// <para>
-	/// Any other failure while adding an element, such as a <see langword="null"/> element in a set of
-	/// <see cref="object"/>, produces a non-terminating error and stops processing. The remaining elements of the
-	/// current array are still added, but later pipeline input is ignored and no set is written.
+	/// Any other failure while adding an element, such as a script block equality comparer that throws, produces a
+	/// non-terminating error and stops processing. The remaining elements of the current input are still added, but
+	/// later pipeline input is ignored and no set is written.
 	/// </para>
 	/// </remarks>
 	/// <param name="collection">The set to add elements to.</param>
@@ -143,14 +149,15 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	protected override bool Process(object collection, Type collectionType)
 	{
 		bool flag = true;
-		if (this.InputObject is null || this.InputObject.Length == 0)
+		object?[] elements = this.GetInputElements(this.InputObject);
+		if (elements.Length == 0)
 		{
 			return flag;
 		}
 
-		if (collection is ICollection<object> objCol)
+		if (collection is ICollection<object?> objCol)
 		{
-			foreach (object item in this.InputObject)
+			foreach (object? item in elements)
 			{
 				try
 				{
@@ -167,7 +174,7 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 		else
 		{
 			object?[] args = new object[1];
-			foreach (object? item in this.InputObject)
+			foreach (object? item in elements)
 			{
 				try
 				{

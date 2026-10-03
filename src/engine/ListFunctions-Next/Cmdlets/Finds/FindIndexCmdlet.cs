@@ -18,8 +18,9 @@ namespace ListFunctions.Cmdlets.Finds;
 /// <see cref="List{T}.FindIndex(Predicate{T})"/>.
 /// </para>
 /// <para>
-/// The index counts elements across every pipeline record, so it is the position of the match in the full input
-/// sequence rather than within a single <see cref="InputObject"/> array.
+/// The index counts every element of the input, so it's the position of the match in the full input sequence. Each
+/// pipeline object is one element, even when it's <see langword="null"/> or an array, and an array passed to
+/// <see cref="InputObject"/> supplies its elements.
 /// </para>
 /// <para>
 /// After the first match, the cmdlet writes the index and stops evaluating the condition. When its input comes from
@@ -56,15 +57,16 @@ public sealed class FindIndexCmdlet : ListFunctionCmdletBase
 	/// Gets or sets the elements to search. The value is accepted from the pipeline.
 	/// </summary>
 	/// <remarks>
-	/// Each pipeline record continues the sequence from the previous records. A <see langword="null"/> or empty
-	/// array contributes no elements and does not advance the index. <see langword="null"/> and empty-string
-	/// elements are evaluated like any other element.
+	/// Each pipeline object is one element, even when it's <see langword="null"/> or an array, and continues the
+	/// sequence from the previous objects. An array passed to the parameter supplies its elements, and
+	/// <see langword="null"/> supplies none. <see langword="null"/> and empty-string elements are evaluated like any
+	/// other element.
 	/// </remarks>
-	/// <value>The array of elements to evaluate, or <see langword="null"/> when no elements are supplied.</value>
+	/// <value>The current pipeline object, or the argument of the parameter. The value can be <see langword="null"/>.</value>
 	[Parameter(Mandatory = true, ValueFromPipeline = true)]
 	[Alias("List")]
 	[AllowEmptyCollection, AllowEmptyString, PSAllowNull]
-	public object?[]? InputObject { get; set; }
+	public object? InputObject { get; set; }
 
 	/// <summary>
 	/// Gets or sets the error action preference applied while the condition script block runs.
@@ -86,29 +88,26 @@ public sealed class FindIndexCmdlet : ListFunctionCmdletBase
 		_filter = new ScriptBlockFilter(this.Condition, new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction));
 	}
 	/// <summary>
-	/// Evaluates the elements of the current <see cref="InputObject"/> array and advances the running index.
+	/// Evaluates the elements of the current <see cref="InputObject"/> and advances the running index.
 	/// </summary>
 	/// <remarks>
 	/// When an element matches, the running index is set to that element's position in the full input sequence.
-	/// Otherwise, the running index advances by the length of the array.
+	/// Otherwise, the running index advances by the number of elements, which is 1 for a pipeline object.
 	/// </remarks>
 	/// <returns><see langword="false"/> when an element matches and processing stops; otherwise <see langword="true"/>.</returns>
 	protected override bool ProcessCore()
 	{
-		if (this.InputObject is { } arr && arr.Length != 0)
+		object?[] elements = this.GetInputElements(this.InputObject);
+		for (int i = 0; i < elements.Length; i++)
 		{
-			for (int i = 0; i < arr.Length; i++)
+			if (_filter.IsTrue(elements[i]))
 			{
-				if (_filter.IsTrue(arr[i]))
-				{
-					_currentIndex += i;
-					return false;   // stop processing
-				}
+				_currentIndex += i;
+				return false;   // stop processing
 			}
-
-			_currentIndex += arr.Length;
 		}
 
+		_currentIndex += elements.Length;
 		return true;
 	}
 
