@@ -71,13 +71,13 @@ public sealed class ValidateScriptVariableAttribute : ValidateArgumentsAttribute
 		int indexCount = ParseIndexes(variableNames, out int[]? indexes);
 		int nameCount = variableNames.Length - indexCount;
 
-		_mustContainIndexes = indexCount == 0
-			? ArraySlice.Empty<int>()
-			: new(indexes!, 0, indexCount);
+		_mustContainIndexes = indexCount != 0
+			? new(indexes!, 0, indexCount)
+			: [];
 
-		_mustContainNames = nameCount == 0
-			? ArraySlice.Empty<string>()
-			: new(variableNames, 0, nameCount);
+		_mustContainNames = nameCount != 0
+			? new(variableNames, 0, nameCount)
+			: [];
 	}
 
 	/// <summary>

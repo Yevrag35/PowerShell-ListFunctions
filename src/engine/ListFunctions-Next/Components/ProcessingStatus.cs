@@ -1,31 +1,109 @@
+using ListFunctions.Cmdlets;
+
 namespace ListFunctions.Components;
 
+/// <summary>
+/// Specifies the outcomes that a <see cref="ListFunctionCmdletBase"/> cmdlet records as it moves through its begin,
+/// process, and end phases.
+/// </summary>
+/// <remarks>
+/// The values are bit flags, and a run can record several at once. <see cref="CmdletRunState"/> exposes each flag
+/// as a <see cref="bool"/> property.
+/// </remarks>
 [Flags]
 public enum CmdletRunFlags : uint
 {
+	/// <summary>No outcome is recorded.</summary>
 	None = 0,
+	/// <summary>PowerShell is stopping the pipeline, for example because the user pressed Ctrl+C.</summary>
 	IsStopping = 1,
+	/// <summary>
+	/// <see cref="ListFunctionCmdletBase.ProcessCore"/> returned <see langword="false"/>, so the cmdlet processes no
+	/// further pipeline input. For the search and assertion cmdlets, this means an element matched.
+	/// </summary>
 	FoundMatch = 2,
+	/// <summary><see cref="ListFunctionCmdletBase.BeginCore"/> threw an exception.</summary>
 	BeginFailed = 4,
+	/// <summary><see cref="ListFunctionCmdletBase.ProcessCore"/> threw an exception.</summary>
 	ProcessFailed = 8,
-	/// <summary>The end phase ran, either from EndProcessing or early, when the cmdlet stopped its upstream commands.</summary>
+	/// <summary>
+	/// The end phase ran, either from <see cref="ListFunctionCmdletBase.EndProcessing"/> or early, when the cmdlet
+	/// stopped the commands that send it pipeline input.
+	/// </summary>
 	Ended = 16,
 }
 
+/// <summary>
+/// Represents the outcomes that a <see cref="ListFunctionCmdletBase"/> cmdlet has recorded so far in its run.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The base class passes this state to <see cref="ListFunctionCmdletBase.EndCore(CmdletRunState)"/>. The state is
+/// immutable, so a copy that a derived class receives doesn't change when the run records more outcomes.
+/// </para>
+/// <para>
+/// A failure in the begin or process phase becomes a terminating error, and PowerShell doesn't run the end phase
+/// after one. In practice, <see cref="ListFunctionCmdletBase.EndCore(CmdletRunState)"/> sees
+/// <see cref="FoundMatch"/> and <see cref="Ended"/>, but not the failure flags.
+/// </para>
+/// </remarks>
 [StructLayout(LayoutKind.Sequential)]
 public readonly struct CmdletRunState
 {
 	private readonly uint _flags;
 
+	/// <summary>
+	/// Gets every outcome recorded in this state.
+	/// </summary>
+	/// <value>A bitwise combination of the <see cref="CmdletRunFlags"/> values.</value>
 	public CmdletRunFlags Flags => (CmdletRunFlags)_flags;
 
+	/// <summary>
+	/// Gets a value that indicates whether PowerShell is stopping the pipeline.
+	/// </summary>
+	/// <value><see langword="true"/> when <see cref="CmdletRunFlags.IsStopping"/> is set; otherwise, <see langword="false"/>.</value>
 	public bool IsStopping => (_flags & (uint)CmdletRunFlags.IsStopping) != 0;
+	/// <summary>
+	/// Gets a value that indicates whether the cmdlet stopped processing pipeline input before the input ran out.
+	/// </summary>
+	/// <remarks>For the search and assertion cmdlets, this means an element matched.</remarks>
+	/// <value><see langword="true"/> when <see cref="CmdletRunFlags.FoundMatch"/> is set; otherwise, <see langword="false"/>.</value>
 	public bool FoundMatch => (_flags & (uint)CmdletRunFlags.FoundMatch) != 0;
+	/// <summary>
+	/// Gets a value that indicates whether the begin or process phase threw an exception.
+	/// </summary>
+	/// <value>
+	/// <see langword="true"/> when <see cref="CmdletRunFlags.BeginFailed"/> or <see cref="CmdletRunFlags.ProcessFailed"/>
+	/// is set; otherwise, <see langword="false"/>.
+	/// </value>
 	public bool HadError => (_flags & (uint)(CmdletRunFlags.BeginFailed | CmdletRunFlags.ProcessFailed)) != 0;
+	/// <summary>
+	/// Gets a value that indicates whether the begin phase threw an exception.
+	/// </summary>
+	/// <value><see langword="true"/> when <see cref="CmdletRunFlags.BeginFailed"/> is set; otherwise, <see langword="false"/>.</value>
 	public bool BeginFailed => (_flags & (uint)CmdletRunFlags.BeginFailed) != 0;
+	/// <summary>
+	/// Gets a value that indicates whether the process phase threw an exception.
+	/// </summary>
+	/// <value><see langword="true"/> when <see cref="CmdletRunFlags.ProcessFailed"/> is set; otherwise, <see langword="false"/>.</value>
 	public bool ProcessFailed => (_flags & (uint)CmdletRunFlags.ProcessFailed) != 0;
+	/// <summary>
+	/// Gets a value that indicates whether the end phase ran.
+	/// </summary>
+	/// <remarks>
+	/// The base class sets this flag before it calls <see cref="ListFunctionCmdletBase.EndCore(CmdletRunState)"/>, so
+	/// it is always <see langword="true"/> in the state that method receives.
+	/// </remarks>
+	/// <value><see langword="true"/> when <see cref="CmdletRunFlags.Ended"/> is set; otherwise, <see langword="false"/>.</value>
 	public bool Ended => (_flags & (uint)CmdletRunFlags.Ended) != 0;
 
+	/// <summary>
+	/// Gets a value that indicates whether the cmdlet ignores the current pipeline input object.
+	/// </summary>
+	/// <value>
+	/// <see langword="true"/> when PowerShell is stopping the pipeline, an earlier phase threw an exception, or the cmdlet
+	/// already stopped processing input; otherwise, <see langword="false"/>.
+	/// </value>
 	public bool ShouldSkipProcess
 	{
 		get
@@ -37,11 +115,21 @@ public readonly struct CmdletRunState
 		}
 	}
 
+	/// <summary>
+	/// Initializes a new instance of <see cref="CmdletRunState"/> with the specified flags.
+	/// </summary>
+	/// <param name="flags">The outcomes to record.</param>
 	internal CmdletRunState(CmdletRunFlags flags)
 	{
 		_flags = (uint)flags;
 	}
 
+	/// <summary>
+	/// Returns a copy of this state with the specified flags added.
+	/// </summary>
+	/// <remarks>This state doesn't change. Flags that are already set stay set.</remarks>
+	/// <param name="add">The outcomes to add.</param>
+	/// <returns>A new <see cref="CmdletRunState"/> that contains the flags of this state and <paramref name="add"/>.</returns>
 	internal CmdletRunState With(CmdletRunFlags add)
 	{
 		return new((CmdletRunFlags)(_flags | (uint)add));

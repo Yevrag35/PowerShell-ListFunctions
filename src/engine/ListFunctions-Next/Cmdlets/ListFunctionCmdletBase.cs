@@ -8,19 +8,48 @@ using System.Management.Automation.Internal;
 namespace ListFunctions.Cmdlets;
 
 /// <summary>
-/// Provides a base class for PowerShell cmdlets that implement list-like functions with custom processing and error
-/// handling logic.
+/// Provides the base class for the ListFunctions cmdlets and runs their begin, process, and end phases in a fixed order.
 /// </summary>
-/// <remarks>This abstract class is intended to be inherited by cmdlets that require structured processing
-/// phases (begin, process, end) and custom error management. It enforces a processing workflow and provides utility
-/// methods for error preference retrieval and type conversion. Derived classes should override the core processing
-/// methods to implement specific cmdlet behavior.</remarks>
+/// <remarks>
+/// <para>
+/// The class seals <see cref="BeginProcessing"/>, <see cref="ProcessRecord"/>, and <see cref="EndProcessing"/>. A
+/// derived class overrides <see cref="BeginCore"/>, <see cref="ProcessCore"/>, <see cref="EndCore(CmdletRunState)"/>,
+/// and <see cref="Cleanup"/> instead.
+/// </para>
+/// <para>
+/// An exception from <see cref="BeginCore"/> or <see cref="ProcessCore"/> becomes a terminating error after
+/// <see cref="Cleanup"/> runs. When <see cref="ProcessCore"/> returns <see langword="false"/>, the cmdlet processes no
+/// more pipeline input.
+/// </para>
+/// <para>
+/// The class also provides helpers that get the error action preference and convert items with PowerShell's
+/// conversion rules. Like other cmdlets, an instance isn't thread-safe.
+/// </para>
+/// </remarks>
 public abstract class ListFunctionCmdletBase : PSCmdlet
 {
+	/// <summary>
+	/// The name of the parameter set in which a cmdlet takes script blocks that compare its elements.
+	/// </summary>
 	protected const string WITH_CUSTOM_EQUALITY = "WithCustomEquality";
+	/// <summary>
+	/// The suffix that turns the name of a common parameter into the name of its preference variable.
+	/// </summary>
 	private const string PREFERENCE = "Preference";
+	/// <summary>
+	/// The name of the <c>-ErrorAction</c> common parameter.
+	/// </summary>
 	protected const string ERROR_ACTION = "ErrorAction";
+	/// <summary>
+	/// The name of the <c>$ErrorActionPreference</c> preference variable.
+	/// </summary>
+	/// <remarks>
+	/// Derived cmdlets use it to set the error action preference in the scope where their script blocks run.
+	/// </remarks>
 	protected const string ERROR_ACTION_PREFERENCE = ERROR_ACTION + PREFERENCE;
+	/// <summary>
+	/// The full name of the PowerShell exception type that stops the commands upstream of a command.
+	/// </summary>
 	private const string STOP_UPSTREAM_TYPE = "System.Management.Automation.StopUpstreamCommandsException";
 
 #if NET10_0_OR_GREATER
@@ -38,15 +67,17 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 		?.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, binder: null, [typeof(InternalCommand)], modifiers: null);
 #endif
 
+	/// <summary>
+	/// Holds the outcomes that this run has recorded so far.
+	/// </summary>
 	private CmdletRunState _state;
 
 	/// <summary>
-	/// Gets a value that indicates whether the cmdlet is being requested to stop.
+	/// Gets a value that indicates whether PowerShell is stopping the pipeline.
 	/// </summary>
 	/// <remarks>
-	/// This helper property checks the base <c>Stopping</c> flag and, when available,
-	/// the pipeline cancellation token to determine whether processing should halt. It centralizes the
-	/// stopping logic so callers can check a single property.
+	/// The property checks <see cref="Cmdlet.Stopping"/> and, on .NET 10, the cancellation token in
+	/// <c>PipelineStopToken</c>, so callers can check a single property.
 	/// </remarks>
 	/// <value><see langword="true"/> if the cmdlet should stop; otherwise, <see langword="false"/>.</value>
 	[SuppressMessage("Style", "IDE0025", Justification = "Code includes conditional compilation")]
@@ -63,13 +94,12 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	}
 
 	/// <summary>
-	/// Begins the cmdlet processing lifecycle. This method is sealed to enforce the
-	/// framework-defined execution sequence and delegates work to <see cref="BeginCore"/>.
+	/// Runs the begin phase by calling <see cref="BeginCore"/>.
 	/// </summary>
 	/// <remarks>
-	/// Derived classes should override <see cref="BeginCore"/> to participate in the begin phase.
-	/// This method wraps the call and handles failures by recording state, performing cleanup, and
-	/// reporting a terminating error.
+	/// When <see cref="BeginCore"/> throws, the method records <see cref="CmdletRunFlags.BeginFailed"/>, calls
+	/// <see cref="Cleanup"/>, and reports the exception as a terminating error in the
+	/// <see cref="ErrorCategory.InvalidArgument"/> category. The error ID is the full name of the exception's type.
 	/// </remarks>
 	protected sealed override void BeginProcessing()
 	{
@@ -85,19 +115,20 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 		}
 	}
 	/// <summary>
-	/// Executes the process-record phase for each input object. This method is sealed and delegates
-	/// the actual work to <see cref="ProcessCore"/>.
+	/// Runs the process phase for the current input object by calling <see cref="ProcessCore"/>.
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	/// The method skips the record when the pipeline is stopping, or when an earlier record failed or ended processing.
-	/// It converts exceptions into terminating errors after performing cleanup.
+	/// The method skips the input object when PowerShell is stopping the pipeline, or when an earlier call failed or
+	/// ended processing. When <see cref="ProcessCore"/> throws, the method records
+	/// <see cref="CmdletRunFlags.ProcessFailed"/>, calls <see cref="Cleanup"/>, and reports the exception as a
+	/// terminating error in the <see cref="ErrorCategory.NotSpecified"/> category.
 	/// </para>
 	/// <para>
 	/// When <see cref="ProcessCore"/> returns <see langword="false"/>, processing is complete. If the cmdlet receives
-	/// pipeline input, the method runs <see cref="EndCore(CmdletRunState)"/> right away and then stops the commands
-	/// that send the input, the way <c>Select-Object -First</c> does. Those commands don't run their end blocks. When
-	/// the running PowerShell can't stop them, the cmdlet ignores its remaining input and runs
+	/// pipeline input, the method runs <see cref="EndCore(CmdletRunState)"/> and <see cref="Cleanup"/> right away and
+	/// then stops the commands that send the input, the way <c>Select-Object -First</c> does. Those commands don't run
+	/// their end blocks. When the running PowerShell can't stop them, the cmdlet ignores its remaining input and runs
 	/// <see cref="EndCore(CmdletRunState)"/> from <see cref="EndProcessing"/> as usual.
 	/// </para>
 	/// </remarks>
@@ -134,12 +165,11 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 		}
 	}
 	/// <summary>
-	/// Completes the cmdlet processing lifecycle and invokes the end-phase handler.
+	/// Runs the end phase by calling <see cref="EndCore(CmdletRunState)"/>, and then calls <see cref="Cleanup"/>.
 	/// </summary>
 	/// <remarks>
-	/// The method calls <see cref="EndCore(CmdletRunState)"/> to allow derived classes to finalize
-	/// work and always invokes <see cref="CleanupCore"/> in a finally block to ensure cleanup runs.
-	/// It does nothing when the end phase already ran because the cmdlet stopped its upstream commands.
+	/// <see cref="Cleanup"/> runs even when <see cref="EndCore(CmdletRunState)"/> throws. The method does nothing when
+	/// the end phase already ran because the cmdlet stopped the commands that send it pipeline input.
 	/// </remarks>
 	protected sealed override void EndProcessing()
 	{
@@ -159,37 +189,70 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 		}
 	}
 	/// <summary>
-	/// When overridden in a derived class, performs provider-specific logic required to begin cmdlet processing or
-	/// operations.
+	/// When overridden in a derived class, prepares the cmdlet before it receives pipeline input.
 	/// </summary>
-	/// <remarks>Override this method in a subclass to implement cmdlet behavior that should occur at
-	/// the start of processing. The base implementation does nothing.</remarks>
+	/// <remarks>
+	/// <para>
+	/// The base class calls this method from <see cref="BeginProcessing"/>. Parameters that take pipeline input aren't
+	/// bound yet.
+	/// </para>
+	/// <para>
+	/// An exception from this method becomes a terminating error after <see cref="Cleanup"/> runs, and the cmdlet
+	/// processes no input. The base implementation does nothing.
+	/// </para>
+	/// </remarks>
 	protected virtual void BeginCore()
 	{
 	}
 	/// <summary>
-	/// When implemented in a derived class, performs the core processing logic for the cmdlet.
+	/// When implemented in a derived class, processes the current pipeline input object.
 	/// </summary>
-	/// <returns><see langword="true"/> to continue processing; <see langword="false"/> to stop processing.</returns>
+	/// <remarks>
+	/// <para>
+	/// The base class calls this method once for each pipeline input object, or once when the cmdlet receives no
+	/// pipeline input. It stops calling the method after the method returns <see langword="false"/> or throws, and
+	/// while PowerShell is stopping the pipeline.
+	/// </para>
+	/// <para>
+	/// An exception from this method becomes a terminating error after <see cref="Cleanup"/> runs.
+	/// </para>
+	/// </remarks>
+	/// <returns>
+	/// <see langword="true"/> to keep processing input; <see langword="false"/> to stop. Returning
+	/// <see langword="false"/> records <see cref="CmdletRunFlags.FoundMatch"/>.
+	/// </returns>
 	protected abstract bool ProcessCore();
-	/// <param name="wantsToStop">true to request that the operation is requesting to stop; otherwise, false.</param>
 	/// <summary>
-	/// Performs custom logic when ending cmdlet processing, optionally indicating whether the operation should stop.
+	/// When overridden in a derived class, finishes the cmdlet's work, for example by writing the collection it built.
 	/// </summary>
-	/// <remarks>Override this method in a derived class to implement specific behavior that should
-	/// occur when the operation ends. The base implementation does nothing.</remarks>
-	/// <param name="state">The current state of the cmdlet run, including flags indicating processing outcomes.</param>
+	/// <remarks>
+	/// <para>
+	/// The base class calls this method at most once. It usually runs from <see cref="EndProcessing"/>. When
+	/// <see cref="ProcessCore"/> returns <see langword="false"/> and the cmdlet receives pipeline input, it runs right
+	/// away instead, before the cmdlet stops the commands that send the input.
+	/// </para>
+	/// <para>
+	/// <see cref="Cleanup"/> runs after this method, even when it throws. The base class doesn't turn an exception from
+	/// this method into an error record; PowerShell reports it as a terminating error. The base implementation does
+	/// nothing.
+	/// </para>
+	/// </remarks>
+	/// <param name="state">
+	/// The outcomes that the run has recorded. <see cref="CmdletRunState.Ended"/> is always <see langword="true"/>, and
+	/// <see cref="CmdletRunState.FoundMatch"/> is <see langword="true"/> when <see cref="ProcessCore"/> returned
+	/// <see langword="false"/>.
+	/// </param>
 	protected virtual void EndCore(CmdletRunState state)
 	{
 	}
 
 	/// <summary>
-	/// Calls <see cref="Cleanup"/> and writes the message of any exception it throws to the debug output.
+	/// Calls <see cref="Cleanup"/> and, in Debug builds, writes the message of any exception it throws to the debug output.
 	/// </summary>
 	/// <remarks>
-	/// This private helper centralizes the cleanup call so callers can rely on consistent exception
-	/// propagation and diagnostic reporting. When <see cref="Cleanup"/> throws, the method writes the
-	/// exception's message with <see cref="Debug.WriteLine(string)"/> and rethrows the original exception.
+	/// The method centralizes the cleanup call. When <see cref="Cleanup"/> throws, the method writes the exception's
+	/// message with <see cref="Debug.WriteLine(string)"/>, which only Debug builds compile, and rethrows the original
+	/// exception.
 	/// </remarks>
 	private void CleanupCore()
 	{
@@ -293,24 +356,36 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	private static extern object CreateStopUpstreamException(InternalCommand requestingCommand);
 #endif
 	/// <summary>
-	/// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+	/// When overridden in a derived class, releases the resources that the cmdlet holds for its run.
 	/// </summary>
-	/// <remarks>Override this method in a derived class to implement custom cleanup logic. This
-	/// method is called to allow derived types to release resources or perform other cleanup operations before the
-	/// object is disposed or finalized.</remarks>
+	/// <remarks>
+	/// <para>
+	/// The base class calls this method once, after the end phase or after <see cref="BeginCore"/> or
+	/// <see cref="ProcessCore"/> throws. It doesn't run when PowerShell stops the pipeline before the end phase, for
+	/// example when the user presses Ctrl+C.
+	/// </para>
+	/// <para>
+	/// An exception from this method propagates to PowerShell. When <see cref="BeginCore"/> or
+	/// <see cref="ProcessCore"/> threw, it replaces the terminating error for that exception. The base implementation
+	/// does nothing.
+	/// </para>
+	/// </remarks>
 	protected virtual void Cleanup()
 	{
 		// Override to implement custom cleanup logic
 	}
 
 	/// <summary>
-	/// Retrieves the current error action preference to determine how errors are handled during command execution.
+	/// Gets the error action preference that applies to this cmdlet.
 	/// </summary>
-	/// <remarks>This method checks for an explicitly bound error action parameter before falling back
-	/// to the session state's error action preference variable. Use this value to control error handling logic in
-	/// derived cmdlets.</remarks>
-	/// <returns>An <see cref="ActionPreference"/> value that specifies the error handling behavior. Returns the current error action
-	/// preference if set; otherwise, returns <see cref="ActionPreference.Continue"/>.</returns>
+	/// <remarks>
+	/// The method returns the value of the <c>-ErrorAction</c> common parameter when it is bound. Otherwise, it returns
+	/// the value of <c>$ErrorActionPreference</c> in the cmdlet's session state.
+	/// </remarks>
+	/// <returns>
+	/// The error action preference, or <see cref="ActionPreference.Continue"/> when the value found isn't an
+	/// <see cref="ActionPreference"/>.
+	/// </returns>
 	protected ActionPreference GetErrorPreference()
 	{
 		if (!this.MyInvocation.BoundParameters.TryGetValue(ERROR_ACTION, out object? errorObj))
@@ -335,13 +410,15 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	/// <see cref="Version"/>.
 	/// </para>
 	/// <para>
-	/// When the conversion fails, the method writes a non-terminating error instead of throwing.
+	/// When the conversion fails, the method writes an error with
+	/// <see cref="WriteConversionError(PSInvalidCastException, object, Type)"/> instead of throwing.
 	/// </para>
 	/// </remarks>
 	/// <param name="item">The object to convert. This value can be <see langword="null"/>.</param>
-	/// <param name="convertTo">The type to convert <paramref name="item"/> to.</param>
+	/// <param name="convertTo">The type to convert <paramref name="item"/> to. This value must not be <see langword="null"/>.</param>
 	/// <param name="result">When this method returns, contains the converted value, which can be <see langword="null"/>, if the conversion succeeds; otherwise, <see langword="null"/>.</param>
 	/// <returns><see langword="true"/> if the conversion succeeds, even when <paramref name="result"/> is <see langword="null"/>; otherwise, <see langword="false"/>.</returns>
+	/// <exception cref="ArgumentNullException">Thrown when <paramref name="convertTo"/> is null.</exception>
 	protected bool TryConvertItem(object? item, Type convertTo, out object? result)
 	{
 		try
@@ -358,19 +435,23 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	}
 
 	/// <summary>
-	/// Writes an error record for a failed type conversion, including details about the original exception, the
-	/// target type, and the item that could not be converted.
+	/// Writes an error for an item that can't be converted to the specified type.
 	/// </summary>
 	/// <remarks>
-	/// This helper translates a <see cref="PSInvalidCastException"/> into an <see cref="LFInvalidCastException"/>
-	/// that captures the attempted target type and the item value. It then writes a terminating/ non-terminating
-	/// error record (depending on the caller's error handling) to the pipeline so callers and scripts can react
-	/// to the conversion failure.
+	/// <para>
+	/// The error record wraps an <see cref="LFInvalidCastException"/>, whose message names the item, its type, the
+	/// target type, and the reason that the conversion failed. The record's error ID is the full name of the run-time
+	/// type of <paramref name="thrownException"/>, its category is <see cref="ErrorCategory.InvalidType"/>, and its
+	/// target object is <paramref name="item"/>.
+	/// </para>
+	/// <para>
+	/// The error is non-terminating unless the error action preference makes PowerShell stop on it.
+	/// </para>
 	/// </remarks>
-	/// <param name="thrownException">The exception that was thrown during the type conversion attempt. Must not be null.</param>
-	/// <param name="item">The object that failed to convert to the specified type. Can be null if the conversion was attempted on a
-	/// null value.</param>
-	/// <param name="convertToType">The target type to which the conversion was attempted. Must not be null.</param>
+	/// <param name="thrownException">The exception that PowerShell threw when the conversion failed. This value must not be <see langword="null"/>.</param>
+	/// <param name="item">The object that failed to convert, or <see langword="null"/> when the conversion started from a <see langword="null"/> value.</param>
+	/// <param name="convertToType">The type that the conversion targeted. This value must not be <see langword="null"/>.</param>
+	/// <exception cref="NullReferenceException">Thrown when <paramref name="thrownException"/> or <paramref name="convertToType"/> is null.</exception>
 	protected void WriteConversionError(PSInvalidCastException thrownException, object? item, Type convertToType)
 	{
 		string errorId = thrownException.GetType().GetTypeName();

@@ -1,30 +1,33 @@
+using ListFunctions.Cmdlets.Constructs;
+using ListFunctions.Modern;
+
 namespace ListFunctions.Components;
 
 /// <summary>
-/// Specifies the behavior to use when a duplicate key is encountered during an operation that adds or merges
-/// key-value pairs.
+/// Specifies what <see cref="ConvertToDictionaryCmdlet"/> does when an input object produces a key
+/// that is already in the dictionary.
 /// </summary>
-/// <remarks>Use this enumeration to control how duplicate keys are handled in scenarios such as merging
-/// dictionaries or adding items to a collection that enforces unique keys. The available options allow you to
-/// choose whether to throw an error, skip the duplicate, or concatenate the values associated with the duplicate
-/// key.</remarks>
+/// <remarks>
+/// None of the options stops the cmdlet. Each one handles the duplicate and moves on to the next input object.
+/// </remarks>
 public enum DuplicateKeyBehavior
 {
 	/// <summary>
-	/// The default option. Indicates that an exception should be thrown when a duplicate key is encountered.
+	/// Writes a non-terminating error for the duplicate and keeps the existing value. This is the default.
 	/// </summary>
 	Error,
 	/// <summary>
-	/// Indicates that the duplicate key should be skipped.
+	/// Writes a warning and keeps the existing value.
 	/// </summary>
 	Skip,
 	/// <summary>
-	/// Indicates that the values associated with the duplicate key should be concatenated.
+	/// Collects every value for the key in an <see cref="ObjectList"/>.
 	/// </summary>
 	/// <remarks>
-	/// When this option is selected, the values corresponding to the duplicate key will be combined into a single
-	/// collection value. Specified value types are ignored.
+	/// The first duplicate replaces the existing value with an <see cref="ObjectList"/> that holds both values, and
+	/// later duplicates are appended to it. A key that never repeats keeps its single value. With this option, the
+	/// dictionary's value type is always <see cref="object"/>, and a requested value type other than
+	/// <see cref="object"/> is ignored with a warning.
 	/// </remarks>
 	Concatenate,
 }
-
