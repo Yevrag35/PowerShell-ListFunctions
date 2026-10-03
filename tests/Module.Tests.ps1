@@ -25,6 +25,6 @@ Describe 'ListFunctions module' {
 		$list = New-List [int] -InputObject 1, 2, 3
 		Should-HaveType -Expected ([System.Collections.Generic.List[int]]) -Actual $list
 		# Should-BeCollection can't copy a collection of value types, so pass it an object[].
-		Should-BeCollection -Expected @(1, 2, 3) -Actual @($list)
+		Should-BeCollection -Expected @(1, 2, 3) -Actual ([object[]]$list)
 	}
 }
