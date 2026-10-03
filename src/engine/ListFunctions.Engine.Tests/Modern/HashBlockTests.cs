@@ -13,6 +13,7 @@ public sealed class HashBlockTests : IClassFixture<RunspaceFixture>
 	}
 
 	[Theory]
+	[Trait("Category", "Bug01")]
 	[InlineData("$_.Length")]
 	[InlineData("$this.Length")]
 	[InlineData("$PSItem.Length")]
@@ -20,8 +21,11 @@ public sealed class HashBlockTests : IClassFixture<RunspaceFixture>
 	{
 		using RunspaceScope scope = _runspace.Enter();
 		var block = new HashBlock(ScriptBlock.Create(hashCodeScript));
+		// The cmdlets always pass $ErrorActionPreference, so the test also calls the method with a variable.
+		IEnumerable<PSVariable> variables = [new PSVariable("ErrorActionPreference", ActionPreference.Stop)];
 
 		Assert.Equal(4, block.GetHashCode("abcd", additionalVariables: null));
+		Assert.Equal(4, block.GetHashCode("abcd", variables));
 	}
 
 	[Fact]
@@ -38,6 +42,7 @@ public sealed class HashBlockTests : IClassFixture<RunspaceFixture>
 	}
 
 	[Fact]
+	[Trait("Category", "Bug01")]
 	public void GetHashCode_ConvertsTheOutputToInt()
 	{
 		using RunspaceScope scope = _runspace.Enter();
@@ -57,6 +62,7 @@ public sealed class HashBlockTests : IClassFixture<RunspaceFixture>
 	}
 
 	[Theory]
+	[Trait("Category", "Bug01")]
 	[InlineData("$null = $_")]
 	[InlineData("$null")]
 	[InlineData("$_.ToUpperInvariant()")]

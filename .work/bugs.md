@@ -78,7 +78,10 @@ The no-variables path, `GetHashObjectAsIs`, has two more problems. It runs the s
 
 **Fixed:** `HashBlock.GetHashCode` converts the script's first output to `[int]` with `LanguagePrimitives.ConvertTo` and returns it. Output that can't be converted throws `HashCodeScriptException`, as no output and a `$null` output already did. `GetHashObjectAsIs` is gone, so every call sets `$_`, `$this`, and `$PSItem`, with or without additional variables. The `Bug01` tests in `tests/New-HashSet.Tests.ps1` and `tests/New-Dictionary.Tests.ps1` cover the returned hash code, the conversion, both error cases, and duplicates found through `Add`, `ContainsKey`, and pipeline input.
 
-**Tests:** Both. Pester is written: `Bug01` in `tests/New-HashSet.Tests.ps1` and `tests/New-Dictionary.Tests.ps1`. On the Engine side, `Modern/HashBlockTests.cs` covers the fixed `HashBlock` behavior, but without a `Bug01` trait.
+**Tests:** Both, and written.
+
+- Pester: `Bug01` in `tests/New-HashSet.Tests.ps1` and `tests/New-Dictionary.Tests.ps1`.
+- Engine: `Category=Bug01` in `Modern/HashBlockTests.cs`, for the hash code that the script block computes from `$_`, `$this`, or `$PSItem`, with and without additional variables, its conversion to `int`, and the `HashCodeScriptException` for no output, a `$null` output, output that can't be converted, or a `throw`. The tests that check a hash code, and the one for output that can't be converted, fail when `GetHashCode` returns `obj.GetHashCode()` again.
 
 ### 02 — `-Capacity` does nothing on New-HashSet and New-Dictionary
 
@@ -94,9 +97,12 @@ The no-variables path, `GetHashObjectAsIs`, has two more problems. It runs the s
 
 **Fix idea:** Pass the capacity through to the constructor classes and use the `(int capacity, IEqualityComparer)` overloads, including in the default paths (`Hashtable` and `HashSet<object>`). The `HashSet<T>(int, IEqualityComparer<T>)` constructor isn't in `netstandard2.0`, so the Engine's `netstandard2.0` build can't call it directly; it does exist at run time on .NET Framework 4.7.2 and later.
 
-**Fixed:** `EqualityCollectionCtor` has a `Capacity` property, which `EqualityConstructingCmdlet.BeginCore` sets from `-Capacity`. `GetConstructorArguments` yields the capacity before the comparer, so reflection now calls the `(int, IEqualityComparer<T>)` constructors. The default paths call `Hashtable(int, IEqualityComparer)` and `HashSet<object>(int, IEqualityComparer<object>)`, which the `netstandard2.0` build reaches through `Activator.CreateInstance`. A capacity of 0 creates the same collections as before. The `Bug02` tests measure the bucket array with `tests/Get-BucketCount.ps1`, because .NET Framework has no `EnsureCapacity`.
+**Fixed:** `EqualityCollectionCtor` has a `Capacity` property, which `EqualityConstructingCmdlet.BeginCore` sets from `-Capacity`. `GetConstructorArguments` yields the capacity before the comparer, so reflection now calls the `(int, IEqualityComparer<T>)` constructors. The default paths call `Hashtable(int, IEqualityComparer)` and `HashSet<object>(int, IEqualityComparer<object>)`, which the `netstandard2.0` build reaches through `Activator.CreateInstance`. A capacity of 0 creates the same collections as before. The Pester `Bug02` tests measure the bucket array with `tests/Get-BucketCount.ps1`, because .NET Framework has no `EnsureCapacity`.
 
-**Tests:** Both. Pester is written: `Bug02` in `tests/New-HashSet.Tests.ps1` and `tests/New-Dictionary.Tests.ps1`. The Engine tests aren't written yet. They go in `Modern/Constructors/HashSetCtorTests.cs` and a new `Modern/Constructors/DictionaryCtorTests.cs`, and they set `Capacity` before calling `Construct`.
+**Tests:** Both, and written.
+
+- Pester: `Bug02` in `tests/New-HashSet.Tests.ps1` and `tests/New-Dictionary.Tests.ps1`.
+- Engine: `Category=Bug02` in `Modern/Constructors/HashSetCtorTests.cs` and `Modern/Constructors/DictionaryCtorTests.cs`. They set `Capacity` before calling `Construct`, for sets of `object`, `int`, and `string`, a `Hashtable`, a `Dictionary<string, int>`, and a set and a dictionary with an `EqualityBlock`. They measure the bucket array with the new `BucketCount` helper in `src/engine/ListFunctions.Engine.Tests/BucketCount.cs`, which reads the same private fields as `tests/Get-BucketCount.ps1`. Every one of them fails when the `Capacity` getter returns 0.
 
 ### 03 — New-HashSet can't combine `-GenericType` with `-CaseSensitive`
 

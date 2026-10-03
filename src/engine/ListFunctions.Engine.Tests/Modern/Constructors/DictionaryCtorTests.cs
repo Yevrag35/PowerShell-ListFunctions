@@ -74,4 +74,34 @@ public sealed class DictionaryCtorTests : IClassFixture<RunspaceFixture>
 
 		Assert.Same(block, dict.Comparer);
 	}
+
+	[Theory]
+	[Trait("Category", "Bug02")]
+	[InlineData(typeof(object), typeof(object), typeof(Hashtable))]
+	[InlineData(typeof(string), typeof(int), typeof(Dictionary<string, int>))]
+	public void Construct_PassesTheCapacityToTheDictionary(Type keyType, Type valueType, Type expectedType)
+	{
+		var ctor = new DictionaryCtor(comparer: null, keyType, valueType)
+		{
+			Capacity = 1000,
+		};
+		object dict = ctor.Construct();
+
+		Assert.IsType(expectedType, dict);
+		Assert.InRange(BucketCount.Of(dict), 1000, int.MaxValue);
+	}
+
+	[Fact]
+	[Trait("Category", "Bug02")]
+	public void Construct_PassesTheCapacityToADictionaryWithAnEqualityBlock()
+	{
+		var block = new EqualityBlock(ScriptBlock.Create("$x -eq $y"), new HashBlock(ScriptBlock.Create("$_")));
+		var ctor = new DictionaryCtor(block, keyType: null, valueType: null)
+		{
+			Capacity = 1000,
+		};
+		var dict = Assert.IsType<Dictionary<object, object>>(ctor.Construct());
+
+		Assert.InRange(BucketCount.Of(dict), 1000, int.MaxValue);
+	}
 }
