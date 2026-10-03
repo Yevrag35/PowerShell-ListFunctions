@@ -25,4 +25,19 @@ Describe 'Assert-AllObject' {
 			Assert-AllObject -InputObject @(1, 2) { $_ -is [int] } | Should-BeTrue
 		}
 	}
+
+	Context 'Empty input' {
+		# Every element of an empty input passes, as List[T].TrueForAll and LINQ's All decide.
+		It 'returns $true for <Label>' -Tag 'Bug13' -ForEach @(
+			@{ Label = 'an empty pipeline'; Command = { @() | Assert-AllObject { $_ -is [int] } } }
+			@{ Label = '-InputObject @()'; Command = { Assert-AllObject -InputObject @() -Condition { $_ -is [int] } } }
+			@{ Label = '-InputObject $null'; Command = { Assert-AllObject -InputObject $null -Condition { $_ -is [int] } } }
+		) {
+			& $Command | Should-BeTrue
+		}
+
+		It 'tests a piped $null as an element' -Tag 'Bug13' {
+			$null | Assert-AllObject { $_ -is [int] } | Should-BeFalse
+		}
+	}
 }

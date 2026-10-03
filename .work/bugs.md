@@ -19,9 +19,9 @@ Found while rewriting `README.md` on 2026-09-28. The README describes how the mo
 - [x] 08 — New-Dictionary doesn't convert copied values to `-ValueType`
 - [x] 09 — New-Dictionary can't use script block equality with value-type keys
 - [x] 10 — A `-ComparingScript` result that isn't an `[int]` silently means "equal"
-- [ ] 11 — A generic type split at a comma silently becomes `[object]`
-- [ ] 12 — ConvertTo-Dictionary misses `$_` when an operator follows it
-- [ ] 13 — Assert-AllObject gives different answers for empty input
+- [x] 11 — A generic type split at a comma silently becomes `[object]`
+- [x] 12 — ConvertTo-Dictionary misses `$_` when an operator follows it
+- [x] 13 — Assert-AllObject gives different answers for empty input
 - [x] 14 — `Debug.Fail` ends the PowerShell process in Debug builds
 
 **Release**
@@ -36,6 +36,7 @@ Found while rewriting `README.md` on 2026-09-28. The README describes how the mo
 - [ ] 19 — ConvertTo-Dictionary stores the whole input object when the value is `$null`
 - [ ] 20 — New-Dictionary's `[object]` keys turn case-sensitive when `-ValueType` isn't `[object]`
 - [ ] 21 — Find-LastIndexOf handles condition errors differently from the other condition cmdlets
+- [x] 22 — ConvertTo-Dictionary fails on a property name that contains a single quote
 
 ## Running the repros
 
@@ -275,7 +276,7 @@ New-Dictionary [int] -EqualityScript { $x -eq $y } -HashCodeScript { $_.GetHashC
 
 ### 11 — A generic type split at a comma silently becomes `[object]`
 
-**Where:** `ArgumentToTypeTransformAttribute.Transform` (`src/engine/ListFunctions-Next/Validation/ArgumentToTypeNameTransformAttribute.cs`). PowerShell splits an unparenthesized type literal at the comma into an `object[]`, and the `default` case returns `typeof(object)` instead of failing.
+**Where:** `ArgumentToTypeTransformAttribute.Transform` (`src/engine/ListFunctions-Next/Validation/ArgumentToTypeTransformAttribute.cs`). PowerShell splits an unparenthesized type literal at the comma into an `object[]`, and the `default` case returns `typeof(object)` instead of failing.
 
 ```powershell
 (New-List [System.Collections.Generic.KeyValuePair[string,int]]).GetType().FullName
@@ -286,7 +287,18 @@ New-Dictionary [int] -EqualityScript { $x -eq $y } -HashCodeScript { $_.GetHashC
 
 **Related, fixed:** A type name without brackets was rejected with a misleading message. `New-List System.String` failed with "'System.String' is not a valid .NET or custom-defined type", even though it is one. Parsed as a script, a bare type name is a command name, or a parse error when it contains a comma, so it holds no type literal. Where that parse would fail, the transform now puts the name in brackets and resolves the result only if it's a single type literal, so `string` resolves the same way as `[string]` in both editions. Input that worked before still takes the old path. PowerShell's `[type]` conversion isn't used, because in 5.1 it ignores the text after a type name and turns `'System.String bad text'` into `[string]`.
 
-**Tests:** Pester only, in `tests/New-List.Tests.ps1`, which is the cmdlet the repro uses. The related case's tests are written: `Bug11` in the `GenericType` context, covering bare type names, the forms that already worked, and names that are still rejected. The transform is in `ListFunctions-Next`, and every cmdlet that takes a type shares it.
+**Fixed:** By joining the parts, chosen on 2026-10-03. When every element of an `object[]` argument is a string, `ArgumentToTypeTransformAttribute.Transform` joins the elements with commas and resolves the result with the new `ResolveFromJoinedName`.
+
+- `ResolveFromJoinedName` accepts only a single type: a type literal that spans the whole text, or a type name without brackets. Unlike a string argument, it doesn't settle for the first of several type literals. PowerShell passes `New-Dictionary [string],[int]` to `-KeyType` as the array `'[string]', '[int]'`, so that command fails now, instead of quietly making `[string]` the key type. A single string such as `'[string],[int]'` still resolves to `[string]`, as before.
+- Any other argument that isn't a `Type`, a `ScriptBlock`, a string, or `$null` throws "Cannot convert a value of type '...' to a type", where it used to become `[object]`. That includes an array that holds anything but strings, and a number such as `5`. `$null` still gives `[object]`.
+- PSReadLine still gets `[object]` instead of an error. The new `Reject` method holds that rule for every path, including the two that had it before.
+- The repro returns a `List[KeyValuePair[string, int]]` in both editions. The README's Generic types section says that a type literal with a comma works as it is, and that `New-Dictionary [string],[int]` fails.
+
+**Tests:** Pester only, and written: `Bug11` in the `GenericType` context of `tests/New-List.Tests.ps1`, and one in `tests/New-Dictionary.Tests.ps1`. The transform is in `ListFunctions-Next`, and every cmdlet that takes a type shares it.
+
+- The related case's tests cover bare type names, the forms that already worked, and names that are still rejected.
+- The fix's tests cover the repro, the same type literal with a space after the comma and without its outer brackets, and a literal with two commas. They also cover an array of strings that doesn't make up a single type, an array that holds a `Type`, the number `5`, and `$null`.
+- The `New-Dictionary` test checks that `New-Dictionary [string],[int]` fails.
 
 ### 12 — ConvertTo-Dictionary misses `$_` when an operator follows it
 
@@ -311,10 +323,16 @@ $people = [pscustomobject]@{ Name = 'Ann'; Tags = 'a', 'b' }, [pscustomobject]@{
 
 **Fix idea:** Rewrite from the AST, using the `VariableExpressionAst` extents, instead of a regex. Or run the selectors with `InvokeWithContext` and set `$_`, the way the other commands do.
 
-**Tests:** Both with the AST fix. The `InvokeWithContext` fix changes only the cmdlet, which then stops calling `ReplaceWithArgsZero`, so it needs Pester only.
+**Fixed:** With `InvokeWithContext`, chosen on 2026-10-03. ConvertTo-Dictionary no longer rewrites its selectors. The new `ConvertToDictionaryCmdlet.Select` runs a selector with `$_`, `$this`, and `$PSItem` set through a `PSThisVariable`, and with the input object as `$args[0]`, the way the other cmdlets run their script blocks. `AddToDictionary` and `InferTypes`, which infers the key and value types from the first input object, both call it. `ScriptBlockVariableExtensions`, which held `ReplaceWithArgsZero`, had no other callers and is gone. All three repros give their expected results in both editions.
 
-- Pester: a new `tests/ConvertTo-Dictionary.Tests.ps1`, with all three repros.
-- Engine, with the AST fix: a new `Extensions/ScriptBlockVariableExtensionsTests.cs`. It covers `ReplaceWithArgsZero` directly: an operator right after `$_`, `$_` inside a double-quoted string, and `$_` in a nested script block.
+- A `$_` that the regex missed wasn't always unset. Inside a script block that sets its own `$_`, such as a `ForEach-Object` script block or a Pester test, the selector read that outer `$_`. That's how most of the `Bug12` tests failed before the fix.
+- Errors that a selector writes now reach the error stream of the pipeline that runs ConvertTo-Dictionary, as errors from the other cmdlets' script blocks do: `2>$null` hides them, and `2>&1` captures them. `ScriptBlock.Invoke` wrote them straight to the host. Before and after the fix, the cmdlet's `-ErrorVariable` doesn't collect them, its `-ErrorAction Stop` doesn't stop on them, and `$ErrorActionPreference = 'Stop'` does.
+
+**Tests:** Pester only, and written: `Bug12` in `tests/ConvertTo-Dictionary.Tests.ps1`. The fix changed only the cmdlet, so there's no `Extensions/ScriptBlockVariableExtensionsTests.cs`. The tests cover all three repros, and:
+
+- `$_`, `$PSItem`, `$this`, and `$args[0]` followed by an operator in `-KeySelector`.
+- `$_` followed by an operator in `-ValueSelector`, and in a script block passed to `-ValuePropertyName`.
+- The key type inferred from `-KeySelector`, for piped input and for `-InputObject`.
 
 ### 13 — Assert-AllObject gives different answers for empty input
 
@@ -327,10 +345,12 @@ Assert-AllObject -InputObject @() -Condition { $_ -is [int] }    # False
 
 **Fix idea:** Pick one answer and return it on both paths. LINQ's `All` returns `true` for an empty sequence.
 
-**Tests:** Both if the answer is `$true`, because that changes `ScriptBlockFilter.All`. If the answer is `$false`, only the cmdlet's pipeline path changes, so Pester alone covers it.
+**Fixed:** With `$true`, chosen on 2026-10-03. That's the answer of `List[T].TrueForAll`, which the README names as a model, and of LINQ's `All`. `ScriptBlockFilter.All` returns `true` for an empty collection and for `null`, without running the script block. `-InputObject @()` and `-InputObject $null` return `$true` now, as an empty pipeline already did. A piped `$null` is still one element, so `$null | Assert-AllObject { $_ -is [int] }` returns `$false`. The README's Assert-AllObject section says that no elements gives `$true`.
 
-- Pester: a new `tests/Assert-AllObject.Tests.ps1`, where an empty pipeline and `-InputObject @()` give the same answer.
-- Engine, if the answer is `$true`: `Modern/ScriptBlockFilterTests.cs`, where `All` returns `true` for an empty collection.
+**Tests:** Both, and written.
+
+- Engine: `Category=Bug13` in `Modern/ScriptBlockFilterTests.cs`, where `All` returns `true` for an empty collection and for `null` without running a script block that throws.
+- Pester: `Bug13` in `tests/Assert-AllObject.Tests.ps1`, where an empty pipeline, `-InputObject @()`, and `-InputObject $null` all return `$true`, and a piped `$null` is still tested as an element.
 
 ### 14 — `Debug.Fail` ends the PowerShell process in Debug builds
 
@@ -467,3 +487,20 @@ try { 1 | Find-LastIndexOf { if ($_) { $null.Foo() } } } catch { $_.FullyQualifi
 **Fix idea:** Handle exceptions the same way in all three phases. `StopUpstreamCommands` runs `EndCore` too, outside `ProcessRecord`'s `try`, so it needs the same handling. First decide what `Stop` should do: letting the `ActionPreferenceStopException` through matches `-ErrorAction Stop`. Wrap other errors in a record that names the cmdlet and keeps the original error ID and category, the way PowerShell's own wrapping does for Find-LastIndexOf's `$null.Foo()`.
 
 **Tests:** Pester only, because the cause is in `ListFunctionCmdletBase`. The repros go in `tests/Find-LastIndexOf.Tests.ps1` and `tests/Find-IndexOf.Tests.ps1`. Matching tests in `tests/Assert-AnyObject.Tests.ps1` and `tests/Assert-AllObject.Tests.ps1` keep all four cmdlets handling errors the same way.
+
+### 22 — ConvertTo-Dictionary fails on a property name that contains a single quote
+
+Found on 2026-10-03 while fixing 12.
+
+**Where:** `ConvertToDictionaryCmdlet.BeginCore` (`src/engine/ListFunctions-Next/Cmdlets/Constructs/ConvertToDictionaryCmdlet.cs`) turns `-KeyPropertyName`, and a string passed to `-ValuePropertyName`, into a selector by pasting the name into the text `$args[0].'<name>'` and passing that text to `ScriptBlock.Create`. A `'` in the name ends the single-quoted string early, so the text doesn't parse, and the command ends with a terminating error. PowerShell treats the typographic single quotes, such as U+2019 (right single quotation mark), as apostrophes in a single-quoted string, so they fail the same way.
+
+```powershell
+[pscustomobject]@{ "it's" = 'a' } | ConvertTo-Dictionary -KeyPropertyName "it's"
+# Error: ... The string is missing the terminator: '.
+```
+
+**Fix idea:** Escape the name with `CodeGeneration.EscapeSingleQuotedStringContent` before pasting it in. It doubles every kind of single quote.
+
+**Fixed:** The new `ConvertToDictionaryCmdlet.CreatePropertySelector` escapes the name with `CodeGeneration.EscapeSingleQuotedStringContent` before it pastes the name in, for `-KeyPropertyName` and for a string passed to `-ValuePropertyName`. The repro returns a dictionary with the key `a` in both editions.
+
+**Tests:** Pester only, and written: `Bug22` in `tests/ConvertTo-Dictionary.Tests.ps1`, for a key property and a value property whose names contain an apostrophe or U+2019. The cause was in the cmdlet.

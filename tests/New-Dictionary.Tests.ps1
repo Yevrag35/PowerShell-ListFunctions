@@ -103,4 +103,12 @@ Describe 'New-Dictionary' {
 			{ New-Dictionary [string] [int] -Capacity ([int]::MaxValue) } | Should-Throw
 		}
 	}
+
+	Context 'KeyType' {
+		# PowerShell passes [string],[int] to -KeyType as one array argument. It doesn't name a key type and a value type.
+		It 'rejects [string],[int] instead of making [string] the key type' -Tag 'Bug11' {
+			$message = [WildcardPattern]::Escape("'[string],[int]' is not a valid .NET or custom-defined type.")
+			{ New-Dictionary [string],[int] } | Should-Throw -ExceptionMessage "*$message"
+		}
+	}
 }

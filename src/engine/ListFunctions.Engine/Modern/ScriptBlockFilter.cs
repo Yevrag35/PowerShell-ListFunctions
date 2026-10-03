@@ -70,16 +70,21 @@ public sealed class ScriptBlockFilter
 	/// Determines whether every element of the specified collection passes the test.
 	/// </summary>
 	/// <remarks>
-	/// Unlike <see cref="System.Linq.Enumerable.All{TSource}(IEnumerable{TSource}, Func{TSource, bool})"/>, the method returns
-	/// <see langword="false"/> for an empty collection. It stops at the first element that fails.
+	/// Like <see cref="System.Linq.Enumerable.All{TSource}(IEnumerable{TSource}, Func{TSource, bool})"/> and
+	/// <see cref="List{T}.TrueForAll(Predicate{T})"/>, the method returns <see langword="true"/> for an empty collection,
+	/// without running the script block, and it treats <see langword="null"/> as an empty collection. It stops at the
+	/// first element that fails.
 	/// </remarks>
 	/// <param name="collection">The collection to test, or <see langword="null"/>.</param>
-	/// <returns><see langword="true"/> if <paramref name="collection"/> has at least one element and every element passes; otherwise, <see langword="false"/>.</returns>
+	/// <returns>
+	/// <see langword="true"/> if every element of <paramref name="collection"/> passes, including when it has no elements
+	/// or is <see langword="null"/>; otherwise, <see langword="false"/>.
+	/// </returns>
 	/// <exception cref="RuntimeException">Thrown when the script block throws.</exception>
 	public bool All(ICollection? collection)
 	{
-		if (collection is null || collection.Count == 0)
-			return false;
+		if (collection is null)
+			return true;
 
 		foreach (object? item in collection)
 		{

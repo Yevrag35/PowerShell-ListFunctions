@@ -67,11 +67,13 @@ New-List ([guid])       # A System.Type object.
 New-List { [guid] }     # A script block that contains a type literal.
 ```
 
-If a type literal contains a comma, as some generic types do, wrap it in parentheses. Otherwise, PowerShell splits the argument at the comma.
+A type literal that contains a comma, as some generic types do, works as it is. PowerShell splits the argument at each comma, and the command joins the parts back together.
 
 ```powershell
-New-List ([System.Collections.Generic.KeyValuePair[string, int]])
+New-List [System.Collections.Generic.KeyValuePair[string, int]]
 ```
+
+The parts have to make up a single type, so `New-Dictionary [string],[int]` fails. To pass a key type and a value type, separate them with a space: `New-Dictionary [string] [int]`.
 
 ## Assertions
 
@@ -105,11 +107,12 @@ if (Get-ChildItem -File | Any { $_.Length -gt 1GB }) {
 
 Aliases: `All`, `All-Object`, `All-Objects`, `Assert-All`, `Assert-AllObjects`
 
-Returns `$true` if every input element satisfies `-Condition`. After the first element that fails, it stops: it doesn't test the remaining elements, and it [stops the commands that send it pipeline input](#stopping-early).
+Returns `$true` if every input element satisfies `-Condition`, or if there are no elements, the same as `List[T].TrueForAll`. After the first element that fails, it stops: it doesn't test the remaining elements, and it [stops the commands that send it pipeline input](#stopping-early).
 
 ```powershell
 1, 2, 3 | All { $_ -is [int] }          # True
 1, 2, 'John' | All { $_ -is [int] }     # False
+@() | All { $_ -is [int] }              # True
 
 $array = 1, 2, 'John'
 if (-not ($array | All { $_ -is [int] })) {

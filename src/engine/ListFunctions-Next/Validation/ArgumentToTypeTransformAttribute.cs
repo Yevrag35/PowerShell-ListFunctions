@@ -14,9 +14,14 @@ namespace ListFunctions.Validation;
 /// <see cref="PSObject"/> argument is unwrapped first.
 /// </para>
 /// <para>
-/// A script block or a type name that doesn't resolve to a type causes an <see cref="ArgumentException"/>, except when
-/// the calling module is PSReadLine, in which case the attribute returns <see cref="object"/>. An argument of any other
-/// kind, including <see langword="null"/>, converts to <see cref="object"/>.
+/// PowerShell splits an argument that isn't in quotes or parentheses at each comma, so a type literal such as
+/// <c>[System.Collections.Generic.KeyValuePair[string, int]]</c> arrives as an array of strings. The attribute joins the
+/// strings back together with commas, and it accepts the result only when it's a single type name.
+/// </para>
+/// <para>
+/// A <see langword="null"/> argument converts to <see cref="object"/>. Any other argument that doesn't resolve to a type
+/// causes an <see cref="ArgumentException"/>, except when the calling module is PSReadLine, in which case the attribute
+/// returns <see cref="object"/>.
 /// </para>
 /// <para>
 /// The attribute parses script blocks and type names but never runs them. It keeps no state between calls, so it is
@@ -37,10 +42,12 @@ internal sealed class ArgumentToTypeTransformAttribute : ArgumentTransformationA
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	/// A <see cref="Type"/> is returned unchanged. For a <see cref="ScriptBlock"/>, the method resolves the first type
-	/// literal in its syntax tree, outside any nested script block. A <see cref="string"/> resolves as described in
-	/// <see cref="ResolveFromName(string, PSModuleInfo)"/>. Any other argument, including <see langword="null"/>,
-	/// converts to <see cref="object"/>.
+	/// A <see cref="Type"/> is returned unchanged, and <see langword="null"/> converts to <see cref="object"/>. For a
+	/// <see cref="ScriptBlock"/>, the method resolves the first type literal in its syntax tree, outside any nested script
+	/// block. A <see cref="string"/> resolves as described in <see cref="ResolveFromName(string, PSModuleInfo)"/>. An
+	/// array whose elements are all strings resolves as described in
+	/// <see cref="ResolveFromJoinedName(string, PSModuleInfo)"/>, after the method joins the strings with commas. Any
+	/// other argument doesn't resolve.
 	/// </para>
 	/// <para>
 	/// The calling module, taken from <paramref name="engineIntrinsics"/>, matters only when the argument doesn't resolve:
@@ -49,14 +56,21 @@ internal sealed class ArgumentToTypeTransformAttribute : ArgumentTransformationA
 	/// </remarks>
 	/// <param name="engineIntrinsics">The engine intrinsics of the session that binds the parameter. This value must not be <see langword="null"/>.</param>
 	/// <param name="inputData">The argument to convert. This value can be <see langword="null"/>, and it can be wrapped in a <see cref="PSObject"/>.</param>
-	/// <returns>The <see cref="Type"/> that <paramref name="inputData"/> names, or <see cref="object"/> when <paramref name="inputData"/> isn't a type, script block, or string.</returns>
-	/// <exception cref="ArgumentException">Thrown when <paramref name="inputData"/> is a script block or string that doesn't resolve to a type, and the calling module isn't PSReadLine.</exception>
+	/// <returns>
+	/// The <see cref="Type"/> that <paramref name="inputData"/> names, or <see cref="object"/> when
+	/// <paramref name="inputData"/> is <see langword="null"/>, or when it doesn't name a type and the calling module is
+	/// PSReadLine.
+	/// </returns>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="inputData"/> doesn't name a type, and the calling module isn't PSReadLine.</exception>
 	public override object? Transform(EngineIntrinsics engineIntrinsics, object? inputData)
 	{
 		object? target = inputData.GetBaseObject();
 
 		switch (target)
 		{
+			case null:
+				return typeof(object);
+
 			case Type type:
 				return type;
 
@@ -66,8 +80,13 @@ internal sealed class ArgumentToTypeTransformAttribute : ArgumentTransformationA
 			case string typeName:
 				return ResolveFromName(typeName, engineIntrinsics.SessionState.Module);
 
+			case object[] parts when TryJoinParts(parts, out string? joinedName):
+				return ResolveFromJoinedName(joinedName, engineIntrinsics.SessionState.Module);
+
 			default:
-				return typeof(object);
+				return Reject(
+					$"Cannot convert a value of type '{target.GetType().GetTypeName()}' to a type. Pass a type, a type name, or a script block that contains a type literal.",
+					engineIntrinsics.SessionState.Module);
 		}
 	}
 
@@ -112,12 +131,7 @@ internal sealed class ArgumentToTypeTransformAttribute : ArgumentTransformationA
 		}
 		catch (ParseException e)
 		{
-			if (PSREADLINE.Equals(runningModule?.Name, StringComparison.OrdinalIgnoreCase))
-			{
-				return typeof(object);
-			}
-
-			throw new ArgumentException($"'{ast.Extent.Text}' is not a valid .NET or custom-defined type.", e);
+			return Reject($"'{ast.Extent.Text}' is not a valid .NET or custom-defined type.", runningModule, e);
 		}
 	}
 
@@ -166,9 +180,7 @@ internal sealed class ArgumentToTypeTransformAttribute : ArgumentTransformationA
 					return type;
 				}
 
-				return PSREADLINE.Equals(runningModule?.Name, StringComparison.OrdinalIgnoreCase)
-					? typeof(object)
-					: throw new ArgumentException($"'{typeName}' is not a valid .NET or custom-defined type.");
+				return Reject($"'{typeName}' is not a valid .NET or custom-defined type.", runningModule);
 			}
 		}
 		catch (ParseException e)
@@ -186,14 +198,80 @@ internal sealed class ArgumentToTypeTransformAttribute : ArgumentTransformationA
 	}
 
 	/// <summary>
+	/// Resolves a type name that was joined from the parts of an argument that PowerShell split at its commas.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// The name must be a single type literal, such as <c>[System.Collections.Generic.KeyValuePair[string,int]]</c>, or a
+	/// single type name without brackets, such as <c>System.Collections.Generic.KeyValuePair[string,int]</c>.
+	/// </para>
+	/// <para>
+	/// Unlike <see cref="ResolveFromName(string, PSModuleInfo)"/>, the method doesn't settle for the first of several
+	/// type literals. PowerShell splits a list of types, such as <c>[string],[int]</c>, into an array of strings too, and
+	/// that list doesn't resolve to <see cref="string"/>.
+	/// </para>
+	/// </remarks>
+	/// <param name="typeName">The joined type name. This value must not be <see langword="null"/>.</param>
+	/// <param name="runningModule">
+	/// The calling module, or <see langword="null"/> when the call doesn't come from a module. When it is PSReadLine, the method
+	/// returns <see cref="object"/> instead of throwing.
+	/// </param>
+	/// <returns>
+	/// The type that <paramref name="typeName"/> names, or <see cref="object"/> when it doesn't name a single type and
+	/// <paramref name="runningModule"/> is PSReadLine.
+	/// </returns>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="typeName"/> doesn't name a single .NET or custom-defined type, and <paramref name="runningModule"/> isn't PSReadLine.</exception>
+	private static Type ResolveFromJoinedName(string typeName, PSModuleInfo? runningModule)
+	{
+		return TryResolveTypeLiteral(typeName, out Type? type) || TryResolveFromBareName(typeName, out type)
+			? type
+			: Reject($"'{typeName}' is not a valid .NET or custom-defined type.", runningModule);
+	}
+
+	/// <summary>
+	/// Attempts to join the strings in the specified array into the type name that PowerShell split at its commas.
+	/// </summary>
+	/// <remarks>
+	/// PowerShell splits an argument that isn't in quotes or parentheses at each comma, and it drops the white space after
+	/// each comma. For example, <c>[System.Collections.Generic.KeyValuePair[string, int]]</c> arrives as the strings
+	/// <c>[System.Collections.Generic.KeyValuePair[string</c> and <c>int]]</c>. The method unwraps each element from its
+	/// <see cref="PSObject"/> and joins the strings with commas.
+	/// </remarks>
+	/// <param name="parts">The array to join. This value must not be <see langword="null"/>.</param>
+	/// <param name="typeName">When the method returns <see langword="true"/>, the joined type name; otherwise, <see langword="null"/>.</param>
+	/// <returns><see langword="true"/> if <paramref name="parts"/> has at least one element and every element is a string; otherwise, <see langword="false"/>.</returns>
+	private static bool TryJoinParts(object?[] parts, [NotNullWhen(true)] out string? typeName)
+	{
+		typeName = null;
+		if (parts.Length == 0)
+		{
+			return false;
+		}
+
+		string[] names = new string[parts.Length];
+		for (int i = 0; i < parts.Length; i++)
+		{
+			if (parts[i].GetBaseObject() is not string name)
+			{
+				return false;
+			}
+
+			names[i] = name;
+		}
+
+		typeName = string.Join(",", names);
+		return true;
+	}
+
+	/// <summary>
 	/// Attempts to resolve a type name that is written without the brackets of a type literal, such as <c>string</c> or
 	/// <c>System.Collections.Generic.List[int]</c>.
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	/// The method wraps <paramref name="typeName"/> in brackets and parses the result, but never runs it. The name
-	/// resolves only when the result is a single type literal with nothing before or after it, and it resolves the way
-	/// that type literal does, so <c>string</c> and <c>[string]</c> always resolve to the same type.
+	/// The method wraps <paramref name="typeName"/> in brackets and resolves the result with
+	/// <see cref="TryResolveTypeLiteral(string, out Type)"/>, so <c>string</c> and <c>[string]</c> always resolve to the
+	/// same type.
 	/// </para>
 	/// <para>
 	/// The method doesn't use <see cref="LanguagePrimitives.ConvertTo(object, Type)"/>. In Windows PowerShell 5.1,
@@ -206,7 +284,21 @@ internal sealed class ArgumentToTypeTransformAttribute : ArgumentTransformationA
 	/// <returns><see langword="true"/> if <paramref name="typeName"/> is a type name that resolves to a type; otherwise, <see langword="false"/>.</returns>
 	private static bool TryResolveFromBareName(string typeName, [NotNullWhen(true)] out Type? type)
 	{
-		string literal = $"[{typeName}]";
+		return TryResolveTypeLiteral($"[{typeName}]", out type);
+	}
+
+	/// <summary>
+	/// Attempts to resolve text that is a single type literal, such as <c>[string]</c>, with nothing before or after it.
+	/// </summary>
+	/// <remarks>
+	/// The method parses <paramref name="literal"/> but never runs it. The text resolves only when it parses without
+	/// errors and its first type literal spans all of it, and it resolves the way that type literal does.
+	/// </remarks>
+	/// <param name="literal">The text to resolve.</param>
+	/// <param name="type">When the method returns <see langword="true"/>, the resolved type; otherwise, <see langword="null"/>.</param>
+	/// <returns><see langword="true"/> if <paramref name="literal"/> is a single type literal that resolves to a type; otherwise, <see langword="false"/>.</returns>
+	private static bool TryResolveTypeLiteral(string literal, [NotNullWhen(true)] out Type? type)
+	{
 		Ast ast = Parser.ParseInput(literal, out _, out ParseError[] errors);
 
 		type = errors.Length == 0
@@ -216,5 +308,21 @@ internal sealed class ArgumentToTypeTransformAttribute : ArgumentTransformationA
 				: null;
 
 		return type is not null;
+	}
+
+	/// <summary>
+	/// Returns <see cref="object"/> when the calling module is PSReadLine; otherwise, throws an
+	/// <see cref="ArgumentException"/> for an argument that doesn't name a type.
+	/// </summary>
+	/// <param name="message">The message of the exception.</param>
+	/// <param name="runningModule">The calling module, or <see langword="null"/> when the call doesn't come from a module.</param>
+	/// <param name="innerException">The exception that caused the failure, or <see langword="null"/>.</param>
+	/// <returns><see cref="object"/>, when <paramref name="runningModule"/> is PSReadLine.</returns>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="runningModule"/> isn't PSReadLine.</exception>
+	private static Type Reject(string message, PSModuleInfo? runningModule, Exception? innerException = null)
+	{
+		return PSREADLINE.Equals(runningModule?.Name, StringComparison.OrdinalIgnoreCase)
+			? typeof(object)
+			: throw new ArgumentException(message, innerException);
 	}
 }

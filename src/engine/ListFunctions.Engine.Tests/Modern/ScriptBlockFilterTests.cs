@@ -114,4 +114,24 @@ public sealed class ScriptBlockFilterTests : IClassFixture<RunspaceFixture>
 
 		Assert.True(filter.All(new[] { 1, 2, 3 }));
 	}
+
+	[Fact]
+	[Trait("Category", "Bug13")]
+	public void All_ReturnsTrueForAnEmptyCollectionWithoutRunningTheScript()
+	{
+		using RunspaceScope scope = _runspace.Enter();
+		var filter = new ScriptBlockFilter(ScriptBlock.Create("throw 'The filter ran without an element.'"));
+
+		Assert.True(filter.All(Array.Empty<object>()));
+	}
+
+	[Fact]
+	[Trait("Category", "Bug13")]
+	public void All_ReturnsTrueForNullWithoutRunningTheScript()
+	{
+		using RunspaceScope scope = _runspace.Enter();
+		var filter = new ScriptBlockFilter(ScriptBlock.Create("throw 'The filter ran without an element.'"));
+
+		Assert.True(filter.All(collection: null));
+	}
 }

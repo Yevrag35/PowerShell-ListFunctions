@@ -19,6 +19,7 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// Each object's key comes from the property named by <see cref="KeyPropertyName"/> or from the output of
 /// <see cref="KeySelector"/>. Its value comes from the property named by <see cref="ValuePropertyName"/>, from the
 /// output of <see cref="ValueSelector"/>, or, when neither is supplied, from the object itself.
+/// <see cref="KeySelector"/> and <see cref="ValueSelector"/> run at most once for each input object.
 /// </para>
 /// <para>
 /// The key type is inferred from the key of the first input object that isn't <see langword="null"/>. The value type
@@ -143,14 +144,23 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	private IDictionary _dictionary = null!;
 	private Type _keyType = null!;
 	private nint _addToDictionaryPtr;
+	private readonly PSThisVariable _current = new();
+	private readonly List<PSVariable> _variables = new();
+
+	// The outputs of the selectors that InferTypes ran for the first input object. AddToDictionary uses them when it
+	// adds that object, instead of running the selectors again.
+	private bool _hasFirstOutputs;
+	private object? _firstKey;
+	private bool _hasFirstValue;
+	private object? _firstValue;
 
 	/// <summary>
-	/// Prepares the key and value selectors and, when input is bound by parameter, infers the key and value types.
+	/// Prepares the key and value selectors.
 	/// </summary>
 	/// <remarks>
-	/// Property names are turned into selector script blocks, and references to <c>$_</c>, <c>$PSItem</c>, and
-	/// <c>$this</c> in user script blocks are rewritten to <c>$args[0]</c>. The method also chooses the function that
-	/// adds entries according to <see cref="DuplicateKeyBehavior"/>.
+	/// Property names are turned into selector script blocks, and a script block passed to
+	/// <see cref="ValuePropertyName"/> becomes the value selector when <see cref="ValueSelector"/> isn't supplied. The
+	/// method also chooses the function that adds entries according to <see cref="DuplicateKeyBehavior"/>.
 	/// </remarks>
 	protected override void BeginCore()
 	{
@@ -158,33 +168,64 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 
 		if (this.ParameterSetName.StartsWith("KeyProperty", StringComparison.Ordinal))
 		{
-			this.KeySelector = ScriptBlock.Create(string.Concat("$args[0].'", this.KeyPropertyName, "'"));
+			this.KeySelector = CreatePropertySelector(this.KeyPropertyName);
 			this.KeyPropertyName = string.Empty;
-		}
-		else
-		{
-			this.KeySelector = this.KeySelector.ReplaceWithArgsZero();
 		}
 
 		if (this.ValuePropertyName is string s && !string.IsNullOrWhiteSpace(s))
 		{
-			this.ValueSelector = ScriptBlock.Create(string.Concat("$args[0].'", this.ValuePropertyName, "'"));
+			this.ValueSelector = CreatePropertySelector(s);
 			this.ValuePropertyName = string.Empty;
 		}
 		else
 		{
-			this.ValueSelector = this.ValueSelector is not null
-				? this.ValueSelector.ReplaceWithArgsZero()
-				: this.ValuePropertyName is ScriptBlock valSc
-					? valSc.ReplaceWithArgsZero()
-					: null;
+			this.ValueSelector ??= this.ValuePropertyName as ScriptBlock;
 		}
+	}
 
-		if (!this.MyInvocation.ExpectingInput && FindFirstObject(this.GetInputElements(this.InputObject)) is { } firstObject)
-		{
-			_keyType = GetTypeForElement(firstObject, this.KeySelector);
-			this.ValueType = this.GetValueType(this.ValueType, firstObject);
-		}
+	/// <summary>
+	/// Creates a selector script block that returns the value of the specified property of its input object.
+	/// </summary>
+	/// <remarks>
+	/// The script block reads the property with PowerShell's member access, as <c>$args[0].'name'</c>. The method escapes
+	/// every single quote in <paramref name="propertyName"/>, including the typographic ones that PowerShell also treats
+	/// as single quotes, so any name gives a valid script.
+	/// </remarks>
+	/// <param name="propertyName">The name of the property. This value must not be <see langword="null"/>.</param>
+	/// <returns>The new selector <see cref="ScriptBlock"/>.</returns>
+	private static ScriptBlock CreatePropertySelector(string propertyName)
+	{
+		return ScriptBlock.Create(string.Concat("$args[0].'", CodeGeneration.EscapeSingleQuotedStringContent(propertyName), "'"));
+	}
+
+	/// <summary>
+	/// Runs a selector script block for an input object and returns its first output.
+	/// </summary>
+	/// <remarks>
+	/// The script block gets <paramref name="item"/> as <c>$_</c>, <c>$PSItem</c>, <c>$this</c>, and <c>$args[0]</c>,
+	/// the way the other cmdlets pass elements to their script blocks. The method sets these variables instead of
+	/// changing the script block's text, so <c>$_</c> works anywhere in it, such as before an operator or in a
+	/// double-quoted string, and a nested script block, such as the filter of <c>Where-Object</c>, keeps its own
+	/// <c>$_</c>.
+	/// </remarks>
+	/// <param name="selector">The selector to run. This value must not be <see langword="null"/>.</param>
+	/// <param name="item">The input object.</param>
+	/// <returns>
+	/// The first object that <paramref name="selector"/> outputs, unwrapped from its <see cref="PSObject"/>, or
+	/// <see langword="null"/> when it outputs nothing.
+	/// </returns>
+	/// <exception cref="RuntimeException">Thrown when the selector throws a terminating error.</exception>
+	private object? Select(ScriptBlock selector, object item)
+	{
+		// InsertIntoList adds the same variables on every call, so the list starts empty each time.
+		_variables.Clear();
+		_current.SetValue(item);
+		_current.InsertIntoList(_variables);
+
+		Collection<PSObject> results = selector.InvokeWithContext(null, _variables, [item]);
+		return results.Count > 0
+			? results[0].GetBaseObject()
+			: null;
 	}
 
 	/// <summary>
@@ -202,6 +243,8 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 				return true;
 			}
 
+			// The first object that AddToDictionary adds is firstObject, so it can use the outputs of the selectors that
+			// ran for firstObject while CreateDictionary inferred the key and value types.
 			_dictionary = this.CreateDictionary(inputObjects, firstObject);
 		}
 
@@ -230,25 +273,22 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	}
 
 	/// <summary>
-	/// Creates the dictionary for the resolved key and value types.
+	/// Creates the dictionary for the key and value types that the method infers from the first input object.
 	/// </summary>
 	/// <remarks>
-	/// The key and value types are inferred from <paramref name="firstObject"/> when they were not resolved during
-	/// the begin phase. When <see cref="KeyComparer"/> is <see langword="null"/> and the key type is
-	/// <see cref="string"/>, the method sets it to <see cref="StringComparer.OrdinalIgnoreCase"/>.
+	/// The method infers the types with <see cref="InferTypes(object)"/>. When <see cref="KeyComparer"/> is
+	/// <see langword="null"/> and the key type is <see cref="string"/>, the method sets it to
+	/// <see cref="StringComparer.OrdinalIgnoreCase"/>.
 	/// </remarks>
 	/// <param name="inputObjects">The input objects that hold <paramref name="firstObject"/>. The method adds them to the error that it writes when the dictionary can't be constructed.</param>
 	/// <param name="firstObject">The first input object that isn't <see langword="null"/>.</param>
 	/// <returns>The new, empty dictionary.</returns>
+	/// <exception cref="RuntimeException">Thrown when a selector throws a terminating error.</exception>
 	/// <exception cref="PipelineStoppedException">Thrown after a terminating error is written because the dictionary cannot be constructed.</exception>
 	[SuppressMessage("Style", "IDE0009", Justification = "Used in nameof()")]
 	private IDictionary CreateDictionary(object?[] inputObjects, object firstObject)
 	{
-		if (_keyType is null || this.ValueType is null)
-		{
-			_keyType = GetTypeForElement(firstObject, this.KeySelector);
-			this.ValueType = this.GetValueType(this.ValueType, firstObject);
-		}
+		this.InferTypes(firstObject);
 
 		if (this.KeyComparer is null && _keyType.Equals(typeof(string)))
 		{
@@ -286,9 +326,15 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// Selects a key and value from each input object and adds them to the dictionary.
 	/// </summary>
 	/// <remarks>
+	/// <para>
 	/// <see langword="null"/> objects and objects whose key is <see langword="null"/> are skipped. A key or value that
 	/// cannot be converted to the dictionary's type produces a non-terminating error. Any other exception, including
 	/// one thrown by a selector script block, becomes a terminating error.
+	/// </para>
+	/// <para>
+	/// For the first input object, the method uses the outputs of the selectors that <see cref="InferTypes(object)"/>
+	/// ran for it, so each selector runs at most once for each input object.
+	/// </para>
 	/// </remarks>
 	/// <param name="inputObjects">The input objects to add.</param>
 	/// <param name="addToDictionaryAction">The function that adds a single entry according to <see cref="DuplicateKeyBehavior"/>.</param>
@@ -301,13 +347,32 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 
 			try
 			{
-				object? key = this.KeySelector.Invoke(item).AsValueEnumerable().FirstOrDefault().GetBaseObject();
+				object? key;
+				bool hasSelectedValue = false;
+				object? selectedValue = null;
+				if (_hasFirstOutputs)
+				{
+					_hasFirstOutputs = false;
+					key = _firstKey;
+					hasSelectedValue = _hasFirstValue;
+					selectedValue = _firstValue;
+				}
+				else
+				{
+					key = this.Select(this.KeySelector, item);
+				}
+
 				if (key is null)
 					continue;
 
 				key = LanguagePrimitives.ConvertTo(key, _keyType);
 
-				object? value = this.ValueSelector?.Invoke(item).AsValueEnumerable().FirstOrDefault().GetBaseObject() is object o
+				if (!hasSelectedValue && this.ValueSelector is not null)
+				{
+					selectedValue = this.Select(this.ValueSelector, item);
+				}
+
+				object? value = selectedValue is object o
 					? LanguagePrimitives.ConvertTo(o, this.ValueType)
 					: item;
 
@@ -349,56 +414,64 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	}
 
 	/// <summary>
-	/// Resolves the dictionary's value type.
+	/// Infers the dictionary's key and value types from the first input object, and keeps the outputs of the selectors
+	/// that run for it.
 	/// </summary>
 	/// <remarks>
-	/// When <see cref="DuplicateKeyBehavior"/> is <see cref="DuplicateKeyBehavior.Concatenate"/>, the method returns
-	/// <see cref="object"/> and writes a warning if <paramref name="specifiedType"/> is another type.
+	/// <para>
+	/// The key type comes from the key selector's output. The value type is <see cref="ValueType"/> when it's supplied.
+	/// Otherwise, it comes from the value selector's output, or from <paramref name="firstObject"/> itself when there's
+	/// no value selector. When <see cref="DuplicateKeyBehavior"/> is <see cref="DuplicateKeyBehavior.Concatenate"/>, the
+	/// value type is always <see cref="object"/>, and the method writes a warning if <see cref="ValueType"/> is another
+	/// type.
+	/// </para>
+	/// <para>
+	/// The method runs the value selector only when it needs the output for the value type. It keeps the outputs of the
+	/// selectors that it runs, so that <see cref="AddToDictionary"/> doesn't run them for
+	/// <paramref name="firstObject"/> again.
+	/// </para>
 	/// </remarks>
-	/// <param name="specifiedType">The value type supplied by the user, or <see langword="null"/>.</param>
-	/// <param name="firstObject">The input object used to infer the value type.</param>
-	/// <returns>The value type for the dictionary.</returns>
-	private Type GetValueType(Type? specifiedType, object firstObject)
+	/// <param name="firstObject">The first input object that isn't <see langword="null"/>.</param>
+	/// <exception cref="RuntimeException">Thrown when a selector throws a terminating error.</exception>
+	[MemberNotNull(nameof(ValueType))]
+	private void InferTypes(object firstObject)
 	{
+		_firstKey = this.Select(this.KeySelector, firstObject);
+		_keyType = GetInferredType(_firstKey);
+
 		if (this.DuplicateKeyBehavior == DuplicateKeyBehavior.Concatenate)
 		{
-			if (specifiedType is not null && !typeof(object).Equals(specifiedType))
+			if (this.ValueType is not null && !typeof(object).Equals(this.ValueType))
 			{
 				this.WriteWarning("ValueType is ignored when 'DuplicateKeyBehavior::Concatenate' is used as the values can either be objects or lists of objects.");
 			}
 
-			return typeof(object);
+			this.ValueType = typeof(object);
 		}
-
-		return specifiedType ?? GetTypeForElement(firstObject, this.ValueSelector);
-	}
-	/// <summary>
-	/// Infers a type from an input object, optionally through a selector script block.
-	/// </summary>
-	/// <param name="inputObject">The input object to infer the type from.</param>
-	/// <param name="selector">The selector to invoke with <paramref name="inputObject"/> as <c>$args[0]</c>, or <see langword="null"/> to use the input object itself.</param>
-	/// <returns>
-	/// The runtime type of the input object or of the selector's first output, or <see cref="object"/> when that value
-	/// is <see langword="null"/>, a <see cref="PSObject"/>, or a <see cref="PSCustomObject"/>.
-	/// </returns>
-	private static Type GetTypeForElement(object inputObject, ScriptBlock? selector)
-	{
-		Type? type;
-		if (selector is null)
+		else if (this.ValueType is null && this.ValueSelector is not null)
 		{
-			type = inputObject.GetBaseObject()?.GetType();
+			_firstValue = this.Select(this.ValueSelector, firstObject);
+			_hasFirstValue = true;
+			this.ValueType = GetInferredType(_firstValue);
 		}
 		else
 		{
-			var firstObj = selector.Invoke(inputObject).AsValueEnumerable().FirstOrDefault();
-			if (firstObj is null)
-			{
-				return typeof(object);
-			}
-
-			type = firstObj.GetBaseObject()?.GetType();
+			this.ValueType ??= GetInferredType(firstObject.GetBaseObject());
 		}
 
+		_hasFirstOutputs = true;
+	}
+	/// <summary>
+	/// Returns the type that the dictionary uses for a key or value like the specified one.
+	/// </summary>
+	/// <param name="value">The key or value, unwrapped from its <see cref="PSObject"/>, or <see langword="null"/>.</param>
+	/// <returns>
+	/// The runtime type of <paramref name="value"/>, or <see cref="object"/> when <paramref name="value"/> is
+	/// <see langword="null"/>, a <see cref="PSObject"/>, or a <see cref="PSCustomObject"/>.
+	/// </returns>
+	private static Type GetInferredType(object? value)
+	{
+		Type? type = value?.GetType();
 		if (type is null || typeof(PSObject).IsAssignableFrom(type) || typeof(PSCustomObject).IsAssignableFrom(type))
 		{
 			return typeof(object);

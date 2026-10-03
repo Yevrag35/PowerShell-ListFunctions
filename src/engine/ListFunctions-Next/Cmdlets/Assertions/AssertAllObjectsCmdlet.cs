@@ -13,8 +13,9 @@ namespace ListFunctions.Cmdlets.Assertions;
 /// <para>
 /// The cmdlet evaluates the <see cref="Condition"/> script block against each element of <see cref="InputObject"/>,
 /// across every pipeline object. It writes <see langword="true"/> when every element satisfies the condition and
-/// <see langword="false"/> otherwise. A <see langword="null"/> or an empty array passed to <see cref="InputObject"/>
-/// fails the assertion. When the pipeline sends no input at all, the cmdlet writes <see langword="true"/>.
+/// <see langword="false"/> otherwise. When there are no elements, the cmdlet writes <see langword="true"/>, the way
+/// <see cref="List{T}.TrueForAll(Predicate{T})"/> does. That's the case when the pipeline sends no input, and when
+/// <see cref="InputObject"/> is <see langword="null"/> or an empty array.
 /// </para>
 /// <para>
 /// After the first element that fails, the cmdlet writes <see langword="false"/> and stops evaluating the condition.
@@ -59,10 +60,7 @@ public sealed class AssertAllObjectsCmdlet : AssertObjectCmdlet
 	/// parameter supplies its elements, and <see langword="null"/> supplies none. <see langword="null"/> and
 	/// empty-string elements are evaluated like any other element.
 	/// </remarks>
-	/// <value>
-	/// The current pipeline object, or the argument of the parameter. The value can be <see langword="null"/>. An
-	/// argument that is <see langword="null"/> or an empty array fails the assertion.
-	/// </value>
+	/// <value>The current pipeline object, or the argument of the parameter. The value can be <see langword="null"/>.</value>
 	[Parameter(Mandatory = true, ValueFromPipeline = true)]
 	[PSAllowNull, AllowEmptyCollection, AllowEmptyString]
 	public object? InputObject { get; set; }
@@ -87,8 +85,8 @@ public sealed class AssertAllObjectsCmdlet : AssertObjectCmdlet
 	/// </remarks>
 	/// <param name="filter">The filter that tests objects with <see cref="Condition"/>.</param>
 	/// <returns>
-	/// <see langword="true"/> when an element fails the condition or <see cref="InputObject"/> supplies no elements, so
-	/// the assertion fails; otherwise, <see langword="false"/>.
+	/// <see langword="true"/> when an element fails the condition, so the assertion fails; otherwise,
+	/// <see langword="false"/>, including when <see cref="InputObject"/> supplies no elements.
 	/// </returns>
 	protected override bool Process(ScriptBlockFilter filter)
 	{

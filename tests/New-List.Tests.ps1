@@ -121,5 +121,49 @@ Describe 'New-List' {
 		) {
 			{ New-List $Name } | Should-Throw -ExceptionMessage "*'$Name' is not a valid .NET or custom-defined type."
 		}
+
+		# PowerShell splits an unparenthesized argument at each comma, so -GenericType gets the parts as an array of
+		# strings, such as '[System.Collections.Generic.KeyValuePair[string' and 'int]]', without the spaces after the
+		# commas.
+		It 'creates a list from <Label>, which PowerShell splits at each comma' -Tag 'Bug11' -ForEach @(
+			@{
+				Label = '[System.Collections.Generic.KeyValuePair[string,int]]'
+				Command = { New-List [System.Collections.Generic.KeyValuePair[string,int]] }
+				Expected = [System.Collections.Generic.List[System.Collections.Generic.KeyValuePair[string, int]]]
+			}
+			@{
+				Label = '[System.Collections.Generic.KeyValuePair[string, int]]'
+				Command = { New-List [System.Collections.Generic.KeyValuePair[string, int]] }
+				Expected = [System.Collections.Generic.List[System.Collections.Generic.KeyValuePair[string, int]]]
+			}
+			@{
+				Label = 'System.Collections.Generic.KeyValuePair[string,int]'
+				Command = { New-List System.Collections.Generic.KeyValuePair[string,int] }
+				Expected = [System.Collections.Generic.List[System.Collections.Generic.KeyValuePair[string, int]]]
+			}
+			@{
+				Label = '[System.Collections.Generic.Dictionary[string,System.Collections.Generic.KeyValuePair[int,string]]]'
+				Command = { New-List [System.Collections.Generic.Dictionary[string,System.Collections.Generic.KeyValuePair[int,string]]] }
+				Expected = [System.Collections.Generic.List[System.Collections.Generic.Dictionary[string, System.Collections.Generic.KeyValuePair[int, string]]]]
+			}
+		) {
+			$list = & $Command
+			Should-HaveType -Expected $Expected -Actual $list
+		}
+
+		# An array of strings is accepted only when its elements join into a single type name, so two type names don't
+		# quietly resolve to the first one.
+		It 'rejects <Label>' -Tag 'Bug11' -ForEach @(
+			@{ Label = 'the array ''[string]'', ''[int]'''; Value = @('[string]', '[int]'); Message = "'[string],[int]' is not a valid .NET or custom-defined type." }
+			@{ Label = 'an array that holds a type'; Value = @([string], '[int]'); Message = "Cannot convert a value of type 'System.Object[]' to a type." }
+			@{ Label = 'the number 5'; Value = 5; Message = "Cannot convert a value of type 'System.Int32' to a type." }
+		) {
+			{ New-List -GenericType $Value } | Should-Throw -ExceptionMessage ('*' + [WildcardPattern]::Escape($Message) + '*')
+		}
+
+		It 'creates a List[object] when -GenericType is $null' -Tag 'Bug11' {
+			$list = New-List -GenericType $null
+			Should-HaveType -Expected ([System.Collections.Generic.List[object]]) -Actual $list
+		}
 	}
 }
