@@ -21,7 +21,7 @@ internal static class SingleValueReadOnlySet
 	/// </param>
 	/// <returns>A new set that contains the first element of <paramref name="collection"/>.</returns>
 	/// <exception cref="InvalidOperationException">Thrown when <paramref name="collection"/> is empty.</exception>
-	/// <exception cref="ArgumentNullException">Thrown when the first element of <paramref name="collection"/> is null.</exception>
+	/// <exception cref="System.ArgumentNullException">Thrown when the first element of <paramref name="collection"/> is null.</exception>
 	internal static SingleValueReadOnlySet<T> Create<T>(IEnumerable<T> collection, IEqualityComparer<T>? equalityComparer = null) where T : notnull
 	{
 		return new SingleValueReadOnlySet<T>(collection.AsValueEnumerable().First(), equalityComparer);
@@ -36,7 +36,7 @@ internal static class SingleValueReadOnlySet
 	/// <typeparamref name="T"/>, which is <see cref="StringComparer.OrdinalIgnoreCase"/> for <see cref="string"/>.
 	/// </param>
 	/// <returns>A new set that contains <paramref name="value"/>.</returns>
-	/// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
 	internal static SingleValueReadOnlySet<T> Create<T>(T value, IEqualityComparer<T>? equalityComparer = null) where T : notnull
 	{
 		return new SingleValueReadOnlySet<T>(value, equalityComparer);
@@ -97,12 +97,12 @@ internal readonly struct SingleValueReadOnlySet<T> : IReadOnlySet<T> where T : n
 	/// The comparer to use for set operations, or <see langword="null"/> to use the default comparer for
 	/// <typeparamref name="T"/>, which is <see cref="StringComparer.OrdinalIgnoreCase"/> for <see cref="string"/>.
 	/// </param>
-	/// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
 	public SingleValueReadOnlySet(T value, IEqualityComparer<T>? equalityComparer)
 	{
 		if (value is null)
 		{
-			throw new ArgumentNullException(nameof(value));
+			throw new System.ArgumentNullException(nameof(value));
 		}
 
 		_equality = ResolveComparer(equalityComparer);
@@ -154,7 +154,7 @@ internal readonly struct SingleValueReadOnlySet<T> : IReadOnlySet<T> where T : n
 	/// <see langword="true"/> when <paramref name="other"/> contains the set's value and at least one other element, or when the set
 	/// is empty and <paramref name="other"/> is not; otherwise, <see langword="false"/>.
 	/// </returns>
-	/// <exception cref="ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
 	public bool IsProperSubsetOf(IEnumerable<T> other)
 	{
 		Guard.NotNull(other, nameof(other));
@@ -187,7 +187,7 @@ internal readonly struct SingleValueReadOnlySet<T> : IReadOnlySet<T> where T : n
 	/// <returns>
 	/// <see langword="true"/> when the set is not empty and <paramref name="other"/> is empty; otherwise, <see langword="false"/>.
 	/// </returns>
-	/// <exception cref="ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
 	public bool IsProperSupersetOf(IEnumerable<T> other)
 	{
 		Guard.NotNull(other, nameof(other));
@@ -207,7 +207,7 @@ internal readonly struct SingleValueReadOnlySet<T> : IReadOnlySet<T> where T : n
 	/// <see langword="true"/> when the set is empty or <paramref name="other"/> contains the set's value; otherwise,
 	/// <see langword="false"/>.
 	/// </returns>
-	/// <exception cref="ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
 	public bool IsSubsetOf(IEnumerable<T> other)
 	{
 		Guard.NotNull(other, nameof(other));
@@ -236,7 +236,7 @@ internal readonly struct SingleValueReadOnlySet<T> : IReadOnlySet<T> where T : n
 	/// <paramref name="other"/> is empty; otherwise, <see langword="false"/>. An empty set is a superset only of an empty
 	/// collection.
 	/// </returns>
-	/// <exception cref="ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
 	public bool IsSupersetOf(IEnumerable<T> other)
 	{
 		Guard.NotNull(other, nameof(other));
@@ -264,7 +264,7 @@ internal readonly struct SingleValueReadOnlySet<T> : IReadOnlySet<T> where T : n
 	/// <see langword="true"/> when the set is not empty and <paramref name="other"/> contains its value; otherwise,
 	/// <see langword="false"/>.
 	/// </returns>
-	/// <exception cref="ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
 	public bool Overlaps(IEnumerable<T> other)
 	{
 		Guard.NotNull(other, nameof(other));
@@ -297,7 +297,7 @@ internal readonly struct SingleValueReadOnlySet<T> : IReadOnlySet<T> where T : n
 	/// <see langword="true"/> when <paramref name="other"/> contains exactly one element and it equals the set's value, or when
 	/// both the set and <paramref name="other"/> are empty; otherwise, <see langword="false"/>.
 	/// </returns>
-	/// <exception cref="ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
 	public bool SetEquals(IEnumerable<T> other)
 	{
 		Guard.NotNull(other, nameof(other));

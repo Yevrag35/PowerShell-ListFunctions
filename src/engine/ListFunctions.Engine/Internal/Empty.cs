@@ -68,7 +68,7 @@ internal sealed class ReadOnlyEmpty<TKey, TValue> : IReadOnlyList<TValue>, IRead
 	/// </summary>
 	/// <param name="key">The key to look up. This value must not be <see langword="null"/>.</param>
 	/// <value>This indexer never returns a value.</value>
-	/// <exception cref="ArgumentNullException">Thrown when <paramref name="key"/> is null.</exception>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="key"/> is null.</exception>
 	/// <exception cref="KeyNotFoundException">Thrown for every key that is not null.</exception>
 	TValue IReadOnlyDictionary<TKey, TValue>.this[TKey key]
 	{
@@ -131,7 +131,7 @@ internal sealed class ReadOnlyEmpty<TKey, TValue> : IReadOnlyList<TValue>, IRead
 	/// </summary>
 	/// <param name="key">The key to locate. This value must not be <see langword="null"/>.</param>
 	/// <returns>Always <see langword="false"/>.</returns>
-	/// <exception cref="ArgumentNullException">Thrown when <paramref name="key"/> is null.</exception>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="key"/> is null.</exception>
 	bool IReadOnlyDictionary<TKey, TValue>.ContainsKey(TKey key)
 	{
 		Guard.NotNull(key, nameof(key));
@@ -182,7 +182,7 @@ internal sealed class ReadOnlyEmpty<TKey, TValue> : IReadOnlyList<TValue>, IRead
 	/// </summary>
 	/// <param name="other">The collection to compare with. This value must not be <see langword="null"/>.</param>
 	/// <returns><see langword="true"/> when <paramref name="other"/> is empty; otherwise, <see langword="false"/>.</returns>
-	/// <exception cref="ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
 	public bool IsSupersetOf(IEnumerable<TValue> other)
 	{
 		return !other.Any();
