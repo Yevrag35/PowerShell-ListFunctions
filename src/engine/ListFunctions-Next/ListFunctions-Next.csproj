@@ -8,6 +8,7 @@
 		<PackageIconUrl>https://github.com/Yevrag35/PowerShell-ListFunctions/blob/master/.icon/list-functions.png?raw=true</PackageIconUrl>
 		<PackageLicenseUrl>https://raw.githubusercontent.com/Yevrag35/PowerShell-ListFunctions/master/LICENSE</PackageLicenseUrl>
 		<SupportUrl>https://github.com/Yevrag35/PowerShell-ListFunctions/issues</SupportUrl>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 	</PropertyGroup>
 
 	<ItemGroup Condition="'$(Configuration)' != 'Release'">

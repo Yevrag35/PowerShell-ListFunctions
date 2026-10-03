@@ -5,6 +5,7 @@
 		<Nullable>enable</Nullable>
 		<PackageId>ListFunctions.Engine</PackageId>
 		<AssemblyName>ListFunctions.Engine</AssemblyName>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 	</PropertyGroup>
 
 	<PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' ">

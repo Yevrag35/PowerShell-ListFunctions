@@ -6,6 +6,7 @@
 		<AssemblyName>ListFunctions.NETFramework</AssemblyName>
 		<Product>ListFunctions-NETFramework</Product>
 		<AssemblyTitle>ListFunctions-NETFramework</AssemblyTitle>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)'=='Debug'">
