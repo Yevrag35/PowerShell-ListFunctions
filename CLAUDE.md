@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with code in this repository.
 
 ListFunctions is a PowerShell binary module (published to the PowerShell Gallery) that provides cmdlets for asserting over, searching, and constructing generic .NET collections (`List[T]`, `HashSet[T]`, `SortedSet[T]`, `Dictionary[K,V]`). Its main feature is equality comparers, hash functions, and comparers written as PowerShell ScriptBlocks. It ships for both Windows PowerShell 5.1 and PowerShell 7.
 
@@ -21,36 +21,7 @@ dotnet build src/engine/ListFunctions-Next/ListFunctions-Next.csproj -c Debug   
 
 ## Tests
 
-`tests/` holds the Pester 6 tests, which run the cmdlets. `src/engine/ListFunctions.Engine.Tests/` holds the xUnit.net v3 tests, which call `ListFunctions.Engine` directly (see Engine tests below). Build first, then run the Pester tests from the repo root in Bash:
-
-```bash
-pwsh -NoProfile -File tests/Invoke-Tests.ps1                              # Debug build, both editions
-pwsh -NoProfile -File tests/Invoke-Tests.ps1 -Tag Bug06 -Edition Core     # one bug's tests, PowerShell 7 only
-pwsh -NoProfile -File tests/Invoke-Tests.ps1 -Configuration Release -Output Detailed
-```
-
-- `Invoke-Tests.ps1` runs the tests in a new `powershell.exe` process and a new `pwsh` process. The imported DLLs unload when those processes exit, so they don't block the next build. The script exits with 1 when a test fails in either edition.
-- Every test file calls `tests/Import-ListFunctions.ps1` in a top-level `BeforeAll`. It imports `ListFunctions.Next.dll` (PowerShell 7) or `ListFunctions.NETFramework.dll` (Windows PowerShell 5.1) from the build output, never the committed DLLs under `ListFunctions/`.
-- Each cmdlet gets its own `<Cmdlet>.Tests.ps1` file. `Module.Tests.ps1` checks that the build exports exactly the manifest's `CmdletsToExport` and `AliasesToExport`.
-- Fix each item in `.work/bugs.md` test-first. Turn its repro into a test tagged `BugNN`, watch the test fail, and then fix the bug. Each item's **Tests:** line in `.work/bugs.md` says whether it gets Pester tests, Engine tests, or both: Pester for anything that can surface during normal use of the module, and Engine for anything whose cause is in `ListFunctions.Engine`.
-- Test files also run in Windows PowerShell 5.1, so they can't use PowerShell 7 syntax such as `??`, the ternary operator, or `&&`. Keep them ASCII, because 5.1 reads a UTF-8 file without a BOM as ANSI.
-- Use Pester 6's `Should-*` commands, not the older `Should -Be` form. `Should-BeCollection` can't take a collection of value types, such as a `List[int]`, as `-Actual`. Pass `([object[]]$list)` instead. Don't use `@($list)`: for a `List[object]` that a command outputs, which PowerShell wraps in a PSObject, `@()` throws "Argument types do not match". That's a PowerShell bug in both 5.1 and 7.
-
-### Engine tests
-
-`dotnet test` builds the project first. Run it from the repo root in Bash:
-
-```bash
-dotnet test src/engine/ListFunctions.Engine.Tests/ListFunctions.Engine.Tests.csproj -c Debug                                            # both targets
-dotnet test src/engine/ListFunctions.Engine.Tests/ListFunctions.Engine.Tests.csproj -c Debug -f net48 --filter-trait "Category=Bug10"  # one bug's tests, Windows PowerShell 5.1 only
-```
-
-- Never pass `--nologo` or `--no-incremental` to `dotnet test`. It hands options it doesn't recognize to the test app, which stops with "Zero tests ran" and exit code 5 without naming the option. Both flags are still right for `dotnet build`, and `-v q` works with either command.
-- `xunit.v3` 4.x runs on Microsoft.Testing.Platform v2, so the project builds an executable, and the root `global.json` switches `dotnet test` to that platform. Don't add `Microsoft.NET.Test.Sdk` or `xunit.runner.visualstudio`. Without `global.json`, `dotnet test` uses VSTest, and the build fails with "Testing with VSTest target is no longer supported by Microsoft.Testing.Platform on .NET 10 SDK and later."
-- The project targets `net10.0` and `net48`. `net10.0` tests Engine's `net10.0` build in PowerShell 7, hosted from the `Microsoft.PowerShell.SDK` package. Keep that package at the same version as `System.Management.Automation`. `net48` tests Engine's `netstandard2.0` build in the Windows PowerShell 5.1 that is installed with Windows, loaded from the GAC.
-- A script block runs only on a thread whose `Runspace.DefaultRunspace` is set, and that property is thread-static. Each test class takes a `RunspaceFixture` through `IClassFixture<RunspaceFixture>`, and each test that runs a script block starts with `using RunspaceScope scope = _runspace.Enter();`.
-- The test folders mirror Engine's. The tests for `Modern/HashBlock.cs` are in `Modern/HashBlockTests.cs`, in the namespace `ListFunctions.Engine.Tests.Modern`.
-- A bug's tests get `[Trait("Category", "BugNN")]`, which matches its Pester tag.
+`tests/` holds the Pester 6 tests, which run the cmdlets, and `src/engine/ListFunctions.Engine.Tests/` holds the xUnit.net v3 tests, which call `ListFunctions.Engine` directly. Both suites run every test in Windows PowerShell 5.1 and PowerShell 7. Fix each item in `.work/bugs.md` test-first. Load the `lf-testing` skill before you run, write, or change a test, try a cmdlet in a repro or smoke test, or report test results. It covers the commands and their traps, which PowerShell versions to use, when a change needs tests and which suite they go in, and how to write them.
 
 ## Debugging
 
@@ -72,7 +43,7 @@ There are four projects under `src/engine/`:
 	- As a result, all code in `ListFunctions-Next` must also compile for .NET Framework 4.8 against the PowerShell 5 reference assemblies.
 	- Wrap newer BCL or PowerShell 7 APIs in `#if NETCOREAPP` or `#if NET9_0_OR_GREATER`, as the existing code does.
 	- Building only `ListFunctions-Next` does not catch these errors. Build the full solution.
-- **`ListFunctions.Engine.Tests`** targets `net10.0` and `net48` and holds the xUnit.net v3 tests for Engine (see Engine tests under Tests). It isn't part of the module.
+- **`ListFunctions.Engine.Tests`** targets `net10.0` and `net48` and holds the xUnit.net v3 tests for Engine (see the `lf-testing` skill). It isn't part of the module.
 
 ### Cmdlet lifecycle
 
