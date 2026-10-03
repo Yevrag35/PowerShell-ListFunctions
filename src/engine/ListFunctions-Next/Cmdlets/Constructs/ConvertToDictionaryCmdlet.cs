@@ -247,7 +247,7 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 			ListFunctionsException ex = new($"Failed to instantiate dictionary with the arguments supplied - {e.Message}", e);
 			IDictionary data = ex.Data;
 			data["KeyType"] = _keyType.FullName ?? _keyType.Name;
-			data[nameof(InputObject)] = inputObjects.DeepClone();
+			data[nameof(InputObject)] = ObjectCloningExtensions.Clone(inputObjects);
 			data[nameof(ValueType)] = this.ValueType.FullName ?? this.ValueType.Name;
 			data["DictionaryType"] = dictType?.FullName ?? dictType?.Name;
 

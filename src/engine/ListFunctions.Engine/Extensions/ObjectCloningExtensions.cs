@@ -37,11 +37,11 @@ public static class ObjectCloningExtensions
 	{
 		return obj switch
 		{
-			ICloneable cloneable => cloneable.Clone(),
 			PSObject pso => pso.Copy(),
 			PSCustomObject customObj => PSObject.AsPSObject(customObj).Copy(),
 			PSMemberInfo member => member.Copy(),
-			_ => obj
+			ICloneable cloneable => cloneable.Clone(),
+			_ => obj,
 		};
 	}
 
@@ -65,7 +65,7 @@ public static class ObjectCloningExtensions
 	/// A new array, of the same length as <paramref name="source"/>, that contains the copied elements in the same order.
 	/// An empty array if <paramref name="source"/> is <see langword="null"/> or empty.
 	/// </returns>
-	public static object?[] DeepClone(this object?[]? source)
+	public static object?[] Clone(this object?[]? source)
 	{
 		if (source is null || source.Length == 0)
 			return [];
