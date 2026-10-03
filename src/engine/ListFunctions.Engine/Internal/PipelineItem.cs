@@ -23,7 +23,7 @@ namespace ListFunctions.Internal;
 [StructLayout(LayoutKind.Sequential)]
 public readonly struct PipelineItem : IList, IReadOnlyList<object?>
 {
-	readonly object? _value;
+	private readonly object? _value;
 
 	/// <summary>
 	/// Gets the item at the specified index.

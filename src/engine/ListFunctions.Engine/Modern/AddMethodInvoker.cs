@@ -18,8 +18,8 @@ namespace ListFunctions.Modern;
 /// </remarks>
 public sealed class AddMethodInvoker
 {
-	readonly Type[] _genericTypes;
-	readonly MethodInfo _method;
+	private readonly Type[] _genericTypes;
+	private readonly MethodInfo _method;
 	/// <summary>
 	/// Gets the collection type whose <c>Add</c> method the invoker calls.
 	/// </summary>

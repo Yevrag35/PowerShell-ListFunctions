@@ -27,10 +27,10 @@ namespace ListFunctions.Cmdlets.Constructs;
 [OutputType(typeof(SortedSet<>))]
 public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 {
-	AddMethodInvoker _addMethod = null!;
-	object[] _arr = null!;
-	SortingCollectorCtor _ctor = null!;
-	object _set = null!;
+	private AddMethodInvoker _addMethod = null!;
+	private object[] _arr = null!;
+	private SortingCollectorCtor _ctor = null!;
+	private object _set = null!;
 
 	/// <summary>
 	/// Gets or sets the element type of the set.

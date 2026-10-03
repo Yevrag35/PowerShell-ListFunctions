@@ -108,7 +108,7 @@ namespace System.Collections.ObjectModel
 	/// <typeparam name="T">The type of elements in the set.</typeparam>
 	public sealed class ReadOnlySet<T> : IReadOnlySet<T>, ISet<T>
 	{
-		readonly HashSet<T> _set;
+		private readonly HashSet<T> _set;
 		/// <summary>
 		/// Initializes a new <see cref="ReadOnlySet{T}"/> instance that contains a copy of the elements of the specified set.
 		/// </summary>

@@ -20,8 +20,8 @@ public sealed class SortingCollectorCtor : GenericCollectionCtor
 	/// </summary>
 	public static readonly Type SortedSetTypeDefinition = typeof(SortedSet<>);
 
-	IComparer? _comparer;
-	readonly Type _sortedType;
+	private IComparer? _comparer;
+	private readonly Type _sortedType;
 
 	/// <summary>
 	/// Gets or sets a value that indicates whether the set's default string comparisons consider case.
@@ -152,7 +152,7 @@ public sealed class SortingCollectorCtor : GenericCollectionCtor
 	/// </summary>
 	private sealed class ObjectComparer : IComparer<object?>, IComparer
 	{
-		readonly bool _ignoreCase;
+		private readonly bool _ignoreCase;
 		/// <summary>
 		/// Gets a value that indicates whether string comparisons consider case.
 		/// </summary>
@@ -192,7 +192,7 @@ public sealed class SortingCollectorCtor : GenericCollectionCtor
 		}
 	}
 
-	static readonly Lazy<MethodInfo> _getComparerMethod = new Lazy<MethodInfo>(InitializeLazyMethod);
+	private static readonly Lazy<MethodInfo> _getComparerMethod = new Lazy<MethodInfo>(InitializeLazyMethod);
 	/// <summary>
 	/// Returns the default comparer for <typeparamref name="T"/> as a non-generic <see cref="IComparer"/>.
 	/// </summary>

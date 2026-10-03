@@ -21,8 +21,8 @@ public abstract class EqualityCollectionCtor : GenericCollectionCtor
 	/// </summary>
 	public static readonly Type DefaultComparerTypeDefinition = typeof(EqualityComparer<>);
 
-	IEqualityComparer? _comparer;
-	int _capacity;
+	private IEqualityComparer? _comparer;
+	private int _capacity;
 
 	/// <summary>
 	/// Gets or sets the initial capacity of the collection.

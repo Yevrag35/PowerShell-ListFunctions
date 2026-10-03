@@ -35,6 +35,14 @@ g) <example> (only when it adds clarity)
   * This applies to <exception> only; <summary>, <remarks>, <param>, <returns>, and <value> still use <see langword="..."/> normally.
 * Do not use smart quotes.
 
+## Crefs in files that use ZLinq
+* In a file with `using ZLinq;`, write every cref to ArgumentNullException as System.ArgumentNullException, and every cref to GC as System.GC. This applies to <exception cref>, <see cref>, and <seealso cref> alike. Other types, such as ArgumentException, keep the short form.
+  * Correct: <exception cref="System.ArgumentNullException">Thrown when <paramref name="variableNames"/> is null.</exception>
+  * Incorrect: <exception cref="ArgumentNullException">Thrown when <paramref name="variableNames"/> is null.</exception>
+* ZLinq declares an internal ArgumentNullException in its netstandard2.0 build, and an internal GC in every target. Code can't see them, but cref lookup still finds them, so the short names are ambiguous. A type cref such as <see cref="GC"/> produces CS0419, and a member cref such as <see cref="GC.KeepAlive(object)"/> produces CS1574.
+* Only the netstandard2.0 and net48 builds report the ArgumentNullException warning; the net10.0 builds don't. Keep the namespace even when one target builds cleanly.
+* Code is not affected: `throw new ArgumentNullException(...)` compiles without the namespace. Files without `using ZLinq;` keep the short form.
+
 # Language and tone (MANDATORY):
 * American English, concise, active voice.
 * MANDATORY - Use present tense!
@@ -172,5 +180,6 @@ public static class AlternateLookupExtensions
 * <remarks> immediately follows <summary> everywhere.
 * Every extension block has its own doc comment carrying a <param> for the receiver, and no member inside it re-documents that receiver.
 * Every cref to an extension member uses the ContainingClass.extension(ReceiverType).Member(...) form.
+* In files with `using ZLinq;`, every cref to ArgumentNullException or GC is written as System.ArgumentNullException or System.GC.
 * No references (text or cref) to internal/private symbols for public/protected APIs.
 * No smart quotes; no extra prose outside the updated code.

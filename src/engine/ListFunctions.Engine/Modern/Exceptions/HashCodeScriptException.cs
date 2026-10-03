@@ -12,7 +12,7 @@ namespace ListFunctions.Modern.Exceptions;
 //#endif
 public sealed class HashCodeScriptException : ScriptBlockInvocationException
 {
-	const string DEF_MSG = "An exception occurred trying to calculate the hash code of a specific object";
+	private const string DEF_MSG = "An exception occurred trying to calculate the hash code of a specific object";
 
 	/// <summary>
 	/// Gets the type of the object whose hash code the script block was calculating.

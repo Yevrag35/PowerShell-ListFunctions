@@ -65,7 +65,7 @@ public static class ComparingBlock
 		return new ComparingBlock<T>(scriptBlock, preValidated: true, additionalVariables);
 	}
 
-	static readonly Lazy<MethodInfo> _getInit = new Lazy<MethodInfo>(InitializeLazyMethod);
+	private static readonly Lazy<MethodInfo> _getInit = new Lazy<MethodInfo>(InitializeLazyMethod);
 	/// <summary>
 	/// Gets the generic method definition of <see cref="Create{T}(ScriptBlock, IEnumerable{PSVariable})"/>.
 	/// </summary>
@@ -97,11 +97,11 @@ public static class ComparingBlock
 /// <typeparam name="T">The type of the objects to compare.</typeparam>
 public sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparingBlock
 {
-	readonly PSVariable[] _additionalVariables;
-	readonly ScriptBlock _compareScript;
-	readonly PSComparingVariable<T> _left;
-	readonly PSComparingVariable<T> _right;
-	readonly List<PSVariable> _varList;
+	private readonly PSVariable[] _additionalVariables;
+	private readonly ScriptBlock _compareScript;
+	private readonly PSComparingVariable<T> _left;
+	private readonly PSComparingVariable<T> _right;
+	private readonly List<PSVariable> _varList;
 
 	/// <inheritdoc/>
 	Type IComparingBlock.ChecksType => typeof(T);

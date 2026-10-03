@@ -12,7 +12,7 @@ namespace ListFunctions.Modern.Exceptions;
 #endif
 public sealed class EqualityScriptException : ScriptBlockInvocationException
 {
-	const string DEF_MSG = "An exception occurred trying to determine the equality between two specific objects";
+	private const string DEF_MSG = "An exception occurred trying to determine the equality between two specific objects";
 
 	/// <summary>
 	/// Gets the type of the object that the equality script block was comparing.

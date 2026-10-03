@@ -32,8 +32,8 @@ namespace ListFunctions.Cmdlets.Constructs;
 [OutputType(typeof(Dictionary<,>), typeof(Hashtable))]
 public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary>, IDynamicParameters
 {
-	const string CLONE_VALUES = "CloneValues";
-	const string STR_DICT = "StringDict";
+	private const string CLONE_VALUES = "CloneValues";
+	private const string STR_DICT = "StringDict";
 
 	/// <inheritdoc/>
 	protected override string CaseSensitiveParameterSetName => STR_DICT;

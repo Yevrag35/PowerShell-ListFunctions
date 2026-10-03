@@ -12,7 +12,7 @@ namespace ListFunctions.Modern.Exceptions;
 /// </remarks>
 public sealed class ActivatorCtorException : Exception
 {
-	const string DEF_FORMAT = "An exception occurred attempting to construct an object of type \"{0}\".";
+	private const string DEF_FORMAT = "An exception occurred attempting to construct an object of type \"{0}\".";
 
 	/// <summary>
 	/// Gets the type that couldn't be created.

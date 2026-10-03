@@ -24,10 +24,10 @@ namespace ListFunctions.Modern.Exceptions;
 #endif
 public abstract class ScriptBlockInvocationException : RuntimeException
 {
-	const string DEF_MSG_ONLY_FORMAT = "{0}.";
-	const string DEF_MSG_POINT_INNER_FORMAT = "{0} --> {1}";
-	const string INV_MSG_FORMAT = "Invoking \"{0}\" threw '{1}'.";
-	static readonly Lazy<PropertyInfo?> _statementProp = new Lazy<PropertyInfo?>(GetStatementProperty);
+	private const string DEF_MSG_ONLY_FORMAT = "{0}.";
+	private const string DEF_MSG_POINT_INNER_FORMAT = "{0} --> {1}";
+	private const string INV_MSG_FORMAT = "Invoking \"{0}\" threw '{1}'.";
+	private static readonly Lazy<PropertyInfo?> _statementProp = new Lazy<PropertyInfo?>(GetStatementProperty);
 
 	/// <summary>
 	/// Gets the object that the script block was processing when the error occurred.

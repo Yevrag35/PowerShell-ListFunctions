@@ -14,7 +14,7 @@ public sealed class HashSetCtor : EqualityCollectionCtor<HashSet<object>>
 	/// The generic type definition of the set, <see cref="HashSet{T}"/>.
 	/// </summary>
 	public static readonly Type HashSetTypeDefinition = typeof(HashSet<>);
-	readonly Type _equalityType;
+	private readonly Type _equalityType;
 
 	/// <summary>
 	/// Initializes a new <see cref="HashSetCtor"/> instance with the specified element type and equality comparer.

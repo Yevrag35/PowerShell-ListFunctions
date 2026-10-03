@@ -3,16 +3,32 @@ using ListFunctions.Extensions;
 namespace ListFunctions.Validation;
 
 /// <summary>
-/// Specifies that a property or field must be assigned a valid script block value during validation.
+/// Validates that a cmdlet parameter's <see cref="ScriptBlock"/> argument has a body that can be invoked.
 /// </summary>
-/// <remarks>Apply this attribute to properties or fields to ensure that only proper script block values
-/// are accepted. If the value is not a valid script block, validation will fail and an exception will be thrown.
-/// This attribute is typically used in PowerShell cmdlet or parameter classes to enforce script block
-/// constraints.</remarks>
+/// <remarks>
+/// <para>
+/// A script block passes when it has both a <c>begin</c> block and a <c>process</c> block, or when its <c>end</c> block,
+/// which holds the statements of a script block without named blocks, contains at least one statement. An empty script
+/// block, such as <c>{ }</c>, fails, and so does a script block that has only a <c>begin</c> block or only a
+/// <c>process</c> block.
+/// </para>
+/// <para>
+/// The attribute checks only <see cref="ScriptBlock"/> arguments. An argument of any other type, including
+/// <see langword="null"/>, passes.
+/// </para>
+/// <para>
+/// The attribute keeps no state, so it is thread-safe.
+/// </para>
+/// </remarks>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
 public sealed class IsScriptBlockAttribute : ValidateArgumentsAttribute
 {
-	/// <inheritdoc/>
+	/// <summary>
+	/// Validates that the specified argument, when it is a <see cref="ScriptBlock"/>, has a body that can be invoked.
+	/// </summary>
+	/// <param name="arguments">The argument to validate. Only a <see cref="ScriptBlock"/> is checked.</param>
+	/// <param name="engineIntrinsics">The engine intrinsics of the session that binds the parameter. The method doesn't use it.</param>
+	/// <exception cref="ValidationMetadataException">Thrown when <paramref name="arguments"/> is a script block without a body that can be invoked.</exception>
 	protected override void Validate(object arguments, EngineIntrinsics engineIntrinsics)
 	{
 		if (arguments is ScriptBlock block && !block.IsProperScriptBlock())

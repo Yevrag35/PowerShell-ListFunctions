@@ -67,8 +67,8 @@ internal static class SingleValueReadOnlySet
 [StructLayout(LayoutKind.Sequential)]
 internal readonly struct SingleValueReadOnlySet<T> : IReadOnlySet<T> where T : notnull
 {
-	readonly IEqualityComparer<T> _equality;
-	readonly T _value;
+	private readonly IEqualityComparer<T> _equality;
+	private readonly T _value;
 
 	/// <summary>
 	/// Gets the number of elements in the set.
@@ -346,8 +346,8 @@ internal readonly struct SingleValueReadOnlySet<T> : IReadOnlySet<T> where T : n
 	/// </remarks>
 	public struct Enumerator : IEnumerator<T>
 	{
-		readonly T _value;
-		int _index;
+		private readonly T _value;
+		private int _index;
 		/// <summary>
 		/// Gets the value that the enumerator yields.
 		/// </summary>

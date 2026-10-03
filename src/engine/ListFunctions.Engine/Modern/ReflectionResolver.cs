@@ -10,8 +10,8 @@ namespace ListFunctions.Modern;
 /// </remarks>
 public static class ReflectionResolver
 {
-	static readonly MethodInfo _colAddMethod;
-	static readonly MethodInfo _dictAddMethod;
+	private static readonly MethodInfo _colAddMethod;
+	private static readonly MethodInfo _dictAddMethod;
 
 	/// <summary>
 	/// Initializes the cached generic method definitions of <see cref="GetCollectionAdd{TCol, TItem}"/> and
