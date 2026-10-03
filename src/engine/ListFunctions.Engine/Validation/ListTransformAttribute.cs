@@ -1,4 +1,3 @@
-using ListFunctions.Cmdlets.Constructs;
 using ListFunctions.Extensions;
 using ListFunctions.Internal;
 
@@ -28,11 +27,6 @@ namespace ListFunctions.Validation;
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
 public sealed class ListTransformAttribute : ArgumentTransformationAttribute
 {
-	/// <summary>
-	/// The <see cref="object"/> array type, whose instances are copied instead of returned unchanged.
-	/// </summary>
-	private static readonly Type _objArr = typeof(object[]);
-
 	/// <summary>
 	/// Converts the specified argument to a list of the items that it holds.
 	/// </summary>
@@ -90,7 +84,7 @@ public sealed class ListTransformAttribute : ArgumentTransformationAttribute
 	{
 		return actualType.IsGenericType
 			   &&
-			   NewListCmdlet.ListTypeNoT.Equals(actualType.GetGenericTypeDefinition());
+			   typeof(List<>).Equals(actualType.GetGenericTypeDefinition());
 	}
 
 	/// <summary>
@@ -102,7 +96,7 @@ public sealed class ListTransformAttribute : ArgumentTransformationAttribute
 	private static bool IsObjectArrayType(object target, out Type actualType)
 	{
 		actualType = target.GetType();
-		return _objArr.Equals(actualType);
+		return typeof(object[]).Equals(actualType);
 	}
 }
 

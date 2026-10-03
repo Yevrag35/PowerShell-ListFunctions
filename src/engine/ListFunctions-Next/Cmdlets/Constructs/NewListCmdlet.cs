@@ -24,11 +24,6 @@ namespace ListFunctions.Cmdlets.Constructs;
 [OutputType(typeof(List<>))]
 public sealed class NewListCmdlet : ListFunctionCmdletBase
 {
-	/// <summary>
-	/// The open generic <see cref="List{T}"/> type definition.
-	/// </summary>
-	internal static readonly Type ListTypeNoT = typeof(List<>);
-
 	private ListWrapper? _list;
 
 	/// <summary>
