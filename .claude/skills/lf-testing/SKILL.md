@@ -1,6 +1,6 @@
 ---
 name: lf-testing
-description: How to run and write the ListFunctions tests in Windows PowerShell 5.1 and PowerShell 7. The Pester 6 tests in `tests/` run the cmdlets, and the xUnit.net v3 tests in `src/engine/ListFunctions.Engine.Tests/` call `ListFunctions.Engine` directly. Covers the commands and their traps, which PowerShell versions to use, when a change needs tests and which suite they go in, and how to write them. Use it before you run, write, change, or debug a test, fix a bug, add or change a cmdlet, parameter, or Engine type, try a cmdlet in a repro or smoke test, or report test results, even when the request only asks to check that something works.
+description: How to run and write the ListFunctions tests in Windows PowerShell 5.1 and PowerShell 7. The Pester 6 tests in `tests/` run the cmdlets, and the xUnit.net v3 tests in `src/engine/ListFunctions.Engine.Tests/` call `ListFunctions.Engine` directly. Covers the commands and their traps, which PowerShell versions to use, when a test is worth writing and which suite it goes in, and how to write tests. Use it before you run, write, change, or debug a test, fix a bug, add or change a cmdlet, parameter, or Engine type, try a cmdlet in a repro or smoke test, or report test results, even when the request only asks to check that something works.
 ---
 
 # Testing ListFunctions
@@ -55,17 +55,21 @@ dotnet test src/engine/ListFunctions.Engine.Tests/ListFunctions.Engine.Tests.csp
 
 Name the versions each run used: the version line that each Pester edition prints, and the target framework of each Engine run. Give the passed and failed counts for each edition, and quote the message of each failure. A run in which every Pester test is NotRun, or a `dotnet test` run that exits with 8, matched no tests, so report it as a filter mistake, not as a pass.
 
-## When a change needs tests
+## When to write a test
 
-- **New or changed cmdlet behavior**, such as a new parameter, parameter set, or alias. Add Pester tests that show the behavior through the cmdlet, with no `BugNN` tag. A new cmdlet gets its own test file. `Module.Tests.ps1` checks that the build exports exactly the manifest's `CmdletsToExport` and `AliasesToExport`, so it fails until `ListFunctions.psd1` lists the new cmdlet and its aliases.
-- **New or changed behavior in an Engine type.** Add Engine tests in the class that mirrors the type's file. If users can reach the behavior through a cmdlet, add a Pester test too.
-- **No new tests:** a refactor that doesn't change behavior, a change to comments or docs, or a release step such as copying the shipped DLLs into `ListFunctions/`. Run the existing tests instead, and if none of them reaches the code you changed, say so. The tests import the build output, not the DLLs under `ListFunctions/`, so they can't check a release.
+Write a test only when it has merit. Don't write a failing test before every fix, and don't give every change a test.
+
+- **Has merit:** the test pins down behavior that users rely on and that a later change could plausibly break, such as a fixed bug whose cause could come back. A test also has merit when it records a decision that the code doesn't make obvious.
+- **Has no merit:** the test only restates the code, an existing test already covers the behavior, or the change can't regress in a way that users would notice.
+- **Usually needs no new test:** a refactor that doesn't change behavior, removing dead code, making a type internal, a rename, a change to comments or docs, or a release step such as copying the shipped DLLs into `ListFunctions/`. Run the existing tests instead, and if none of them reaches the code you changed, say so. The tests import the build output, not the DLLs under `ListFunctions/`, so they can't check a release.
+
+When a test has merit, write it before or after the change, whichever helps, and don't give it a `BugNN` tag. Whether or not a change gets tests, `Module.Tests.ps1` checks that the build exports exactly the manifest's `CmdletsToExport` and `AliasesToExport`, so it fails until `ListFunctions.psd1` lists a new cmdlet and its aliases.
 
 ## Which suite a test goes in
 
 - **Pester**, in `tests/<Cmdlet>.Tests.ps1`: anything that can surface during normal use of the module. Test it through the cmdlet, the way a user runs into it.
 - **Engine**, in `src/engine/ListFunctions.Engine.Tests/`: anything whose cause is in `src/engine/ListFunctions.Engine/`. Test the Engine type directly.
-- **Both**: an Engine problem that also surfaces through a cmdlet. The Engine test pins down the type's behavior, and the Pester test shows that the cmdlet passes it on to the user.
+- **Both**, only when each test has merit of its own: an Engine problem that also surfaces through a cmdlet, where the Engine test pins down the type's behavior and the Pester test shows that the cmdlet passes it on to the user.
 
 Nothing tests `ListFunctions-Next` directly, so a cause there, such as a cmdlet's parameter sets or `ListFunctionCmdletBase`, gets Pester tests only.
 
@@ -94,7 +98,7 @@ Describe 'New-List' {
 - Put a helper that test files share in its own script in `tests/`, with comment-based help, and dot-source it in the top-level `BeforeAll`, the way `New-HashSet.Tests.ps1` loads `Get-BucketCount.ps1`.
 - Use Pester 6's `Should-*` commands, not the older `Should -Be` form. `Should-BeCollection` can't take a collection of value types, such as a `List[int]`, as `-Actual`. Pass `([object[]]$list)` instead. Don't use `@($list)`: for a `List[object]` that a command outputs, which PowerShell wraps in a PSObject, `@()` throws "Argument types do not match". That's a PowerShell bug in both 5.1 and 7.
 - For a terminating error, `{ ... } | Should-Throw` returns the error record, and its `-ExceptionMessage` and `-FullyQualifiedErrorId` take wildcards. For a non-terminating error, run the cmdlet with `-ErrorVariable err -ErrorAction SilentlyContinue`, and then check `$err.Count`, `$err[0].Exception`, and `$err[0].TargetObject`.
-- Test piped input and `-InputObject` separately, because PowerShell binds them differently: a piped array is one element, and an array passed to `-InputObject` supplies its elements. Include `$null` and nested arrays.
+- When a test covers input, test piped input and `-InputObject` separately, because PowerShell binds them differently: a piped array is one element, and an array passed to `-InputObject` supplies its elements. Include `$null` and nested arrays when the behavior depends on them.
 - Before you write a call to a cmdlet, read the transformation and validation attributes on the parameters it uses. The module defines its own in `src/engine/ListFunctions.Engine/Validation/`. For example, `[ValidateScriptVariable]` rejects a `-HashCodeScript` that doesn't use `$_`, `$this`, `$PSItem`, or `$args[0]`, even a placeholder such as `{ 0 }` in a test that isn't about hash codes. A call that fails on input the cmdlet rejects says nothing about the code under test. The same goes for repros and smoke tests.
 - Take each expected value from how the module is meant to work, as `README.md` describes it, and from what native PowerShell does in the same situation in both editions, not from what the code returns today, which may be the bug. For example, a typed collection stores what `$list.Add($x)` stores for the same type, so `$null` becomes `0` in a `List[int]`. When an expected value isn't obvious, say in a comment where it comes from, as the `New-List` tests do.
 - Write each test to pass unchanged in both editions. None of the existing tests skips an edition. When the runtimes differ underneath, hide the difference in a helper, the way `Get-BucketCount.ps1` finds the bucket array under a different private field name in each runtime. If a behavior can't match in both editions, ask before you write a test that skips one.
