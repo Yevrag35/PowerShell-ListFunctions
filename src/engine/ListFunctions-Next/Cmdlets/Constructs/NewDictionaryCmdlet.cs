@@ -21,8 +21,10 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// <para>
 /// When <see cref="KeyType"/> is <see cref="string"/>, keys compare with
 /// <see cref="StringComparer.OrdinalIgnoreCase"/>, or with <see cref="StringComparer.CurrentCulture"/> when
-/// <c>-CaseSensitive</c> is set. <see cref="EqualityScript"/> and <see cref="HashCodeScript"/> replace the default
-/// key comparison with PowerShell script blocks.
+/// <c>-CaseSensitive</c> is set. <see cref="object"/> keys compare the way the <see cref="Hashtable"/>'s keys do,
+/// whatever <see cref="ValueType"/> is: string keys the same way as <see cref="string"/> keys, and other keys with their
+/// own <see cref="object.Equals(object)"/> method. <see cref="EqualityScript"/> and <see cref="HashCodeScript"/>
+/// replace the default key comparison with PowerShell script blocks.
 /// </para>
 /// <para>
 /// The dictionary is written as a single object and is not enumerated into the pipeline.
@@ -37,6 +39,17 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 
 	/// <inheritdoc/>
 	protected override string CaseSensitiveParameterSetName => STR_DICT;
+
+	/// <summary>
+	/// Gets the name of the parameter set that copies <see cref="InputObject"/> without custom equality, in which
+	/// <c>-CaseSensitive</c> is optional.
+	/// </summary>
+	/// <remarks>
+	/// The mandatory <see cref="InputObject"/> tells that set apart, so <c>-CaseSensitive</c> can be combined with
+	/// <see cref="InputObject"/> and <see cref="CloneValues"/>, from the pipeline or as an argument.
+	/// </remarks>
+	/// <value>The name of the parameter set that copies entries without custom equality.</value>
+	protected override string? CaseSensitiveOptionalParameterSetName => JUST_COPY;
 
 	/// <summary>
 	/// Gets or sets the initial capacity requested for the dictionary.

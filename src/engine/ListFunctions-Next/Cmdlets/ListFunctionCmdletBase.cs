@@ -17,9 +17,10 @@ namespace ListFunctions.Cmdlets;
 /// and <see cref="Cleanup"/> instead.
 /// </para>
 /// <para>
-/// An exception from <see cref="BeginCore"/> or <see cref="ProcessCore"/> becomes a terminating error after
-/// <see cref="Cleanup"/> runs. When <see cref="ProcessCore"/> returns <see langword="false"/>, the cmdlet processes no
-/// more pipeline input.
+/// When <see cref="BeginCore"/> or <see cref="ProcessCore"/> throws, <see cref="Cleanup"/> runs, and the cmdlet ends.
+/// PowerShell's own exceptions, such as an error from a script block that the cmdlet runs, reach PowerShell unchanged
+/// from every phase, the way they do from <c>ForEach-Object</c>. Any other exception becomes a terminating error. When
+/// <see cref="ProcessCore"/> returns <see langword="false"/>, the cmdlet processes no more pipeline input.
 /// </para>
 /// <para>
 /// The class also provides helpers that get the error action preference and convert items with PowerShell's
@@ -101,9 +102,10 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	/// Runs the begin phase by calling <see cref="BeginCore"/>.
 	/// </summary>
 	/// <remarks>
-	/// When <see cref="BeginCore"/> throws, the method records <see cref="CmdletRunFlags.BeginFailed"/>, calls
-	/// <see cref="Cleanup"/>, and reports the exception as a terminating error in the
-	/// <see cref="ErrorCategory.InvalidArgument"/> category. The error ID is the full name of the exception's type.
+	/// When <see cref="BeginCore"/> throws, the method records <see cref="CmdletRunFlags.BeginFailed"/> and calls
+	/// <see cref="Cleanup"/>. It then passes a <see cref="RuntimeException"/> or a <see cref="FlowControlException"/> to
+	/// PowerShell unchanged, and reports any other exception as a terminating error in the
+	/// <see cref="ErrorCategory.InvalidArgument"/> category, whose error ID is the full name of the exception's type.
 	/// </remarks>
 	protected sealed override void BeginProcessing()
 	{
@@ -115,6 +117,11 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 		{
 			_state = _state.With(CmdletRunFlags.BeginFailed);
 			this.CleanupCore();
+			if (PassesThrough(e))
+			{
+				throw;
+			}
+
 			this.ThrowTerminatingError(e.ToRecord(ErrorCategory.InvalidArgument));
 		}
 	}
@@ -125,8 +132,9 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	/// <para>
 	/// The method skips the input object when PowerShell is stopping the pipeline, or when an earlier call failed or
 	/// ended processing. When <see cref="ProcessCore"/> throws, the method records
-	/// <see cref="CmdletRunFlags.ProcessFailed"/>, calls <see cref="Cleanup"/>, and reports the exception as a
-	/// terminating error in the <see cref="ErrorCategory.NotSpecified"/> category.
+	/// <see cref="CmdletRunFlags.ProcessFailed"/> and calls <see cref="Cleanup"/>. It then passes a
+	/// <see cref="RuntimeException"/> or a <see cref="FlowControlException"/> to PowerShell unchanged, and reports any
+	/// other exception as a terminating error in the <see cref="ErrorCategory.NotSpecified"/> category.
 	/// </para>
 	/// <para>
 	/// When <see cref="ProcessCore"/> returns <see langword="false"/>, processing is complete. If the cmdlet receives
@@ -158,6 +166,11 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 		{
 			_state = _state.With(CmdletRunFlags.ProcessFailed);
 			this.CleanupCore();
+			if (PassesThrough(e))
+			{
+				throw;
+			}
+
 			this.ThrowTerminatingError(e.ToRecord(ErrorCategory.NotSpecified));
 			return;
 		}
@@ -201,8 +214,9 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	/// bound yet.
 	/// </para>
 	/// <para>
-	/// An exception from this method becomes a terminating error after <see cref="Cleanup"/> runs, and the cmdlet
-	/// processes no input. The base implementation does nothing.
+	/// When this method throws, <see cref="Cleanup"/> runs, and the cmdlet processes no input. A
+	/// <see cref="RuntimeException"/> or a <see cref="FlowControlException"/> reaches PowerShell unchanged, and any other
+	/// exception becomes a terminating error. The base implementation does nothing.
 	/// </para>
 	/// </remarks>
 	protected virtual void BeginCore()
@@ -218,7 +232,9 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	/// while PowerShell is stopping the pipeline.
 	/// </para>
 	/// <para>
-	/// An exception from this method becomes a terminating error after <see cref="Cleanup"/> runs.
+	/// When this method throws, <see cref="Cleanup"/> runs. A <see cref="RuntimeException"/> or a
+	/// <see cref="FlowControlException"/> reaches PowerShell unchanged, and any other exception becomes a terminating
+	/// error.
 	/// </para>
 	/// </remarks>
 	/// <returns>
@@ -236,9 +252,9 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	/// away instead, before the cmdlet stops the commands that send the input.
 	/// </para>
 	/// <para>
-	/// <see cref="Cleanup"/> runs after this method, even when it throws. The base class doesn't turn an exception from
-	/// this method into an error record; PowerShell reports it as a terminating error. The base implementation does
-	/// nothing.
+	/// <see cref="Cleanup"/> runs after this method, even when it throws. The base class passes an exception from this
+	/// method to PowerShell unchanged, which turns any exception other than a <see cref="RuntimeException"/> or a
+	/// <see cref="FlowControlException"/> into a terminating error. The base implementation does nothing.
 	/// </para>
 	/// </remarks>
 	/// <param name="state">
@@ -269,6 +285,32 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 			Debug.WriteLine(e.Message);
 			throw;
 		}
+	}
+	/// <summary>
+	/// Determines whether the cmdlet passes the specified exception to PowerShell unchanged.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// A <see cref="RuntimeException"/> carries a PowerShell error, such as an error from a script block that the cmdlet
+	/// runs, and a <see cref="FlowControlException"/> carries a statement such as <c>break</c> out of the script block.
+	/// PowerShell then handles them the way it does when they come from a <c>ForEach-Object</c> script block. For
+	/// example, an error that a script block writes under <c>$ErrorActionPreference = 'Stop'</c> ends the whole script,
+	/// a failed method call ends only the statement, and <c>break</c> leaves the enclosing loop.
+	/// </para>
+	/// <para>
+	/// A <see cref="RuntimeException"/> also includes the <see cref="PipelineStoppedException"/> that
+	/// <see cref="Cmdlet.ThrowTerminatingError(ErrorRecord)"/> throws, so an error that the cmdlet already reported isn't
+	/// reported again.
+	/// </para>
+	/// </remarks>
+	/// <param name="exception">The exception to check. This value must not be <see langword="null"/>.</param>
+	/// <returns>
+	/// <see langword="true"/> if <paramref name="exception"/> is a <see cref="RuntimeException"/> or a
+	/// <see cref="FlowControlException"/>; otherwise, <see langword="false"/>.
+	/// </returns>
+	private static bool PassesThrough(Exception exception)
+	{
+		return exception is RuntimeException or FlowControlException;
 	}
 	/// <summary>
 	/// Runs the end phase early and stops the commands that send pipeline input to this cmdlet.

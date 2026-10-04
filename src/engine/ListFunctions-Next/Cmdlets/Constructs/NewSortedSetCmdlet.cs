@@ -28,7 +28,7 @@ namespace ListFunctions.Cmdlets.Constructs;
 public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 {
 	private AddMethodInvoker _addMethod = null!;
-	private object[] _arr = null!;
+	private object?[] _arr = null!;
 	private SortingCollectorCtor _ctor = null!;
 	private object _set = null!;
 
@@ -73,8 +73,8 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 	/// <remarks>
 	/// Each pipeline object is one element, even when it's <see langword="null"/> or an array. An array passed to the
 	/// parameter supplies its elements, and <see langword="null"/> supplies none. Each element is converted to
-	/// <see cref="GenericType"/>. <see langword="null"/> elements and elements that cannot be converted are skipped
-	/// without an error.
+	/// <see cref="GenericType"/>. An element that cannot be converted produces a non-terminating error and is skipped,
+	/// and <see langword="null"/> elements are skipped without an error.
 	/// </remarks>
 	/// <value>The current pipeline object, or the argument of the parameter. The value can be <see langword="null"/>.</value>
 	[Parameter(ValueFromPipeline = true)]
@@ -107,9 +107,10 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 	/// Converts the elements of the current <see cref="InputObject"/> and adds them to the set.
 	/// </summary>
 	/// <remarks>
-	/// <see langword="null"/> elements and elements that cannot be converted to <see cref="GenericType"/> are skipped
-	/// without an error. When adding an element throws, for example because <see cref="ComparingScript"/> fails, the
-	/// method writes a non-terminating error for the exception that the set threw, and continues.
+	/// An element that cannot be converted to <see cref="GenericType"/> produces a non-terminating error, the same one
+	/// that <c>New-List</c> writes, and is skipped. <see langword="null"/> elements are skipped without an error. When
+	/// adding an element throws, for example because <see cref="ComparingScript"/> fails, the method writes a
+	/// non-terminating error for the exception that the set threw, and continues.
 	/// </remarks>
 	/// <returns>Always <see langword="true"/>, so all pipeline input is processed.</returns>
 	protected override bool ProcessCore()
@@ -122,11 +123,11 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 		}
 
 		_addMethod ??= new AddMethodInvoker(_ctor);
-		_arr ??= new object[1];
+		_arr ??= new object?[1];
 
 		foreach (object? item in elements)
 		{
-			if (item is null || !LanguagePrimitives.TryConvertTo(item, this.GenericType, out object? result))
+			if (item is null || !this.TryConvertItem(item, this.GenericType, out object? result))
 			{
 				continue;
 			}

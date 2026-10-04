@@ -101,7 +101,7 @@ if (Get-ChildItem -File | Any { $_.Length -gt 1GB }) {
 | --- | --- |
 | `-Condition` | Position 0. Aliases: `ScriptBlock`, `FilterScript`. Optional. The test to run on each element. |
 | `-InputObject` | The elements to test. Accepts pipeline input. |
-| `-ScriptBlockErrorAction` | The `$ErrorActionPreference` inside `-Condition`. Default: `SilentlyContinue`. See [Errors in script blocks](#errors-in-script-blocks). |
+| `-ScriptBlockErrorAction` | Alias: `ScriptErrorAction`. The `$ErrorActionPreference` inside `-Condition`. Default: `SilentlyContinue`. See [Errors in script blocks](#errors-in-script-blocks). |
 
 ### Assert-AllObject
 
@@ -124,7 +124,7 @@ if (-not ($array | All { $_ -is [int] })) {
 | --- | --- |
 | `-Condition` | Position 0. Aliases: `ScriptBlock`, `FilterScript`. Required. The test to run on each element. |
 | `-InputObject` | The elements to test. Accepts pipeline input. |
-| `-ScriptBlockErrorAction` | The `$ErrorActionPreference` inside `-Condition`. Default: `SilentlyContinue`. |
+| `-ScriptBlockErrorAction` | Alias: `ScriptErrorAction`. The `$ErrorActionPreference` inside `-Condition`. Default: `SilentlyContinue`. |
 
 ## Searching
 
@@ -146,7 +146,7 @@ Find-IndexOf -InputObject $names -Condition { $_ -like 'C*' }   # 2
 | --- | --- |
 | `-Condition` | Position 0. Alias: `ScriptBlock`. Required. The test to run on each element. |
 | `-InputObject` | Alias: `List`. The elements to search. Accepts pipeline input. |
-| `-ScriptBlockErrorAction` | The `$ErrorActionPreference` inside `-Condition`. Default: `SilentlyContinue`. |
+| `-ScriptBlockErrorAction` | Alias: `ScriptErrorAction`. The `$ErrorActionPreference` inside `-Condition`. Default: `SilentlyContinue`. |
 
 ### Find-LastIndexOf
 
@@ -270,7 +270,7 @@ $set.Count              # 2
 
 ### New-SortedSet
 
-Creates a `System.Collections.Generic.SortedSet[T]`, which holds each distinct element once and keeps the elements in sorted order. Input elements are converted to `T` as they're added.
+Creates a `System.Collections.Generic.SortedSet[T]`, which holds each distinct element once and keeps the elements in sorted order. Input elements are converted to `T` as they're added. An element that can't be converted writes a non-terminating error and isn't added.
 
 Unless you supply a script block sort order, an `[object]` set compares elements the way PowerShell's `-lt` and `-gt` operators do, a `[string]` set compares strings without regard to case, and a set of any other type uses the type's default order. Elements that compare as equal are duplicates, so a `[string]` set holds only one of `'a'` and `'A'`.
 
@@ -311,7 +311,7 @@ $set.Name               # Bob, Ann
 
 ### New-Dictionary
 
-Creates a `System.Collections.Generic.Dictionary[TKey, TValue]`. If `-KeyType` and `-ValueType` are both `[object]`, which is the default, it creates a `System.Collections.Hashtable` instead. `[string]` keys and the keys of a `Hashtable` are compared without regard to case unless you pass `-CaseSensitive`.
+Creates a `System.Collections.Generic.Dictionary[TKey, TValue]`. If `-KeyType` and `-ValueType` are both `[object]`, which is the default, it creates a `System.Collections.Hashtable` instead. `[string]` and `[object]` keys, including the keys of a `Hashtable`, are compared without regard to case unless you pass `-CaseSensitive`. `[object]` keys that aren't both strings are compared with their own `Equals` method, so `1` and `'1'` are different keys.
 
 ```powershell
 # A Hashtable.
@@ -360,7 +360,7 @@ $dict.Add([pscustomobject]@{ Id = 1; Name = 'second' }, 'b')    # Error: the key
 
 ### ConvertTo-Dictionary
 
-Builds a `Dictionary[TKey, TValue]` that indexes the input objects by a key: either a property's value or a value that a script block returns. Each dictionary value is the input object itself, unless you choose a property or a script block for the value.
+Builds a `Dictionary[TKey, TValue]` that indexes the input objects by a key: either a property's value or a value that a script block returns. Each dictionary value is the input object itself, unless you choose a property or a script block for the value. When that property or script block gives `$null`, the value is `$null` converted to the value type, which is what `$dict.Add($key, $null)` would store: `''` for `[string]`, `0` for `[int]`, and `$null` for `[object]`.
 
 The key type is the type of the first input object's key. The value type is the type of the first object's value, or `[object]` if that value is a custom object, unless you pass `-ValueType`. `[string]` keys are compared without regard to case unless you pass a different `-KeyComparer`. The command skips input objects that are `$null` and objects whose key is `$null`. With no input, it returns an empty `Hashtable`.
 
@@ -446,6 +446,13 @@ $files | Any { (Get-Item -Path $_).Length -gt 0 }
 $files | Any { (Get-Item -Path $_).Length -gt 0 } -ScriptBlockErrorAction Stop
 # Error: Cannot find path '...\missing-1.txt' because it does not exist.
 ```
+
+Errors in `-Condition` reach PowerShell unchanged, the same as errors in a `ForEach-Object` script block. With `-ScriptBlockErrorAction Stop`:
+
+- An error that the condition writes, such as the one from `Get-Item` above, ends the whole script, as `-ErrorAction Stop` would. To handle it, run the command in a `try` block.
+- A failed method call, such as `$null.Foo()`, ends only the statement that runs the command.
+
+A `throw` in a condition ends the whole script unless `-ScriptBlockErrorAction` is `SilentlyContinue`, and `break` leaves the loop that runs the command.
 
 ## License
 

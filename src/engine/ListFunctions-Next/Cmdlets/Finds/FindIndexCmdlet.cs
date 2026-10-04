@@ -28,7 +28,11 @@ namespace ListFunctions.Cmdlets.Finds;
 /// commands don't run their end blocks.
 /// </para>
 /// <para>
-/// A terminating error thrown by the condition script block ends the cmdlet with a terminating error.
+/// Errors from the condition script block reach PowerShell unchanged, the way they do from a <c>ForEach-Object</c>
+/// script block. When <see cref="ScriptBlockErrorAction"/> is <see cref="ActionPreference.Stop"/>, an error that the
+/// script block writes ends the script that runs the cmdlet, as <c>-ErrorAction Stop</c> does. A <c>throw</c> does too
+/// unless the errors are suppressed. A failed method call ends only the statement, and <c>break</c> leaves the loop
+/// around the cmdlet.
 /// </para>
 /// </remarks>
 [Cmdlet(VerbsCommon.Find, "IndexOf")]

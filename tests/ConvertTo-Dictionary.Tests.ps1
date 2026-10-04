@@ -1,5 +1,6 @@
 BeforeAll {
 	& "$PSScriptRoot/Import-ListFunctions.ps1"
+	. "$PSScriptRoot/Invoke-InNewRunspace.ps1"
 }
 
 Describe 'ConvertTo-Dictionary' {
@@ -119,6 +120,61 @@ Describe 'ConvertTo-Dictionary' {
 			$dict = $item | ConvertTo-Dictionary -KeyPropertyName $keyName -ValuePropertyName $valueName
 			$dict.Count | Should-Be 1
 			$dict['k'] | Should-Be 'v'
+		}
+	}
+
+	Context 'Null values' {
+		# Each expected value is what Add($key, $null) stores in a dictionary with the same value type, in both editions.
+		It 'stores <Label> when the value property of a later object is $null and the values are [<TypeName>]' -Tag 'Bug19' -ForEach @(
+			@{ TypeName = 'string'; First = 'x'; Label = "''"; Expected = '' }
+			@{ TypeName = 'int'; First = 1; Label = '0'; Expected = 0 }
+			@{ TypeName = 'version'; First = [version]'1.0'; Label = '$null'; Expected = $null }
+		) {
+			$items = [pscustomobject]@{ K = 'a'; V = $First }, [pscustomobject]@{ K = 'b'; V = $null }
+			$dict = $items | ConvertTo-Dictionary K V
+			$dict.Count | Should-Be 2
+			Should-Be -Expected $Expected -Actual $dict['b']
+		}
+
+		It 'stores $null when the value property of the first object is $null' -Tag 'Bug19' {
+			$items = [pscustomobject]@{ K = 'a'; V = $null }, [pscustomobject]@{ K = 'b'; V = 'x' }
+			$dict = $items | ConvertTo-Dictionary K V
+			# The first value is $null, so the value type is [object].
+			Should-HaveType -Expected ([System.Collections.Generic.Dictionary[string, object]]) -Actual $dict
+			$dict.Count | Should-Be 2
+			$dict['a'] | Should-BeNull
+			$dict['b'] | Should-Be 'x'
+		}
+
+		It 'stores the conversion of $null when -ValueSelector outputs nothing' -Tag 'Bug19' {
+			$dict = 'a', 'bb' | ConvertTo-Dictionary -KeySelector { $_ } -ValueSelector { if ($_.Length -eq 1) { 1 } }
+			Should-HaveType -Expected ([System.Collections.Generic.Dictionary[string, int]]) -Actual $dict
+			$dict.Count | Should-Be 2
+			$dict['bb'] | Should-Be 0
+		}
+
+		It 'uses each object as its own value when there is no value selector' -Tag 'Bug19' {
+			$items = [pscustomobject]@{ K = 'a' }, [pscustomobject]@{ K = 'b' }
+			$dict = $items | ConvertTo-Dictionary K
+			$dict['b'].K | Should-Be 'b'
+		}
+	}
+
+	# ListFunctionCmdletBase passes a script block's errors to PowerShell unchanged, but ConvertTo-Dictionary turns a
+	# selector error into an error that ends only the statement. The scripts run in a new runspace, because Pester's try
+	# block would catch both kinds of error.
+	Context 'Errors in selectors' {
+		It 'ends only the statement when -KeySelector throws for the <Label> object' -Tag 'Bug21' -ForEach @(
+			@{ Label = 'first'; Failing = 'a' }
+			@{ Label = 'second'; Failing = 'b' }
+		) {
+			$result = Invoke-InNewRunspace "'a', 'b' | ConvertTo-Dictionary -KeySelector { if (`$_ -eq '$Failing') { throw 'boom' } else { `$_ } }; 'still running'"
+			$result.StoppedBy | Should-BeNull
+			Should-BeCollection -Expected @('still running') -Actual $result.Output
+			$result.Errors.Count | Should-Be 1
+			$result.Errors[0].FullyQualifiedErrorId | Should-Be 'System.Management.Automation.RuntimeException,ListFunctions.Cmdlets.Constructs.ConvertToDictionaryCmdlet'
+			$result.Errors[0].CategoryInfo.Category | Should-Be ([System.Management.Automation.ErrorCategory]::InvalidOperation)
+			$result.Errors[0].TargetObject | Should-Be $Failing
 		}
 	}
 }

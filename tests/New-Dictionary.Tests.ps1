@@ -113,6 +113,75 @@ Describe 'New-Dictionary' {
 		}
 	}
 
+	Context 'CaseSensitive' {
+		It 'copies into a dictionary with case-sensitive [<KeyName>] keys when the input is <Label>' -Tag 'Bug18' -ForEach @(
+			@{ KeyName = 'string'; KeyType = [string]; Label = 'piped'; Piped = $true }
+			@{ KeyName = 'string'; KeyType = [string]; Label = 'passed to -InputObject'; Piped = $false }
+			@{ KeyName = 'object'; KeyType = [object]; Label = 'piped'; Piped = $true }
+			@{ KeyName = 'object'; KeyType = [object]; Label = 'passed to -InputObject'; Piped = $false }
+		) {
+			$source = @{ a = 1 }
+			if ($Piped) {
+				$dict = $source | New-Dictionary $KeyType -CaseSensitive
+			}
+			else {
+				$dict = New-Dictionary $KeyType -CaseSensitive -InputObject $source
+			}
+			$dict.Count | Should-Be 1
+			$dict['a'] | Should-Be 1
+			$dict.ContainsKey('A') | Should-BeFalse
+		}
+
+		It 'combines -CaseSensitive with -CloneValues' -Tag 'Bug18' {
+			$source = @{ Items = [System.Collections.ArrayList]@(1, 2) }
+			$dict = $source | New-Dictionary [string] -CaseSensitive -CloneValues
+			[object]::ReferenceEquals($source.Items, $dict['Items']) | Should-BeFalse
+			$dict.ContainsKey('items') | Should-BeFalse
+		}
+
+		It 'creates an empty dictionary with -CaseSensitive and no input' -Tag 'Bug18' {
+			$dict = New-Dictionary [string] -CaseSensitive
+			$dict.Count | Should-Be 0
+			$dict['a'] = 1
+			$dict.ContainsKey('A') | Should-BeFalse
+		}
+	}
+
+	# [object] keys compare the way the Hashtable that New-Dictionary creates for [object] values compares them: strings
+	# without regard to case unless -CaseSensitive is set, and other keys with their own Equals method.
+	Context 'Object keys' {
+		It 'compares string keys without regard to case when -ValueType is [<Name>]' -Tag 'Bug20' -ForEach @(
+			@{ Name = 'object'; ValueType = [object] }
+			@{ Name = 'int'; ValueType = [int] }
+		) {
+			$dict = New-Dictionary -ValueType $ValueType
+			$dict['a'] = 1
+			$dict['A'] = 2
+			$dict.Count | Should-Be 1
+			$dict['a'] | Should-Be 2
+		}
+
+		It 'compares string keys with regard to case with -CaseSensitive when -ValueType is [<Name>]' -Tag 'Bug20' -ForEach @(
+			@{ Name = 'object'; ValueType = [object] }
+			@{ Name = 'int'; ValueType = [int] }
+		) {
+			$dict = New-Dictionary -ValueType $ValueType -CaseSensitive
+			$dict['a'] = 1
+			$dict['A'] = 2
+			$dict.Count | Should-Be 2
+		}
+
+		It "keeps 1 and '1' apart when -ValueType is [<Name>]" -Tag 'Bug20' -ForEach @(
+			@{ Name = 'object'; ValueType = [object] }
+			@{ Name = 'int'; ValueType = [int] }
+		) {
+			$dict = New-Dictionary -ValueType $ValueType
+			$dict[1] = 1
+			$dict['1'] = 2
+			$dict.Count | Should-Be 2
+		}
+	}
+
 	Context 'Capacity' {
 		It 'passes -Capacity to a <Description>' -Tag 'Bug02' -ForEach @(
 			@{ Description = 'Hashtable'; Parameters = @{} }

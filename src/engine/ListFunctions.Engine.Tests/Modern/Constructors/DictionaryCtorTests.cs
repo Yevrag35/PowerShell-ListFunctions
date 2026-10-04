@@ -91,6 +91,52 @@ public sealed class DictionaryCtorTests : IClassFixture<RunspaceFixture>
 		Assert.InRange(BucketCount.Of(dict), 1000, int.MaxValue);
 	}
 
+	[Theory]
+	[Trait("Category", "Bug20")]
+	[InlineData(typeof(object))]
+	[InlineData(typeof(int))]
+	public void Construct_ComparesObjectKeysWithoutRegardToCase(Type valueType)
+	{
+		var dict = Assert.IsAssignableFrom<IDictionary>(new DictionaryCtor(comparer: null, keyType: null, valueType).Construct());
+
+		dict["a"] = 1;
+		dict["A"] = 2;
+
+		Assert.Single(dict);
+	}
+
+	[Theory]
+	[Trait("Category", "Bug20")]
+	[InlineData(typeof(object))]
+	[InlineData(typeof(int))]
+	public void Construct_ComparesObjectKeysWithRegardToCaseWhenCaseSensitive(Type valueType)
+	{
+		var ctor = new DictionaryCtor(comparer: null, keyType: null, valueType)
+		{
+			IsCaseSensitive = true,
+		};
+		var dict = Assert.IsAssignableFrom<IDictionary>(ctor.Construct());
+
+		dict["a"] = 1;
+		dict["A"] = 2;
+
+		Assert.Equal(2, dict.Count);
+	}
+
+	[Theory]
+	[Trait("Category", "Bug20")]
+	[InlineData(typeof(object))]
+	[InlineData(typeof(int))]
+	public void Construct_KeepsObjectKeysOfDifferentTypesApart(Type valueType)
+	{
+		var dict = Assert.IsAssignableFrom<IDictionary>(new DictionaryCtor(comparer: null, keyType: null, valueType).Construct());
+
+		dict[1] = 1;
+		dict["1"] = 2;
+
+		Assert.Equal(2, dict.Count);
+	}
+
 	[Fact]
 	[Trait("Category", "Bug02")]
 	public void Construct_PassesTheCapacityToADictionaryWithAnEqualityBlock()

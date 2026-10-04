@@ -122,8 +122,9 @@ public abstract class AssertObjectCmdlet : ListFunctionCmdletBase
 	/// When implemented in a derived class, tests the current pipeline input with the condition filter.
 	/// </summary>
 	/// <remarks>
-	/// The base class calls this method only when <see cref="Condition"/> is a script block with content. An exception
-	/// from this method, including one thrown by the condition script block, becomes a terminating error.
+	/// The base class calls this method only when <see cref="Condition"/> is a script block with content. An error from
+	/// the condition script block reaches PowerShell unchanged, and any other exception from this method becomes a
+	/// terminating error.
 	/// </remarks>
 	/// <param name="filter">The filter that tests objects with <see cref="Condition"/>. This value isn't <see langword="null"/>.</param>
 	/// <returns>

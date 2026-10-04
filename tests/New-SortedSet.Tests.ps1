@@ -15,8 +15,33 @@ Describe 'New-SortedSet' {
 
 	It 'treats a piped array as one element' -Tag 'Bug06' {
 		# The array can't be converted to [int], so only 3 is added.
-		$set = @(3, @(1, 2)) | New-SortedSet [int]
+		$set = @(3, @(1, 2)) | New-SortedSet [int] -ErrorAction SilentlyContinue
 		Should-BeCollection -Expected @(3) -Actual ([object[]]$set)
+	}
+
+	Context 'Conversion' {
+		It "writes an error for an element that can't be converted, and adds the others, when the input is <Label>" -Tag 'Bug17' -ForEach @(
+			@{ Label = 'piped'; Piped = $true }
+			@{ Label = 'passed to -InputObject'; Piped = $false }
+		) {
+			if ($Piped) {
+				$set = 1, 'abc', 2 | New-SortedSet [int] -ErrorVariable err -ErrorAction SilentlyContinue
+			}
+			else {
+				$set = New-SortedSet [int] -InputObject 1, 'abc', 2 -ErrorVariable err -ErrorAction SilentlyContinue
+			}
+			Should-BeCollection -Expected @(1, 2) -Actual ([object[]]$set)
+			$err.Count | Should-Be 1
+			# New-List writes the same error.
+			Should-HaveType -Expected ([ListFunctions.Exceptions.LFInvalidCastException]) -Actual $err[0].Exception
+			$err[0].TargetObject | Should-Be 'abc'
+		}
+
+		It 'skips a $null element without an error' -Tag 'Bug17' {
+			$set = 1, $null, 2 | New-SortedSet [int] -ErrorVariable err -ErrorAction SilentlyContinue
+			Should-BeCollection -Expected @(1, 2) -Actual ([object[]]$set)
+			$err.Count | Should-Be 0
+		}
 	}
 
 	It "writes an error when the output of -ComparingScript <Label>" -Tag 'Bug10' -ForEach @(

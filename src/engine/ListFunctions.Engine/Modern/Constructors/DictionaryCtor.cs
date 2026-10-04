@@ -5,10 +5,17 @@ namespace ListFunctions.Modern.Constructors;
 /// at run time.
 /// </summary>
 /// <remarks>
+/// <para>
 /// When both the key and value types are <see cref="object"/> and the comparer isn't an
 /// <see cref="IEqualityBlock"/>, <see cref="GenericCollectionCtor.Construct"/> creates a <see cref="Hashtable"/>
 /// instead, like PowerShell's <c>@{}</c> literal. In that case, any other comparer passed to the constructor is
 /// ignored.
+/// </para>
+/// <para>
+/// Without a comparer, <see cref="object"/> keys compare the same way whatever the value type is: string keys without
+/// regard to case unless <see cref="EqualityCollectionCtor.IsCaseSensitive"/> is <see langword="true"/>, and other keys
+/// with their own <see cref="object.Equals(object)"/> method.
+/// </para>
 /// </remarks>
 public sealed class DictionaryCtor : EqualityCollectionCtor<Hashtable>
 {
@@ -56,11 +63,46 @@ public sealed class DictionaryCtor : EqualityCollectionCtor<Hashtable>
 	/// <returns>The new, empty table.</returns>
 	protected override Hashtable ConstructTDefault(IEqualityComparer comparer)
 	{
-		var comp = this.IsCaseSensitive
+		return new Hashtable(this.Capacity, this.GetObjectKeyComparer());
+	}
+	/// <summary>
+	/// Returns the comparer for the keys when no comparer is passed to the constructor.
+	/// </summary>
+	/// <remarks>
+	/// Whatever the value type is, <see cref="object"/> keys compare the way the keys of the <see cref="Hashtable"/> do,
+	/// which <see cref="GenericCollectionCtor.Construct"/> creates when both types are <see cref="object"/>: strings with
+	/// <see cref="StringComparer.OrdinalIgnoreCase"/>, or with <see cref="StringComparer.CurrentCulture"/> when
+	/// <see cref="EqualityCollectionCtor.IsCaseSensitive"/> is <see langword="true"/>, and other keys with their own
+	/// <see cref="object.Equals(object)"/> method. Other key types use the base implementation.
+	/// </remarks>
+	/// <param name="equalityType">The key type.</param>
+	/// <returns>
+	/// The string comparer for <see cref="object"/> keys; otherwise, the comparer from the base implementation, or
+	/// <see langword="null"/>.
+	/// </returns>
+	protected override IEqualityComparer? GetDefaultComparer(Type equalityType)
+	{
+		return typeof(object).Equals(equalityType)
+			? this.GetObjectKeyComparer()
+			: base.GetDefaultComparer(equalityType);
+	}
+	/// <summary>
+	/// Returns the string comparer that <see cref="object"/> keys compare with when no comparer is passed to the
+	/// constructor.
+	/// </summary>
+	/// <remarks>
+	/// The comparer compares two strings as strings and any other two keys with <see cref="object.Equals(object)"/>, so
+	/// <c>1</c> and <c>"1"</c> are different keys.
+	/// </remarks>
+	/// <returns>
+	/// <see cref="StringComparer.CurrentCulture"/> when <see cref="EqualityCollectionCtor.IsCaseSensitive"/> is
+	/// <see langword="true"/>; otherwise, <see cref="StringComparer.OrdinalIgnoreCase"/>.
+	/// </returns>
+	private StringComparer GetObjectKeyComparer()
+	{
+		return this.IsCaseSensitive
 			? StringComparer.CurrentCulture
 			: StringComparer.OrdinalIgnoreCase;
-
-		return new Hashtable(this.Capacity, comp);
 	}
 
 	/// <summary>

@@ -30,12 +30,12 @@ Found while rewriting `README.md` on 2026-09-28. The README describes how the mo
 
 **Minor**
 
-- [ ] 16 — `-ScriptErrorAction` exists on only two of the four condition cmdlets
-- [ ] 17 — New-SortedSet silently skips elements it can't convert
-- [ ] 18 — New-Dictionary's `-CaseSensitive` can't be combined with `-InputObject`
-- [ ] 19 — ConvertTo-Dictionary stores the whole input object when the value is `$null`
-- [ ] 20 — New-Dictionary's `[object]` keys turn case-sensitive when `-ValueType` isn't `[object]`
-- [ ] 21 — Find-LastIndexOf handles condition errors differently from the other condition cmdlets
+- [x] 16 — `-ScriptErrorAction` exists on only two of the four condition cmdlets
+- [x] 17 — New-SortedSet silently skips elements it can't convert
+- [x] 18 — New-Dictionary's `-CaseSensitive` can't be combined with `-InputObject`
+- [x] 19 — ConvertTo-Dictionary stores the whole input object when the value is `$null`
+- [x] 20 — New-Dictionary's `[object]` keys turn case-sensitive when `-ValueType` isn't `[object]`
+- [x] 21 — Find-LastIndexOf handles condition errors differently from the other condition cmdlets
 - [x] 22 — ConvertTo-Dictionary fails on a property name that contains a single quote
 
 ## Running the repros
@@ -402,7 +402,9 @@ Assert-AnyObject and Find-IndexOf give `-ScriptBlockErrorAction` the alias `Scri
 
 **Fix idea:** Add the alias to the other two, or remove it from both.
 
-**Tests:** Pester only, because the alias is a cmdlet parameter attribute. Each condition cmdlet gets one test, in `tests/Assert-AnyObject.Tests.ps1`, `tests/Assert-AllObject.Tests.ps1`, `tests/Find-IndexOf.Tests.ps1`, and `tests/Find-LastIndexOf.Tests.ps1`, so that all four agree on `-ScriptErrorAction`.
+**Fixed:** By adding the alias to the other two, chosen on 2026-10-03. Assert-AllObject's and Find-LastIndexOf's `-ScriptBlockErrorAction` have the alias `ScriptErrorAction` too, so all four condition cmdlets accept it. Nothing that worked before breaks. The README's `-ScriptBlockErrorAction` rows for Assert-AnyObject, Assert-AllObject, and Find-IndexOf list the alias, and Find-LastIndexOf takes the same parameters as Find-IndexOf. New-HashSet, New-SortedSet, and New-Dictionary have a `-ScriptBlockErrorAction` without the alias, and keep it that way.
+
+**Tests:** Pester only, and written: `Bug16` in `tests/Assert-AnyObject.Tests.ps1`, `tests/Assert-AllObject.Tests.ps1`, `tests/Find-IndexOf.Tests.ps1`, and `tests/Find-LastIndexOf.Tests.ps1`. Each test passes `-ScriptErrorAction Stop` with a condition that writes an error, and checks that the error becomes a terminating error, which shows that the alias reached `-ScriptBlockErrorAction`. The tests for Assert-AllObject and Find-LastIndexOf failed with the repro's binding error before the fix.
 
 ### 17 — New-SortedSet silently skips elements it can't convert
 
@@ -415,7 +417,9 @@ Assert-AnyObject and Find-IndexOf give `-ScriptBlockErrorAction` the alias `Scri
 
 **Fix idea:** Write the same conversion error that New-List writes.
 
-**Tests:** Pester only, in `tests/New-SortedSet.Tests.ps1`. The cause is in `NewSortedSetCmdlet.ProcessCore`.
+**Fixed:** `NewSortedSetCmdlet.ProcessCore` converts each element with `ListFunctionCmdletBase.TryConvertItem`, as New-Dictionary does. An element that can't be converted writes the `LFInvalidCastException` error that New-List writes, through the same `WriteConversionError`, and is skipped. The other elements are still added. A `$null` element is still skipped without an error. The repro returns `1,2` and writes an error for `'abc'`. `TryConvertItem` reports a conversion to `$null` as a success, as `[NullString]::Value` gives for `[string]`, so the array that passes each element to `Add` is now an `object?[]`. The README's New-SortedSet section says that an element that can't be converted writes a non-terminating error.
+
+**Tests:** Pester only, and written: `Bug17` in `tests/New-SortedSet.Tests.ps1`, for piped input and `-InputObject`, which check the error's exception type and target object, and for a piped `$null`, which still writes no error. The `Bug06` test there, whose piped array can't be converted to `[int]`, now passes `-ErrorAction SilentlyContinue`, because the array writes a conversion error.
 
 ### 18 — New-Dictionary's `-CaseSensitive` can't be combined with `-InputObject`
 
@@ -429,7 +433,9 @@ Assert-AnyObject and Find-IndexOf give `-ScriptBlockErrorAction` the alias `Scri
 
 **Fix idea:** Also add `-CaseSensitive` to the `JustCopy` set.
 
-**Tests:** Pester only, in `tests/New-Dictionary.Tests.ps1`. The cause is in the cmdlet's parameter sets.
+**Fixed:** `-CaseSensitive` belongs to `JustCopy` too, as an optional parameter. It stays mandatory in `StringDict`, where it's the only thing that tells that set apart from the default set. In `JustCopy`, the mandatory `-InputObject` already does that, so the switch can be optional there. `EqualityConstructingCmdlet` has a new virtual `CaseSensitiveOptionalParameterSetName`, which New-Dictionary overrides with `JustCopy`, and the dynamic parameter gets a second `ParameterAttribute` for that set. Without input, `New-Dictionary [string] -CaseSensitive` still resolves to `StringDict` and creates an empty dictionary, the way `New-Dictionary -EqualityScript ... -HashCodeScript ...` resolves to `WithCustomEquality` instead of `WithCustomEqualityAndCopy`. The repro returns a `Dictionary[string, object]` with case-sensitive keys that holds `a = 1`.
+
+**Tests:** Pester only, and written: `Bug18` in `tests/New-Dictionary.Tests.ps1`, for `[string]` and `[object]` keys, each with piped input and with `-InputObject`, for `-CaseSensitive` with `-CloneValues`, and for `-CaseSensitive` without input, which already worked.
 
 ### 19 — ConvertTo-Dictionary stores the whole input object when the value is `$null`
 
@@ -444,7 +450,14 @@ $d.Count     # Expected: 2, with $d['b'] -eq $null. Actual: 1
 
 **Fix idea:** Store `$null` when a value selector returns `$null`, and fall back to the input object only when there's no value selector.
 
-**Tests:** Pester only, in a new `tests/ConvertTo-Dictionary.Tests.ps1`. The cause is in `ConvertToDictionaryCmdlet.AddToDictionary`.
+**Fixed:** `ConvertToDictionaryCmdlet.AddToDictionary` uses the input object as the value only when there's no value selector. When `-ValuePropertyName` or `-ValueSelector` gives one, its output is converted to the value type with `LanguagePrimitives.ConvertTo`, even when it's `$null`. That follows the rule decided under 04: a `$null` value becomes what `Add($key, $null)` stores in a dictionary with the same value type. Measured on 2026-10-03 in both editions, that's `''` for `[string]`, `0` for `[int]`, and `$null` for `[object]` and `[version]`.
+
+- The repro returns a dictionary with 2 entries. Its value type is `[string]`, so `$d['b']` is `''`, not the `$null` that the repro expects.
+- When the first object's value is `$null`, the value type is `[object]`, so the dictionary stores `$null`.
+- Without a value selector, each object is its own value and isn't converted, as before.
+- The README's ConvertTo-Dictionary section and the XML docs of `-ValueSelector` and `-ValuePropertyName` describe the conversion.
+
+**Tests:** Pester only, and written: `Bug19` in `tests/ConvertTo-Dictionary.Tests.ps1`, for a `$null` value property of a later object with `[string]`, `[int]`, and `[version]` values, a `$null` value property of the first object, and a `-ValueSelector` that outputs nothing. One more test, which passed before the fix, checks that each object is its own value when there's no value selector.
 
 ### 20 — New-Dictionary's `[object]` keys turn case-sensitive when `-ValueType` isn't `[object]`
 
@@ -459,10 +472,16 @@ $d.Count                                   # 2; the default Hashtable gives 1
 
 **Fix idea:** Decide how `[object]` keys should compare, and use that rule on both paths. New-HashSet's `ObjectEqualityComparer` is one option.
 
-**Tests:** Both.
+**Fixed:** With the rule of the `Hashtable` that New-Dictionary already creates, chosen on 2026-10-03. Without a comparer, `[object]` keys compare the same way whatever the value type is: strings with `StringComparer.OrdinalIgnoreCase`, or with `StringComparer.CurrentCulture` under `-CaseSensitive`, and other keys with their own `Equals` method, so `1` and `'1'` stay different keys. The default `Hashtable` doesn't change.
 
-- Engine: a new `Modern/Constructors/DictionaryCtorTests.cs`. `[object]` keys follow the chosen rule whatever the value type is, and `IsCaseSensitive` changes them.
-- Pester: `tests/New-Dictionary.Tests.ps1`, with the repro, plus `-CaseSensitive` with a non-`[object]` `-ValueType`.
+- `EqualityCollectionCtor` has a new virtual `GetDefaultComparer`, which `GetComparerOrDefault` calls when no comparer was passed to the constructor. Its base implementation returns the invariant-culture comparers for `string` that `GetComparerOrDefault` used to choose itself, and `null` for other types, which still get `EqualityComparer<T>.Default`.
+- `DictionaryCtor` overrides it for `object` keys with the comparer that its `Hashtable` uses. A `StringComparer` isn't an `IEqualityComparer<object>`, so the `Dictionary[object, TValue]` gets it inside an `EqualityComparerAdapter<object>`.
+- The repro's dictionary holds one entry, `a = 2`. The README and New-Dictionary's XML docs describe the rule.
+
+**Tests:** Both, and written.
+
+- Engine: `Category=Bug20` in `Modern/Constructors/DictionaryCtorTests.cs`, for `object` and `int` values: string keys compare without regard to case, `IsCaseSensitive` makes them compare with case, and `1` and `"1"` stay different keys. Only the case-insensitive test with `int` values failed before the fix. The others pin down the rule.
+- Pester: `Bug20` in `tests/New-Dictionary.Tests.ps1`, for `[object]` and `[int]` values, with the repro, `-CaseSensitive`, and `1` and `'1'` as keys.
 
 ### 21 — Find-LastIndexOf handles condition errors differently from the other condition cmdlets
 
@@ -492,7 +511,29 @@ try { 1 | Find-LastIndexOf { if ($_) { $null.Foo() } } } catch { $_.FullyQualifi
 
 **Fix idea:** Handle exceptions the same way in all three phases. `StopUpstreamCommands` runs `EndCore` too, outside `ProcessRecord`'s `try`, so it needs the same handling. First decide what `Stop` should do: letting the `ActionPreferenceStopException` through matches `-ErrorAction Stop`. Wrap other errors in a record that names the cmdlet and keeps the original error ID and category, the way PowerShell's own wrapping does for Find-LastIndexOf's `$null.Foo()`.
 
-**Tests:** Pester only, because the cause is in `ListFunctionCmdletBase`. The repros go in `tests/Find-LastIndexOf.Tests.ps1` and `tests/Find-IndexOf.Tests.ps1`. Matching tests in `tests/Assert-AnyObject.Tests.ps1` and `tests/Assert-AllObject.Tests.ps1` keep all four cmdlets handling errors the same way.
+**Correction, found on 2026-10-03:** The description is wrong about `throw`, and leaves out `break`.
+
+- Under the default `-ScriptBlockErrorAction`, `SilentlyContinue`, a `throw` in a condition is suppressed, and no error appears from any of the four cmdlets.
+- With `Stop` or `Continue`, a `throw` from Find-LastIndexOf ended the whole script, as one from `ForEach-Object` does. The other three ended only the statement.
+- `break` in a condition left the enclosing loop from Find-LastIndexOf and `ForEach-Object`. The other three turned it into a `BreakException` error, and the loop went on.
+
+**Fixed:** Like `ForEach-Object`, chosen on 2026-10-03. Find-LastIndexOf already behaved exactly like a `ForEach-Object` script block that sets `$ErrorActionPreference` in a child scope, measured in both editions, so the other three now behave the same way.
+
+- `ListFunctionCmdletBase.BeginProcessing` and `ProcessRecord` still record the failure and run `Cleanup`. Then they pass a `RuntimeException` or a `FlowControlException` to PowerShell unchanged, through the new `PassesThrough`. Any other exception, such as Assert-AllObject's `ArgumentException` for a `$null` condition, still becomes a terminating error through `ToRecord`. `EndProcessing` and `StopUpstreamCommands` already passed every exception on unchanged, and PowerShell gives any other exception the same error ID and category that `ToRecord` does.
+- With `-ScriptBlockErrorAction Stop`, an error that the condition writes ends the whole script, as `-ErrorAction Stop` does, and keeps its original record.
+- A `throw` ends the whole script, unless the preference is `SilentlyContinue`, and keeps its own record.
+- A failed method call ends only the statement. PowerShell wraps its error in a record that keeps its error ID and category, such as `InvokeMethodOnNull` and `InvalidOperation`, and names the cmdlet.
+- `break` leaves the loop around the cmdlet.
+- `ThrowTerminatingError` inside `ProcessCore` throws a `PipelineStoppedException`, which is a `RuntimeException`, so the base class no longer reports that error a second time.
+- The README's Errors in script blocks section describes the behavior.
+
+ConvertTo-Dictionary's selectors aren't conditions, and they still turn their errors into errors that end only the statement. A selector that failed for the first input object used to fail in `InferTypes`, outside the `try` in `AddToDictionary`, so the base class reported it, with the `NotSpecified` category and no target object. The base class now passes that error on unchanged, so `CreateDictionary` catches it and reports it the way `AddToDictionary` reports one for a later object: with the `InvalidOperation` category, and with the input object as the target.
+
+**Tests:** Pester only, and written.
+
+- `Bug21` in `tests/Find-LastIndexOf.Tests.ps1`, `tests/Find-IndexOf.Tests.ps1`, `tests/Assert-AnyObject.Tests.ps1`, and `tests/Assert-AllObject.Tests.ps1`: an error written under `Stop` and a `throw` under `Continue` end the script, a failed method call under `Stop` ends only the statement and keeps its error ID and category, and `break` leaves the enclosing loop. The Find-LastIndexOf tests passed before the fix and keep all four cmdlets in agreement.
+- The tests run their scripts through the new `tests/Invoke-InNewRunspace.ps1`. Pester runs each test inside a `try` block, where both kinds of error jump to the `catch` block.
+- `Bug21` in `tests/ConvertTo-Dictionary.Tests.ps1`: a `-KeySelector` that throws for the first or the second input object ends only the statement, with the same error. The first-object test failed on the category before the fix.
 
 ### 22 — ConvertTo-Dictionary fails on a property name that contains a single quote
 

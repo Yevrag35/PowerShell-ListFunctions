@@ -24,8 +24,14 @@ namespace ListFunctions.Cmdlets.Assertions;
 /// </para>
 /// <para>
 /// The condition is required. When <see cref="Condition"/> is <see langword="null"/>, the cmdlet ends with a
-/// terminating error that wraps an <see cref="ArgumentException"/>. A terminating error thrown by the condition script
-/// block also ends the cmdlet with a terminating error.
+/// terminating error that wraps an <see cref="ArgumentException"/>.
+/// </para>
+/// <para>
+/// Errors from the condition script block reach PowerShell unchanged, the way they do from a <c>ForEach-Object</c>
+/// script block. When <see cref="ScriptBlockErrorAction"/> is <see cref="ActionPreference.Stop"/>, an error that the
+/// script block writes ends the script that runs the cmdlet, as <c>-ErrorAction Stop</c> does. A <c>throw</c> does too
+/// unless the errors are suppressed. A failed method call ends only the statement, and <c>break</c> leaves the loop
+/// around the cmdlet.
 /// </para>
 /// </remarks>
 [Cmdlet(VerbsLifecycle.Assert, "AllObject")]
@@ -74,7 +80,7 @@ public sealed class AssertAllObjectsCmdlet : AssertObjectCmdlet
 	/// <c>-ErrorAction</c> behavior.
 	/// </remarks>
 	/// <value>The error action preference for script block execution. Defaults to <see cref="ActionPreference.SilentlyContinue"/>.</value>
-	[Parameter]
+	[Parameter, Alias("ScriptErrorAction")]
 	public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.SilentlyContinue;
 
 	/// <summary>

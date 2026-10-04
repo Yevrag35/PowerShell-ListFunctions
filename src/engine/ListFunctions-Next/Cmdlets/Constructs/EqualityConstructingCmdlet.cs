@@ -20,9 +20,9 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// </para>
 /// <para>
 /// When the type used for equality is <see cref="string"/> or <see cref="object"/>, the cmdlet exposes a mandatory
-/// dynamic <c>-CaseSensitive</c> switch in the parameter set named by <see cref="CaseSensitiveParameterSetName"/>.
-/// Derived classes must implement <see cref="IDynamicParameters"/> for PowerShell to call
-/// <see cref="GetDynamicParameters"/>.
+/// dynamic <c>-CaseSensitive</c> switch in the parameter set named by <see cref="CaseSensitiveParameterSetName"/>, and
+/// an optional one in the set named by <see cref="CaseSensitiveOptionalParameterSetName"/>, if any. Derived classes must
+/// implement <see cref="IDynamicParameters"/> for PowerShell to call <see cref="GetDynamicParameters"/>.
 /// </para>
 /// </remarks>
 /// <typeparam name="T">The type through which the derived cmdlet handles the constructed collection.</typeparam>
@@ -56,8 +56,21 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// <summary>
 	/// Gets the name of the parameter set that the dynamic <c>-CaseSensitive</c> parameter belongs to.
 	/// </summary>
+	/// <remarks>
+	/// The switch is mandatory in this parameter set, which tells the set apart from the cmdlet's other parameter sets.
+	/// </remarks>
 	/// <value>The parameter set name for the <c>-CaseSensitive</c> switch.</value>
 	protected abstract string CaseSensitiveParameterSetName { get; }
+	/// <summary>
+	/// Gets the name of another parameter set that the dynamic <c>-CaseSensitive</c> parameter belongs to, as an
+	/// optional parameter.
+	/// </summary>
+	/// <remarks>
+	/// A parameter set that a mandatory parameter of its own already tells apart, such as one that copies existing
+	/// entries, can offer the switch this way. The base implementation returns <see langword="null"/>.
+	/// </remarks>
+	/// <value>The name of the parameter set, or <see langword="null"/> when the switch belongs to no other set.</value>
+	protected virtual string? CaseSensitiveOptionalParameterSetName => null;
 
 	/// <summary>
 	/// Gets or sets the initial capacity requested for the collection.
@@ -195,26 +208,42 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 		return hasCaseSensitive;
 	}
 	/// <summary>
-	/// Adds the mandatory <c>-CaseSensitive</c> switch to <see cref="DynParamLib"/> when the equality type is <see cref="string"/> or <see cref="object"/>.
+	/// Adds the <c>-CaseSensitive</c> switch to <see cref="DynParamLib"/> when the equality type is <see cref="string"/> or <see cref="object"/>.
 	/// </summary>
-	/// <remarks>The <see cref="RuntimeDefinedParameter"/> is created once and reused on later calls.</remarks>
+	/// <remarks>
+	/// The switch is mandatory in <paramref name="parameterSetName"/>, and optional in
+	/// <see cref="CaseSensitiveOptionalParameterSetName"/> when that isn't <see langword="null"/>. The
+	/// <see cref="RuntimeDefinedParameter"/> is created once and reused on later calls.
+	/// </remarks>
 	/// <param name="genericType">The type used for equality.</param>
-	/// <param name="parameterSetName">The name of the parameter set that the switch belongs to.</param>
+	/// <param name="parameterSetName">The name of the parameter set in which the switch is mandatory.</param>
 	/// <returns><see langword="true"/> when the switch was added; otherwise, <see langword="false"/>.</returns>
 	private bool TryGetDynamicCaseParam(Type genericType, string parameterSetName)
 	{
 		bool returnLib = false;
 		if (EqualityCollectionCtor.IsTypeObjectOrString(genericType))
 		{
-			_caseSensitive ??= new RuntimeDefinedParameter(CASE_SENSE, typeof(SwitchParameter),
-				new Collection<Attribute>()
+			if (_caseSensitive is null)
+			{
+				var attributes = new Collection<Attribute>()
 				{
-						new ParameterAttribute()
-						{
-							Mandatory = true,
-							ParameterSetName = parameterSetName,
-						}
-				});
+					new ParameterAttribute()
+					{
+						Mandatory = true,
+						ParameterSetName = parameterSetName,
+					},
+				};
+
+				if (this.CaseSensitiveOptionalParameterSetName is string optionalSetName)
+				{
+					attributes.Add(new ParameterAttribute()
+					{
+						ParameterSetName = optionalSetName,
+					});
+				}
+
+				_caseSensitive = new RuntimeDefinedParameter(CASE_SENSE, typeof(SwitchParameter), attributes);
+			}
 
 			returnLib = this.DynParamLib.TryAdd(CASE_SENSE, _caseSensitive);
 		}

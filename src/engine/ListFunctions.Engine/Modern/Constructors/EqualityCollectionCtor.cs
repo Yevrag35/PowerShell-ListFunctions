@@ -7,7 +7,8 @@ namespace ListFunctions.Modern.Constructors;
 /// <remarks>
 /// <para>
 /// When no comparer is passed to the constructor, the collection uses a default comparer for the type that the
-/// derived class uses for equality. String comparisons ignore case unless <see cref="IsCaseSensitive"/> is
+/// derived class uses for equality, which the derived class can choose by overriding
+/// <see cref="GetDefaultComparer(Type)"/>. String comparisons ignore case unless <see cref="IsCaseSensitive"/> is
 /// <see langword="true"/>.
 /// </para>
 /// <para>
@@ -118,30 +119,28 @@ public abstract class EqualityCollectionCtor : GenericCollectionCtor
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	/// The comparer passed to the constructor goes through <see cref="AdaptComparer(IEqualityComparer, Type)"/>, so the
-	/// result is always an <see cref="IEqualityComparer{T}"/> of the type used for equality.
+	/// The comparer passed to the constructor, and the one from <see cref="GetDefaultComparer(Type)"/>, go through
+	/// <see cref="AdaptComparer(IEqualityComparer, Type)"/>, so the result is always an
+	/// <see cref="IEqualityComparer{T}"/> of the type used for equality.
 	/// </para>
 	/// <para>
-	/// For <see cref="string"/>, the method returns <see cref="StringComparer.InvariantCultureIgnoreCase"/>, or
-	/// <see cref="StringComparer.InvariantCulture"/> when <see cref="IsCaseSensitive"/> is <see langword="true"/>, and
-	/// reads <see cref="IsCaseSensitive"/> on every call. For any other type, it returns
+	/// When no comparer was passed, the method calls <see cref="GetDefaultComparer(Type)"/> on every call, so its result
+	/// can depend on <see cref="IsCaseSensitive"/>. When that returns <see langword="null"/>, the method returns
 	/// <see cref="EqualityComparer{T}.Default"/> and caches it in place of the constructor's comparer.
 	/// </para>
 	/// </remarks>
 	/// <returns>The equality comparer for the collection.</returns>
 	private IEqualityComparer GetComparerOrDefault()
 	{
+		Type equalityType = this.GetTypeForEquality();
 		if (_comparer is not null)
 		{
-			return AdaptComparer(_comparer, this.GetTypeForEquality());
+			return AdaptComparer(_comparer, equalityType);
 		}
 
-		Type equalityType = this.GetTypeForEquality();
-		if (typeof(string).Equals(equalityType))
+		if (this.GetDefaultComparer(equalityType) is { } defaultComparer)
 		{
-			return !this.IsCaseSensitive
-				? StringComparer.InvariantCultureIgnoreCase
-				: StringComparer.InvariantCulture;
+			return AdaptComparer(defaultComparer, equalityType);
 		}
 
 		var genStaticType = DefaultComparerTypeDefinition.MakeGenericType(equalityType);
@@ -151,6 +150,35 @@ public abstract class EqualityCollectionCtor : GenericCollectionCtor
 
 		_comparer = (IEqualityComparer)defaultProp?.GetValue(null)!;
 		return _comparer;
+	}
+	/// <summary>
+	/// Returns the comparer that the collection uses when no comparer is passed to the constructor, or
+	/// <see langword="null"/> to use <see cref="EqualityComparer{T}.Default"/> of the type used for equality.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// The method runs each time the collection is created, so its result can depend on <see cref="IsCaseSensitive"/>.
+	/// A comparer that isn't an <see cref="IEqualityComparer{T}"/> of <paramref name="equalityType"/> is wrapped in an
+	/// <see cref="EqualityComparerAdapter{T}"/>.
+	/// </para>
+	/// <para>
+	/// For <see cref="string"/>, the base implementation returns <see cref="StringComparer.InvariantCultureIgnoreCase"/>,
+	/// or <see cref="StringComparer.InvariantCulture"/> when <see cref="IsCaseSensitive"/> is <see langword="true"/>. For
+	/// any other type, it returns <see langword="null"/>.
+	/// </para>
+	/// </remarks>
+	/// <param name="equalityType">The type that the collection compares for equality.</param>
+	/// <returns>The default comparer, or <see langword="null"/> to use <see cref="EqualityComparer{T}.Default"/>.</returns>
+	protected virtual IEqualityComparer? GetDefaultComparer(Type equalityType)
+	{
+		if (!typeof(string).Equals(equalityType))
+		{
+			return null;
+		}
+
+		return !this.IsCaseSensitive
+			? StringComparer.InvariantCultureIgnoreCase
+			: StringComparer.InvariantCulture;
 	}
 	/// <summary>
 	/// Returns the specified comparer as an <see cref="IEqualityComparer{T}"/> of the specified type, and wraps it in an
@@ -181,9 +209,9 @@ public abstract class EqualityCollectionCtor : GenericCollectionCtor
 	/// <remarks>
 	/// <para>
 	/// The comparer is the one passed to this object's constructor. When that comparer is <see langword="null"/>, the
-	/// method uses <see cref="EqualityComparer{T}.Default"/> for the type used for equality. For <see cref="string"/>,
-	/// it uses <see cref="StringComparer.InvariantCultureIgnoreCase"/> instead, or
-	/// <see cref="StringComparer.InvariantCulture"/> when <see cref="IsCaseSensitive"/> is <see langword="true"/>.
+	/// method uses the comparer from <see cref="GetDefaultComparer(Type)"/>, or
+	/// <see cref="EqualityComparer{T}.Default"/> for the type used for equality when that returns
+	/// <see langword="null"/>.
 	/// </para>
 	/// <para>
 	/// When the comparer passed to the constructor isn't an <see cref="IEqualityComparer{T}"/> of the type used for

@@ -18,7 +18,8 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// <para>
 /// Each object's key comes from the property named by <see cref="KeyPropertyName"/> or from the output of
 /// <see cref="KeySelector"/>. Its value comes from the property named by <see cref="ValuePropertyName"/>, from the
-/// output of <see cref="ValueSelector"/>, or, when neither is supplied, from the object itself.
+/// output of <see cref="ValueSelector"/>, or, when neither is supplied, from the object itself. A property or selector
+/// that gives <see langword="null"/> stores <see langword="null"/> converted to the value type.
 /// <see cref="KeySelector"/> and <see cref="ValueSelector"/> run at most once for each input object.
 /// </para>
 /// <para>
@@ -107,7 +108,8 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// <remarks>
 	/// A non-empty string selects a property by name. A <see cref="ScriptBlock"/> is used like
 	/// <see cref="ValueSelector"/> when <see cref="ValueSelector"/> is not supplied. A property name takes precedence
-	/// over <see cref="ValueSelector"/>.
+	/// over <see cref="ValueSelector"/>. A property whose value is <see langword="null"/> gives <see langword="null"/>
+	/// converted to the value type, as <see cref="ValueSelector"/> describes.
 	/// </remarks>
 	/// <value>A property name, a <see cref="ScriptBlock"/>, or <see langword="null"/> to use each object as its own value.</value>
 	[Parameter(Mandatory = false, Position = 1), Alias("ValueName", "Value")]
@@ -119,8 +121,11 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// The script block receives the current object as <c>$_</c>, <c>$PSItem</c>, <c>$this</c>, or <c>$args[0]</c>
-	/// and must reference at least one of them. The first object it outputs becomes the value. When it outputs
-	/// nothing or <see langword="null"/>, the object itself becomes the value.
+	/// and must reference at least one of them. The first object it outputs becomes the value, converted to the value
+	/// type. When it outputs nothing or <see langword="null"/>, the value is <see langword="null"/> converted to the
+	/// value type, the way PowerShell converts it when it calls the dictionary's <c>Add</c> method: an empty string for
+	/// <see cref="string"/>, 0 for <see cref="int"/>, and <see langword="null"/> for <see cref="object"/> and most other
+	/// reference types.
 	/// </remarks>
 	/// <value>The value selector <see cref="ScriptBlock"/>, or <see langword="null"/>.</value>
 	[Parameter]
@@ -276,19 +281,33 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// Creates the dictionary for the key and value types that the method infers from the first input object.
 	/// </summary>
 	/// <remarks>
+	/// <para>
 	/// The method infers the types with <see cref="InferTypes(object)"/>. When <see cref="KeyComparer"/> is
 	/// <see langword="null"/> and the key type is <see cref="string"/>, the method sets it to
 	/// <see cref="StringComparer.OrdinalIgnoreCase"/>.
+	/// </para>
+	/// <para>
+	/// When a selector fails for <paramref name="firstObject"/>, the method reports the failure the same way
+	/// <see cref="AddToDictionary"/> does for the other input objects. Without this, the exception would reach
+	/// PowerShell unchanged through <see cref="ListFunctionCmdletBase"/>.
+	/// </para>
 	/// </remarks>
 	/// <param name="inputObjects">The input objects that hold <paramref name="firstObject"/>. The method adds them to the error that it writes when the dictionary can't be constructed.</param>
 	/// <param name="firstObject">The first input object that isn't <see langword="null"/>.</param>
 	/// <returns>The new, empty dictionary.</returns>
-	/// <exception cref="RuntimeException">Thrown when a selector throws a terminating error.</exception>
-	/// <exception cref="PipelineStoppedException">Thrown after a terminating error is written because the dictionary cannot be constructed.</exception>
+	/// <exception cref="PipelineStoppedException">Thrown after a terminating error is written because a selector failed or the dictionary cannot be constructed.</exception>
 	[SuppressMessage("Style", "IDE0009", Justification = "Used in nameof()")]
 	private IDictionary CreateDictionary(object?[] inputObjects, object firstObject)
 	{
-		this.InferTypes(firstObject);
+		try
+		{
+			this.InferTypes(firstObject);
+		}
+		catch (Exception e) when (e is not PipelineStoppedException)
+		{
+			this.ThrowTerminatingError(e.ToRecord(ErrorCategory.InvalidOperation, firstObject));
+			throw;
+		}
 
 		if (this.KeyComparer is null && _keyType.Equals(typeof(string)))
 		{
@@ -327,9 +346,11 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	/// <see langword="null"/> objects and objects whose key is <see langword="null"/> are skipped. A key or value that
-	/// cannot be converted to the dictionary's type produces a non-terminating error. Any other exception, including
-	/// one thrown by a selector script block, becomes a terminating error.
+	/// <see langword="null"/> objects and objects whose key is <see langword="null"/> are skipped. Without a value
+	/// selector, each object is its own value. Otherwise, the selector's output is converted to the value type, even when
+	/// it's <see langword="null"/>. A key or value that cannot be converted to the dictionary's type produces a
+	/// non-terminating error. Any other exception, including one thrown by a selector script block, becomes a
+	/// terminating error.
 	/// </para>
 	/// <para>
 	/// For the first input object, the method uses the outputs of the selectors that <see cref="InferTypes(object)"/>
@@ -372,9 +393,11 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 					selectedValue = this.Select(this.ValueSelector, item);
 				}
 
-				object? value = selectedValue is object o
-					? LanguagePrimitives.ConvertTo(o, this.ValueType)
-					: item;
+				// A selected null converts the way PowerShell converts null when it calls Add: to an empty string for
+				// [string], to 0 for [int], and to null for [object] and most other reference types.
+				object? value = this.ValueSelector is null
+					? item
+					: LanguagePrimitives.ConvertTo(selectedValue, this.ValueType);
 
 				addToDictionaryAction(this, key, value);
 			}
