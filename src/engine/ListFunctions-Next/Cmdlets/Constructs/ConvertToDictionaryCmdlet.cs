@@ -30,7 +30,13 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// </para>
 /// <para>
 /// <see cref="DuplicateKeyBehavior"/> controls what happens when a key repeats. <see cref="string"/> keys compare
-/// with <see cref="StringComparer.OrdinalIgnoreCase"/> unless <see cref="KeyComparer"/> is supplied.
+/// with <see cref="StringComparer.OrdinalIgnoreCase"/> unless <see cref="KeyComparer"/> is supplied. A key or value
+/// that can't be converted produces the non-terminating error that <c>New-List</c> writes, and its object is skipped.
+/// </para>
+/// <para>
+/// <see cref="KeySelector"/> and <see cref="ValueSelector"/> run under the caller's <c>$ErrorActionPreference</c>, and
+/// their errors reach PowerShell unchanged, the way errors from a <c>ForEach-Object</c> script block do. For example, a
+/// <c>throw</c> ends the whole script, and <c>break</c> leaves the loop around the cmdlet.
 /// </para>
 /// <para>
 /// The dictionary is written as a single object and is not enumerated into the pipeline. When no input objects are
@@ -281,33 +287,19 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// Creates the dictionary for the key and value types that the method infers from the first input object.
 	/// </summary>
 	/// <remarks>
-	/// <para>
 	/// The method infers the types with <see cref="InferTypes(object)"/>. When <see cref="KeyComparer"/> is
 	/// <see langword="null"/> and the key type is <see cref="string"/>, the method sets it to
 	/// <see cref="StringComparer.OrdinalIgnoreCase"/>.
-	/// </para>
-	/// <para>
-	/// When a selector fails for <paramref name="firstObject"/>, the method reports the failure the same way
-	/// <see cref="AddToDictionary"/> does for the other input objects. Without this, the exception would reach
-	/// PowerShell unchanged through <see cref="ListFunctionCmdletBase"/>.
-	/// </para>
 	/// </remarks>
 	/// <param name="inputObjects">The input objects that hold <paramref name="firstObject"/>. The method adds them to the error that it writes when the dictionary can't be constructed.</param>
 	/// <param name="firstObject">The first input object that isn't <see langword="null"/>.</param>
 	/// <returns>The new, empty dictionary.</returns>
-	/// <exception cref="PipelineStoppedException">Thrown after a terminating error is written because a selector failed or the dictionary cannot be constructed.</exception>
+	/// <exception cref="RuntimeException">Thrown when a selector fails. The exception reaches PowerShell unchanged.</exception>
+	/// <exception cref="PipelineStoppedException">Thrown after a terminating error is written because the dictionary cannot be constructed.</exception>
 	[SuppressMessage("Style", "IDE0009", Justification = "Used in nameof()")]
 	private IDictionary CreateDictionary(object?[] inputObjects, object firstObject)
 	{
-		try
-		{
-			this.InferTypes(firstObject);
-		}
-		catch (Exception e) when (e is not PipelineStoppedException)
-		{
-			this.ThrowTerminatingError(e.ToRecord(ErrorCategory.InvalidOperation, firstObject));
-			throw;
-		}
+		this.InferTypes(firstObject);
 
 		if (this.KeyComparer is null && _keyType.Equals(typeof(string)))
 		{
@@ -348,9 +340,12 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// <para>
 	/// <see langword="null"/> objects and objects whose key is <see langword="null"/> are skipped. Without a value
 	/// selector, each object is its own value. Otherwise, the selector's output is converted to the value type, even when
-	/// it's <see langword="null"/>. A key or value that cannot be converted to the dictionary's type produces a
-	/// non-terminating error. Any other exception, including one thrown by a selector script block, becomes a
-	/// terminating error.
+	/// it's <see langword="null"/>. A key or value that cannot be converted to the dictionary's type produces the
+	/// non-terminating error that <c>New-List</c> writes, and the object is skipped.
+	/// </para>
+	/// <para>
+	/// An error from a selector script block reaches PowerShell unchanged, the way an error from a <c>ForEach-Object</c>
+	/// script block does. Any other exception becomes a terminating error.
 	/// </para>
 	/// <para>
 	/// For the first input object, the method uses the outputs of the selectors that <see cref="InferTypes(object)"/>
@@ -386,7 +381,11 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 				if (key is null)
 					continue;
 
-				key = LanguagePrimitives.ConvertTo(key, _keyType);
+				// A key that converts to null, as [NullString]::Value does for [string], is skipped like a null key.
+				if (!this.TryConvertItem(key, _keyType, out key) || key is null)
+				{
+					continue;
+				}
 
 				if (!hasSelectedValue && this.ValueSelector is not null)
 				{
@@ -394,19 +393,17 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 				}
 
 				// A selected null converts the way PowerShell converts null when it calls Add: to an empty string for
-				// [string], to 0 for [int], and to null for [object] and most other reference types.
-				object? value = this.ValueSelector is null
-					? item
-					: LanguagePrimitives.ConvertTo(selectedValue, this.ValueType);
+				// [string], to 0 for [int], and to null for [object] and most other reference types. InferTypes sets
+				// ValueType before the first object is added.
+				object? value = item;
+				if (this.ValueSelector is not null && !this.TryConvertItem(selectedValue, this.ValueType!, out value))
+				{
+					continue;
+				}
 
 				addToDictionaryAction(this, key, value);
 			}
-			catch (PSInvalidCastException e)
-			{
-				var rec = e.ToRecord(ErrorCategory.InvalidArgument, item);
-				this.WriteError(rec);
-			}
-			catch (Exception e)
+			catch (Exception e) when (!PassesThrough(e))
 			{
 				var rec = e.ToRecord(ErrorCategory.InvalidOperation, item);
 				this.ThrowTerminatingError(rec);

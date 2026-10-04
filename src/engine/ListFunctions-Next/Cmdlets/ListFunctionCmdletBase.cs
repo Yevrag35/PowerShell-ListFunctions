@@ -302,13 +302,17 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	/// <see cref="Cmdlet.ThrowTerminatingError(ErrorRecord)"/> throws, so an error that the cmdlet already reported isn't
 	/// reported again.
 	/// </para>
+	/// <para>
+	/// The base class applies this rule to exceptions from <see cref="BeginCore"/> and <see cref="ProcessCore"/>. A
+	/// derived class that catches exceptions around the script blocks it runs can use the method to apply the same rule.
+	/// </para>
 	/// </remarks>
 	/// <param name="exception">The exception to check. This value must not be <see langword="null"/>.</param>
 	/// <returns>
 	/// <see langword="true"/> if <paramref name="exception"/> is a <see cref="RuntimeException"/> or a
 	/// <see cref="FlowControlException"/>; otherwise, <see langword="false"/>.
 	/// </returns>
-	private static bool PassesThrough(Exception exception)
+	protected static bool PassesThrough(Exception exception)
 	{
 		return exception is RuntimeException or FlowControlException;
 	}

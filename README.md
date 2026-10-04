@@ -362,7 +362,7 @@ $dict.Add([pscustomobject]@{ Id = 1; Name = 'second' }, 'b')    # Error: the key
 
 Builds a `Dictionary[TKey, TValue]` that indexes the input objects by a key: either a property's value or a value that a script block returns. Each dictionary value is the input object itself, unless you choose a property or a script block for the value. When that property or script block gives `$null`, the value is `$null` converted to the value type, which is what `$dict.Add($key, $null)` would store: `''` for `[string]`, `0` for `[int]`, and `$null` for `[object]`.
 
-The key type is the type of the first input object's key. The value type is the type of the first object's value, or `[object]` if that value is a custom object, unless you pass `-ValueType`. `[string]` keys are compared without regard to case unless you pass a different `-KeyComparer`. The command skips input objects that are `$null` and objects whose key is `$null`. With no input, it returns an empty `Hashtable`.
+The key type is the type of the first input object's key. The value type is the type of the first object's value, or `[object]` if that value is a custom object, unless you pass `-ValueType`. `[string]` keys are compared without regard to case unless you pass a different `-KeyComparer`. Keys, and values that a property or script block gives, are converted to these types. An object whose key or value can't be converted writes a non-terminating error and isn't added. The command skips input objects that are `$null` and objects whose key is `$null`. With no input, it returns an empty `Hashtable`.
 
 ```powershell
 $people = @(
@@ -453,6 +453,8 @@ Errors in `-Condition` reach PowerShell unchanged, the same as errors in a `ForE
 - A failed method call, such as `$null.Foo()`, ends only the statement that runs the command.
 
 A `throw` in a condition ends the whole script unless `-ScriptBlockErrorAction` is `SilentlyContinue`, and `break` leaves the loop that runs the command.
+
+`ConvertTo-Dictionary` has no `-ScriptBlockErrorAction`. Its `-KeySelector` and `-ValueSelector` run under your own `$ErrorActionPreference`, and their errors reach PowerShell the same way.
 
 ## License
 

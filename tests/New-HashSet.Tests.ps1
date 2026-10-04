@@ -140,4 +140,24 @@ Describe 'New-HashSet' {
 			$set.Contains($null) | Should-BeTrue
 		}
 	}
+
+	Context 'Conversion' {
+		It "writes the error that New-List writes for an element that can't be converted, when the input is <Label>" -ForEach @(
+			@{ Label = 'piped'; Piped = $true }
+			@{ Label = 'passed to -InputObject'; Piped = $false }
+		) {
+			if ($Piped) {
+				$set = 1, 'abc', 2 | New-HashSet [int] -ErrorVariable err -ErrorAction SilentlyContinue
+			}
+			else {
+				$set = New-HashSet [int] -InputObject 1, 'abc', 2 -ErrorVariable err -ErrorAction SilentlyContinue
+			}
+			Should-BeCollection -Expected @(1, 2) -Actual ([object[]]$set)
+			$err.Count | Should-Be 1
+			# Should-HaveType would print the whole exception on failure, which takes minutes. A type name prints quickly.
+			$err[0].Exception.GetType().FullName | Should-Be 'ListFunctions.Exceptions.LFInvalidCastException'
+			$err[0].CategoryInfo.Category | Should-Be ([System.Management.Automation.ErrorCategory]::InvalidType)
+			$err[0].TargetObject | Should-Be 'abc'
+		}
+	}
 }

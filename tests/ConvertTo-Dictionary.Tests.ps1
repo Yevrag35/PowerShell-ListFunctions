@@ -160,21 +160,60 @@ Describe 'ConvertTo-Dictionary' {
 		}
 	}
 
-	# ListFunctionCmdletBase passes a script block's errors to PowerShell unchanged, but ConvertTo-Dictionary turns a
-	# selector error into an error that ends only the statement. The scripts run in a new runspace, because Pester's try
-	# block would catch both kinds of error.
-	Context 'Errors in selectors' {
-		It 'ends only the statement when -KeySelector throws for the <Label> object' -Tag 'Bug21' -ForEach @(
-			@{ Label = 'first'; Failing = 'a' }
-			@{ Label = 'second'; Failing = 'b' }
+	Context 'Conversion' {
+		It "writes the error that New-List writes for a <Label> that can't be converted, and skips its object" -ForEach @(
+			@{ Label = 'key'; Items = @([pscustomobject]@{ K = 1; V = 'a' }, [pscustomobject]@{ K = 'x'; V = 'b' }); Key = 1; Expected = 'a' }
+			@{ Label = 'value'; Items = @([pscustomobject]@{ K = 'a'; V = 1 }, [pscustomobject]@{ K = 'b'; V = 'x' }); Key = 'a'; Expected = 1 }
 		) {
-			$result = Invoke-InNewRunspace "'a', 'b' | ConvertTo-Dictionary -KeySelector { if (`$_ -eq '$Failing') { throw 'boom' } else { `$_ } }; 'still running'"
+			# The first object sets the key and value types, so 'x' has to be converted to [int].
+			$dict = $Items | ConvertTo-Dictionary K V -ErrorVariable err -ErrorAction SilentlyContinue
+			$dict.Count | Should-Be 1
+			$dict[$Key] | Should-Be $Expected
+			$err.Count | Should-Be 1
+			# Should-HaveType would print the whole exception on failure, which takes minutes. A type name prints quickly.
+			$err[0].Exception.GetType().FullName | Should-Be 'ListFunctions.Exceptions.LFInvalidCastException'
+			$err[0].CategoryInfo.Category | Should-Be ([System.Management.Automation.ErrorCategory]::InvalidType)
+			$err[0].TargetObject | Should-Be 'x'
+		}
+	}
+
+	# Errors from -KeySelector and -ValueSelector reach PowerShell unchanged, so each result is what ForEach-Object gives
+	# for the same script block in both editions. The first object's selectors run while ConvertTo-Dictionary infers the
+	# key and value types, and the other objects' selectors run while it adds them, so the tests cover both. The scripts
+	# run in a new runspace, because Pester's try block would catch both kinds of error.
+	Context 'Errors in selectors' {
+		It 'ends the script when -<Parameter> throws for the <Label> object' -ForEach @(
+			@{ Parameter = 'KeySelector'; Label = 'first'; Failing = 'a' }
+			@{ Parameter = 'KeySelector'; Label = 'second'; Failing = 'b' }
+			@{ Parameter = 'ValueSelector'; Label = 'first'; Failing = 'a' }
+			@{ Parameter = 'ValueSelector'; Label = 'second'; Failing = 'b' }
+		) {
+			$selector = "{ if (`$_ -eq '$Failing') { throw 'boom' } else { `$_ } }"
+			if ($Parameter -eq 'KeySelector') {
+				$command = "'a', 'b' | ConvertTo-Dictionary -KeySelector $selector"
+			}
+			else {
+				$command = "'a', 'b' | ConvertTo-Dictionary -KeySelector { `$_ } -ValueSelector $selector"
+			}
+			$result = Invoke-InNewRunspace "$command; 'still running'"
+			$result.StoppedBy.FullyQualifiedErrorId | Should-Be 'boom'
+		}
+
+		It 'ends only the statement when a method call in -KeySelector fails under Stop' {
+			# The selector runs in its own scope, so the preference it sets doesn't reach the script.
+			$result = Invoke-InNewRunspace "'a' | ConvertTo-Dictionary -KeySelector { `$ErrorActionPreference = 'Stop'; if (`$_) { `$null.Foo() } }; 'still running'"
 			$result.StoppedBy | Should-BeNull
 			Should-BeCollection -Expected @('still running') -Actual $result.Output
 			$result.Errors.Count | Should-Be 1
-			$result.Errors[0].FullyQualifiedErrorId | Should-Be 'System.Management.Automation.RuntimeException,ListFunctions.Cmdlets.Constructs.ConvertToDictionaryCmdlet'
+			# PowerShell keeps the error ID and category of the failed call, and adds the command.
+			$result.Errors[0].FullyQualifiedErrorId | Should-Be 'InvokeMethodOnNull,ListFunctions.Cmdlets.Constructs.ConvertToDictionaryCmdlet'
 			$result.Errors[0].CategoryInfo.Category | Should-Be ([System.Management.Automation.ErrorCategory]::InvalidOperation)
-			$result.Errors[0].TargetObject | Should-Be $Failing
+		}
+
+		It 'leaves the enclosing loop when -KeySelector runs break' {
+			$result = Invoke-InNewRunspace "foreach (`$i in 1..2) { `$i; 'a' | ConvertTo-Dictionary -KeySelector { if (`$_) { break } } }; 'after the loop'"
+			$result.Errors.Count | Should-Be 0
+			Should-BeCollection -Expected @(1, 'after the loop') -Actual $result.Output
 		}
 	}
 }

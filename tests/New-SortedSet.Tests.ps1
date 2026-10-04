@@ -32,8 +32,9 @@ Describe 'New-SortedSet' {
 			}
 			Should-BeCollection -Expected @(1, 2) -Actual ([object[]]$set)
 			$err.Count | Should-Be 1
-			# New-List writes the same error.
-			Should-HaveType -Expected ([ListFunctions.Exceptions.LFInvalidCastException]) -Actual $err[0].Exception
+			# New-List writes the same error. Should-HaveType would print the whole exception on failure, which takes
+			# minutes. A type name prints quickly.
+			$err[0].Exception.GetType().FullName | Should-Be 'ListFunctions.Exceptions.LFInvalidCastException'
 			$err[0].TargetObject | Should-Be 'abc'
 		}
 

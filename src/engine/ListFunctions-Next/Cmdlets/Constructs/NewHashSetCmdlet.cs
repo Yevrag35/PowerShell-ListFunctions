@@ -79,8 +79,9 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	/// </para>
 	/// <para>
 	/// For a typed set, each element is converted to <see cref="GenericType"/>. An element that cannot be converted
-	/// produces a non-terminating error and is skipped, and <see langword="null"/> elements are skipped without an
-	/// error. A set of <see cref="object"/> adds each element as it is, including <see langword="null"/>.
+	/// produces the non-terminating error that <c>New-List</c> writes and is skipped, and <see langword="null"/>
+	/// elements are skipped without an error. A set of <see cref="object"/> adds each element as it is, including
+	/// <see langword="null"/>.
 	/// </para>
 	/// </remarks>
 	/// <value>The current pipeline object, or the argument of the parameter. The value can be <see langword="null"/>.</value>
@@ -135,7 +136,8 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	/// <remarks>
 	/// <para>
 	/// Elements are added to a set of <see cref="object"/> as they are. For a typed set, each element is first
-	/// converted to the element type, and a failed conversion produces a non-terminating error.
+	/// converted to the element type, and a failed conversion produces the non-terminating error that <c>New-List</c>
+	/// writes.
 	/// </para>
 	/// <para>
 	/// Any other failure while adding an element, such as a script block equality comparer that throws, produces a
@@ -184,8 +186,7 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 				}
 				catch (PSInvalidCastException e)
 				{
-					var rec = e.ToRecord(ErrorCategory.InvalidArgument, item);
-					this.WriteError(rec);
+					this.WriteConversionError(e, item, this.GenericType);
 				}
 				catch (Exception e)
 				{

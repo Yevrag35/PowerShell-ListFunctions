@@ -527,13 +527,13 @@ try { 1 | Find-LastIndexOf { if ($_) { $null.Foo() } } } catch { $_.FullyQualifi
 - `ThrowTerminatingError` inside `ProcessCore` throws a `PipelineStoppedException`, which is a `RuntimeException`, so the base class no longer reports that error a second time.
 - The README's Errors in script blocks section describes the behavior.
 
-ConvertTo-Dictionary's selectors aren't conditions, and they still turn their errors into errors that end only the statement. A selector that failed for the first input object used to fail in `InferTypes`, outside the `try` in `AddToDictionary`, so the base class reported it, with the `NotSpecified` category and no target object. The base class now passes that error on unchanged, so `CreateDictionary` catches it and reports it the way `AddToDictionary` reports one for a later object: with the `InvalidOperation` category, and with the input object as the target.
+ConvertTo-Dictionary's `-KeySelector` and `-ValueSelector` follow the same rule, decided on 2026-10-03 after this fix. `AddToDictionary` lets a selector's error reach PowerShell unchanged through `PassesThrough`, which is now `protected`. An error for the first input object, whose selectors run in `InferTypes`, reaches the base class the same way. Before, ConvertTo-Dictionary reported every selector error as its own terminating error, which ended only the statement.
 
 **Tests:** Pester only, and written.
 
 - `Bug21` in `tests/Find-LastIndexOf.Tests.ps1`, `tests/Find-IndexOf.Tests.ps1`, `tests/Assert-AnyObject.Tests.ps1`, and `tests/Assert-AllObject.Tests.ps1`: an error written under `Stop` and a `throw` under `Continue` end the script, a failed method call under `Stop` ends only the statement and keeps its error ID and category, and `break` leaves the enclosing loop. The Find-LastIndexOf tests passed before the fix and keep all four cmdlets in agreement.
 - The tests run their scripts through the new `tests/Invoke-InNewRunspace.ps1`. Pester runs each test inside a `try` block, where both kinds of error jump to the `catch` block.
-- `Bug21` in `tests/ConvertTo-Dictionary.Tests.ps1`: a `-KeySelector` that throws for the first or the second input object ends only the statement, with the same error. The first-object test failed on the category before the fix.
+- Untagged tests in `tests/ConvertTo-Dictionary.Tests.ps1` cover the selectors: a `throw` in `-KeySelector` or `-ValueSelector`, for the first or the second input object, ends the script, a failed method call under `Stop` ends only the statement, and `break` leaves the enclosing loop.
 
 ### 22 — ConvertTo-Dictionary fails on a property name that contains a single quote
 
