@@ -1,4 +1,4 @@
-using ListFunctions.Components;
+ using ListFunctions.Components;
 using ListFunctions.Exceptions;
 using ListFunctions.Extensions;
 using ListFunctions.Modern;
@@ -156,7 +156,7 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	private Type _keyType = null!;
 	private nint _addToDictionaryPtr;
 	private readonly PSThisVariable _current = new();
-	private readonly List<PSVariable> _variables = new();
+	private readonly List<PSVariable> _variables = [];
 
 	// The outputs of the selectors that InferTypes ran for the first input object. AddToDictionary uses them when it
 	// adds that object, instead of running the selectors again.
@@ -515,10 +515,7 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 			object? existingValue = cmdlet._dictionary[key];
 			if (existingValue is not ObjectList objList)
 			{
-				objList = new ObjectList()
-					{
-						existingValue,
-					};
+				objList = [existingValue];
 
 				cmdlet._dictionary[key] = objList;
 			}

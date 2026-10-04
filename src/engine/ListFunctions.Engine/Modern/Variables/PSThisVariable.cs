@@ -47,7 +47,11 @@ public sealed class PSThisVariable : ICloneable
 	/// </remarks>
 	public const string SecondArg = "args[1]";
 
+#if NET10_0_OR_GREATER
+	private InlineArray3<PSVariable> _variables;
+#else
 	private PSVariable[]? _variables;
+#endif
 	/// <summary>
 	/// Gets the value of the variables.
 	/// </summary>
@@ -110,9 +114,6 @@ public sealed class PSThisVariable : ICloneable
 	/// <param name="list">The list to insert the variables into. This value must not be <see langword="null"/>.</param>
 	public void InsertIntoList(List<PSVariable> list)
 	{
-#if NETCOREAPP
-		_ = list.EnsureCapacity(3);
-#endif
 		list.InsertRange(0, InitializeArray(ref _variables, this.ObjValue));
 	}
 
@@ -129,6 +130,37 @@ public sealed class PSThisVariable : ICloneable
 		_ = InitializeArray(ref _variables, value);
 	}
 
+#if NET10_0_OR_GREATER
+	/// <summary>
+	/// Creates the three variables, or sets the value of the existing ones, and returns them.
+	/// </summary>
+	/// <remarks>
+	/// The method creates new variables when <paramref name="array"/> holds a <see langword="null"/> element, as it does
+	/// before the first call. Otherwise, it updates the existing variables and sorts them into the order <c>psitem</c>,
+	/// <c>this</c>, <c>_</c>. New variables aren't sorted, so they keep the order <c>_</c>, <c>this</c>, <c>psitem</c>.
+	/// </remarks>
+	/// <param name="array">The inline array of variables to fill or reuse.</param>
+	/// <param name="value">The value to assign to every variable.</param>
+	/// <returns>A span over the variables in <paramref name="array"/>.</returns>
+	private static Span<PSVariable> InitializeArray(ref InlineArray3<PSVariable> array, object? value)
+	{
+		foreach (PSVariable v in array)
+		{
+			if (v is null)
+			{
+				array[0] = new(Underscore, value);
+				array[1] = new(This, value);
+				array[2] = new(PSItem, value);
+				return array;
+			}
+
+			v.Value = value;
+		}
+
+		((Span<PSVariable>)array).Sort(VariableComparer.Shared);
+		return array;
+	}
+#else
 	/// <summary>
 	/// Creates the three variables, or sets the value of the existing ones, and returns them.
 	/// </summary>
@@ -163,7 +195,7 @@ public sealed class PSThisVariable : ICloneable
 
 		for (int i = 0; i < array.Length; i++)
 		{
-			ref PSVariable v = ref array[i];
+			PSVariable v = array[i];
 			if (v is null)
 			{
 				array = null;
@@ -176,6 +208,7 @@ public sealed class PSThisVariable : ICloneable
 		Array.Sort(array, VariableComparer.Shared);
 		return array;
 	}
+#endif
 
 	/// <summary>
 	/// Orders variables so that <c>$_</c>, <c>$this</c>, and <c>$PSItem</c> come after every other variable.
@@ -206,26 +239,19 @@ public sealed class PSThisVariable : ICloneable
 			if (x is null) return -1;
 			if (y is null) return 1;
 
-			switch (x.Name)
+			return x.Name switch
 			{
-				case Underscore:
-					return Underscore.Equals(y.Name) ? 0 : 1;
-
-				case This:
-					return This.Equals(y.Name, StringComparison.OrdinalIgnoreCase)
-						? 0
-						: Underscore.Equals(y.Name) ? -1 : 1;
-
-				case PSItem:
-					return PSItem.Equals(y.Name, StringComparison.OrdinalIgnoreCase)
-						? 0
-						: (Underscore.Equals(y.Name) || This.Equals(y.Name, StringComparison.OrdinalIgnoreCase)) ? -1 : 1;
-
-				default:
-					return Underscore.Equals(y.Name) || This.Equals(y.Name, StringComparison.OrdinalIgnoreCase) || PSItem.Equals(y.Name, StringComparison.OrdinalIgnoreCase)
-						? -1
-						: string.CompareOrdinal(x.Name, y.Name);
-			}
+				Underscore => Underscore.Equals(y.Name) ? 0 : 1,
+				This => This.Equals(y.Name, StringComparison.OrdinalIgnoreCase)
+										? 0
+										: Underscore.Equals(y.Name) ? -1 : 1,
+				PSItem => PSItem.Equals(y.Name, StringComparison.OrdinalIgnoreCase)
+										? 0
+										: (Underscore.Equals(y.Name) || This.Equals(y.Name, StringComparison.OrdinalIgnoreCase)) ? -1 : 1,
+				_ => Underscore.Equals(y.Name) || This.Equals(y.Name, StringComparison.OrdinalIgnoreCase) || PSItem.Equals(y.Name, StringComparison.OrdinalIgnoreCase)
+										? -1
+										: string.CompareOrdinal(x.Name, y.Name),
+			};
 		}
 	}
 }
