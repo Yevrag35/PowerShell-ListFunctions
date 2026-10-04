@@ -346,8 +346,11 @@ Get-Item "$env:windir", "$env:windir\notepad.exe" | ConvertTo-Dictionary Name
 - **Keys:** the key type is `[object]` unless the new `-KeyType` parameter is given (see 37).
 - **Values:** the value type is `[object]` unless `-ValueType` is given.
 - **Neither parameter is mandatory,** and each can be given without the other, such as `[object]` keys with `[int]` values.
+- **The result is always a `Dictionary[TKey, TValue]`:** a `Dictionary[object, object]` when neither type is given, and never a `Hashtable`, even when there's no input. New-Dictionary changes the same way (see 35).
 - **What that removes:** the order dependence, a `$null` first key that changes how keys compare, and the rejected objects of other types. A value such as `2.5` is rounded only when the caller asks for a type such as `[int]`, and then it converts the way `Add` converts it, without an error. Because the types no longer depend on the input, the dictionary can also be created before the first input object arrives (see 35).
-- **What it costs:** keys and values are no longer typed by default, so the README's examples change, such as the `Dictionary[int, string]` it shows for `$people | ConvertTo-Dictionary Id Name`.
+- **What it costs:** keys and values are no longer typed by default.
+  - **The README's examples change,** such as the `Dictionary[int, string]` it shows for `$people | ConvertTo-Dictionary Id Name`.
+  - **Dot notation stops reading keys.** `($people | ConvertTo-Dictionary Name).Ann` gives Ann's object today. With `[object]` keys, it gives `$null` without an error, unless `-KeyType ([string])` is given (see 35).
 - **A `$null` input object** is skipped, as it is now.
 - **A `$null` key** is a non-terminating error instead of a silent skip, and its object is skipped. The errors also make the fix idea in 28, a warning when every key is `$null`, unnecessary. The error isn't terminating because:
   - **It matches the cmdlet's other key errors.** A duplicate key under `-DuplicateKeyBehavior Error`, and a key that can't be converted, already write non-terminating errors, although `Dictionary.Add` throws for both.
@@ -359,7 +362,6 @@ Get-Item "$env:windir", "$env:windir\notepad.exe" | ConvertTo-Dictionary Name
 
 - **How `[object]` keys compare when `-KeyComparer` isn't given.** ConvertTo-Dictionary compares only `[string]` keys without regard to case, so with `[object]` keys, `$people | ConvertTo-Dictionary Name` would become case-sensitive. New-Dictionary's `[object]` keys follow the `Hashtable`'s rule instead: strings compare with `OrdinalIgnoreCase`, and other keys with their own `Equals` (`bugs.md` item 20, and see 30).
 - **How `-KeyComparer` fits `[object]` keys.** A `StringComparer` isn't an `IEqualityComparer[object]`, so it can't be passed to a `Dictionary[object, TValue]` as it is. New-Dictionary wraps such a comparer in an `EqualityComparerAdapter[T]`. ConvertTo-Dictionary calls `Activator.CreateInstance` itself (`src/engine/ListFunctions-Next/Cmdlets/Constructs/ConvertToDictionaryCmdlet.cs:317`), so it gets neither the adapter nor the `Hashtable` rule. Building the dictionary with `DictionaryCtor`, as New-Dictionary does, would give it both.
-- **Whether `[object]` keys and values give a `Dictionary[object, object]` or a `Hashtable`,** as New-Dictionary does (see 35).
 
 ### 32 — New-Dictionary drops entries whose value is `$null`
 
@@ -444,6 +446,37 @@ The README documents New-Dictionary's Hashtable. It doesn't document ConvertTo-D
 - Should ConvertTo-Dictionary always return a Dictionary?
 - Should `Concatenate` store a list for every key, so that code reading the values doesn't have to check their type?
 - Should `ObjectList` stay a public type that users test for?
+
+**Decided on 2026-10-04:** ConvertTo-Dictionary and New-Dictionary always write a `Dictionary[TKey, TValue]`, whatever their input. Neither cmdlet writes a `Hashtable`.
+
+- **New-Dictionary:** its default `[object]` keys and values give a `Dictionary[object, object]`. The keys keep the `Hashtable`'s comparison, which `DictionaryCtor` already gives `[object]` keys for any other value type: strings compare without regard to case unless `-CaseSensitive` is given (see 25 and 30), and other keys with their own `Equals`. The `Hashtable` comes from `DictionaryCtor.ShouldConstructDefault` and `ConstructTDefault` (`src/engine/ListFunctions.Engine/Modern/Constructors/DictionaryCtor.cs:139` and `:64`).
+- **ConvertTo-Dictionary:** with no input, it writes the empty dictionary that it created before the first input object, typed by `-KeyType` and `-ValueType` (see 31), instead of the `Hashtable` at `src/engine/ListFunctions-Next/Cmdlets/Constructs/ConvertToDictionaryCmdlet.cs:429`. Once `DictionaryCtor` stops creating a `Hashtable`, ConvertTo-Dictionary can build its dictionary with it without getting one back, as 31's second open question suggests.
+- **`[OutputType]`:** `Hashtable` leaves New-Dictionary's `[OutputType]`. It's the reason New-Dictionary's members complete today, so 29's fix has to land with this one.
+- **README:** its command table (`README.md:30`) and its New-Dictionary section (`README.md:314`) describe the `Hashtable`.
+
+What changes for users, measured on 2026-10-04 in both editions. New-Dictionary already writes a dictionary with `[object]` keys when it's given only `-ValueType`:
+
+```powershell
+$h = New-Dictionary                      # A Hashtable
+$d = New-Dictionary -ValueType ([int])   # A Dictionary[object, int]
+$h['Ann'] = 1; $d['Ann'] = 1
+$h.Ann        # 1
+$d.Ann        # $null, with no error, although the key exists. $d['Ann'] is 1.
+$h.Bob = 2    # Adds the key Bob
+$d.Bob = 2    # An error: "The property 'Bob' cannot be found on this object. Verify that the property exists and can be set."
+```
+
+- **Dot notation:** PowerShell reads keys with dot notation on a `Hashtable`, a `Dictionary[string, …]`, and a `Dictionary[int, …]`, and sets them on the first two. On a dictionary with `[object]` keys, it does neither. Users who want dot notation can pass `-KeyType ([string])`, and the README's examples should use the indexer.
+- **Type checks:** `$d -is [hashtable]` is `$false`, and a `Dictionary[object, object]` has no `Clone()` method.
+- **Conversions:**
+  - `[pscustomobject]$d` returns the dictionary unchanged, while `[pscustomobject]$h` makes a custom object from the entries.
+  - A `[hashtable]` parameter or cast still accepts the dictionary, as a new `Hashtable`, so a function that changes its `[hashtable]` parameter no longer changes the caller's dictionary.
+- **Addition:** `$d + @{ x = 1 }` gives a `Hashtable`, so `$d += @{ x = 1 }` replaces the dictionary with one.
+- **Display:** the first column is headed `Key` instead of `Name`.
+- **What doesn't change:** `$d['missing']` gives `$null` without an error, even under `Set-StrictMode -Version Latest`. Splatting with `@d` works, and `ConvertTo-Json` writes the same properties.
+- **What improves:** the keys enumerate in the order they were added, as long as none is removed. A `Hashtable`'s order comes from the keys' hash codes: in Windows PowerShell 5.1, adding `z`, `y`, `x`, `w`, `v` enumerates them as `v,w,z,x,y`, and in PowerShell 7 the order changes from one process to the next (see 49).
+
+The questions about `Concatenate` and `ObjectList` are still open.
 
 ### 36 — New-HashSet can't combine `-GenericType` with script equality
 
@@ -549,7 +582,7 @@ More about the first case, measured on 2026-10-04 in both editions:
 1 | Assert-AnyObject { if ($_) { throw 'boom' } }                                # False, with no error
 ```
 
-**Decision needed:** whether 4.0.0 changes the default to `Continue` or `Stop`. Changing it later is a breaking change.
+**Decision made:** - when the `ErrorActionPreference` value would suppress any exceptions (non & terminating), the exception's message should be written as a warning with `Write-Warning`/`this.WriteWarning()`.
 
 ### 41 — Command, alias, and class names
 
@@ -562,7 +595,7 @@ More about the first case, measured on 2026-10-04 in both editions:
 
   Renaming a class after 4.0.0 changes those IDs.
 
-**Decision needed:** whether to rename any of these before 4.0.0, keeping the old names as aliases.
+**Decision made** - The cmdlets and PowerShell module cmdlet/functions will be renamed to `Test-*` while keeping the `Assert-*` variants as aliases. The `.cs` files will be renamed as well to their appropriate substituted cmdlet name (e.g. - `Assert-AnyObject` will become `Test-AnyObject` and its compiled `.cs` file will be renamed `TestAnyObjectCmdlet.cs`).
 
 ## Robustness
 
