@@ -157,7 +157,37 @@ foreach ($order in @(1, '10', 9, '2'), @('10', 9, '2', 1), @(9, '2', 1, '10')) {
 
 **Fix idea:** Make the comparer a total order. For example, compare numbers as numbers and strings as strings, and order the different kinds of value by a fixed rank. The alternative is to reject mixed element types.
 
-**Decision needed:** which order mixed types get. The `[object]` HashSet has the same asymmetry in `LanguagePrimitives.Equals`, but it hashes each element's string form, which hides most of it (see 30).
+The `[object]` HashSet has the same asymmetry in `LanguagePrimitives.Equals`, but it hashes each element's string form, which hides most of it (see 30).
+
+**Decided on 2026-10-04:** without `-ComparingScript`, New-SortedSet sorts only element types that have a consistent default order, and `[string]` replaces `[object]` as the default element type. Mixed types don't need an order of their own anymore, because every element is converted to the one element type.
+
+- **The check:** without `-ComparingScript`, the element type must implement `IComparable<T>` for itself, be an enum, or be `Nullable[U]` for a `U` that passes. `Comparer<T>.Default` orders each of these. Enums such as `[ConsoleColor]` and `[DayOfWeek]` implement only the non-generic `IComparable`, and `Nullable[int]` implements neither, but both sort correctly today. Any other type, `[object]` and `[psobject]` included, is a terminating error from the begin block, so no input is read.
+- **The default:** without `-ComparingScript` and `-GenericType`, the element type is `[string]`.
+- **With `-ComparingScript`:** neither applies. The script block does the comparing, so any element type is accepted, `[object]` and `[psobject]` included, and the default stays `[object]`. The README's `$people | New-SortedSet -ComparingScript { $x.Age.CompareTo($y.Age) }` (`README.md:301`) keeps working. With a `[string]` default, `$people | New-SortedSet -ComparingScript { $x.Id - $y.Id }` would turn both people into strings, whose `Id` is `$null`, and keep only one of them.
+- **Where:** the check and the default depend on both parameters, so they belong in `NewSortedSetCmdlet.BeginCore`, not in a validation attribute. Today `GenericType` defaults through `field ??= typeof(object)` and `[PSDefaultValue(Value = typeof(object))]` (`src/engine/ListFunctions-Next/Cmdlets/Constructs/NewSortedSetCmdlet.cs:45`).
+- **What becomes dead:** `ObjectComparer`, `ConstructDefault`, and the `[object]` branch of `GetComparer` in `SortingCollectorCtor`. Only a set of `[object]` without a comparer uses them.
+- **Related items:**
+  - **30:** `[string]` elements sort with `OrdinalIgnoreCase`, so that's the default sort order. New-SortedSet still has no `-CaseSensitive` (37).
+  - **29:** the closed `[OutputType]` for New-SortedSet is `SortedSet[string]`, or `SortedSet[object]` with `-ComparingScript`.
+  - **README:** the description at `README.md:275` and the `-GenericType` row at `README.md:307`.
+
+What changes for users, measured on 2026-10-04 in both editions:
+
+```powershell
+5, 3, 10 | New-SortedSet    # 3, 5, 10 today. As [string]: 10, 3, 5
+$people | New-SortedSet     # As [string]: '@{Id=1; Name=Ann}' and '@{Id=2; Name=Bob}', with no error
+# Today: a set that holds Ann, and the error 'Cannot compare "@{Id=2; Name=Bob}" to "@{Id=1; Name=Ann}" because the
+# objects are not the same type or the object "@{Id=2; Name=Bob}" does not implement "IComparable".'
+```
+
+- **Numbers sort as strings** unless a type such as `[int]` or `[double]` is given.
+- **Objects become their string forms** without an error.
+- **Some types that sort today are rejected:**
+  - `[Tuple[int, string]]`, which implements only the non-generic `IComparable`.
+  - PowerShell classes. A class can implement `IComparable` but not `IComparable[T]` for itself: `class Bar : System.IComparable[Bar]` fails with "Unable to find type [System.IComparable[Bar]]." A class that implements `IComparable` sorts correctly in `New-SortedSet` today.
+
+  Both can still use `-ComparingScript`.
+- **`$null` elements are still skipped.** The cmdlet skips them before it converts anything (`NewSortedSetCmdlet.cs:130`), so the `[string]` default doesn't turn `$null` into `''`, and 38's `($null | New-SortedSet).Count` stays 0.
 
 ### 25 — `-CaseSensitive` switches to a culture-sensitive comparison
 
@@ -181,6 +211,8 @@ $d.Count                                                                        
 The README describes `[string]` comparison as "Ordinal, without regard to case", and says that `-CaseSensitive` "makes string comparisons case-sensitive." A culture-sensitive comparison treats canonically equivalent strings as equal and ignores some characters. Its result also depends on the user's culture and on the edition: Windows PowerShell 5.1 compares with NLS, and PowerShell 7 with ICU.
 
 **Fix idea:** Use `StringComparer.Ordinal` for `-CaseSensitive`, the case-sensitive counterpart of `OrdinalIgnoreCase`. The `[object]` sets and keys are covered by 30.
+
+**Decided on 2026-10-04:** as the fix idea says, following 30's ordinal rule.
 
 ### 26 — ConvertTo-Dictionary throws a NullReferenceException when no key is given
 
@@ -286,12 +318,40 @@ $h = New-Dictionary; $h['ab'] = 1; $h[$hyphenated] = 2; $h.Count    # 2
 
 The README calls `[object]` sets "Like PowerShell's `-eq` operator". They behave that way only when both values have the same string form.
 
-**Decision needed:** one rule for every comparison the module chooses:
+**Decided on 2026-10-04:** every comparison that the module chooses is ordinal.
 
-- **Ordinal:** it matches the `[string]` sets, the dictionaries, and `@{}`, and it doesn't depend on the culture or the edition.
-- **Culture-based:** it matches `-eq` and `Sort-Object`.
+- **Strings** compare with `StringComparer.OrdinalIgnoreCase`, or with `StringComparer.Ordinal` under `-CaseSensitive` (25).
+- **`[object]` elements and keys** follow the `Hashtable`'s rule everywhere: two strings compare as strings, with `OrdinalIgnoreCase`, and any other two values with their own `Equals` and `GetHashCode`.
 
-For sorted sets, the rule also decides the sort order that users see. Whatever the choice, 25 should follow it.
+Where it changes the code:
+
+- **`-CaseSensitive`:** `StringComparer.CurrentCulture` becomes `StringComparer.Ordinal` in `EqualityConstructingCmdlet.GetCustomEqualityComparer` (`src/engine/ListFunctions-Next/Cmdlets/Constructs/EqualityConstructingCmdlet.cs:349`) and in `DictionaryCtor.GetObjectKeyComparer` (`src/engine/ListFunctions.Engine/Modern/Constructors/DictionaryCtor.cs:104`). That's 25's fix.
+- **New-SortedSet `[string]`:** `InvariantCultureIgnoreCase` and `InvariantCulture` become `OrdinalIgnoreCase` and `Ordinal` (`src/engine/ListFunctions.Engine/Modern/Constructors/SortingCollectorCtor.cs:96`). After 24, this is New-SortedSet's default order.
+- **New-HashSet `[object]`:** `ObjectEqualityComparer`, which calls `LanguagePrimitives.Equals` and hashes each element's string form (`src/engine/ListFunctions.Engine/Modern/Constructors/HashSetCtor.cs:106`), gives way to the comparer that `DictionaryCtor` gives `[object]` keys.
+- **ConvertTo-Dictionary:** its `[string]` keys already use `OrdinalIgnoreCase`. Its `[object]` keys follow the `Hashtable`'s rule too, which answers 31's open question about them.
+- **Engine's default for `[string]`:** `EqualityCollectionCtor.GetDefaultComparer` returns `InvariantCultureIgnoreCase` or `InvariantCulture` (`src/engine/ListFunctions.Engine/Modern/Constructors/EqualityCollectionCtor.cs:180`). The cmdlets pass their own comparer for `[string]`, so users don't reach it, but it should match.
+- **README:** the `[object]` row at `README.md:202`, which says "Like PowerShell's `-eq` operator", and New-SortedSet's description at `README.md:275`.
+- **Not element comparisons:** the variable names in `ScriptBlockInvocationException` (`src/engine/ListFunctions.Engine/Modern/Exceptions/ScriptBlockInvocationException.cs:262`) and the dead `PSVariableNameEquality` (46) use `InvariantCultureIgnoreCase`. Users don't see those comparisons, so the decision doesn't need them, but they can switch for consistency.
+
+What changes for users, measured on 2026-10-04 in both editions:
+
+```powershell
+(New-HashSet -InputObject 1, '1').Count        # 1 today. 2 under the Hashtable's rule
+(New-HashSet -InputObject 1, [long]1).Count    # 1 today. 2
+(New-HashSet -InputObject 1, 1.0).Count        # 1 today. 2
+(New-HashSet -InputObject 'a', 'A').Count      # 1, unchanged
+```
+
+- **`[object]` sets stop converting between types.** `1`, `'1'`, `[long]1`, and `1.0` are four elements, as they're four keys in `@{}`. So an `[int]` and a `[long]` with the same value, such as a literal `0` and a file's `Length`, aren't duplicates. Equality and hashing follow the same rule, so `1, '01'` is no longer two elements that `-eq` calls equal.
+- **The sort order of strings changes.** `OrdinalIgnoreCase` compares the strings as if they were uppercased, by code point. Punctuation such as `_` sorts after the letters, and every letter outside ASCII sorts after `Z`:
+
+  ```text
+  Today, and Sort-Object:  _x, 10, 9, a, Äpfel, apple, b, co-op, coop, éclair, Z, Zebra, zoo
+  OrdinalIgnoreCase:       10, 9, a, apple, b, co-op, coop, Z, Zebra, zoo, _x, Äpfel, éclair
+  ```
+
+  Today's order also differs between editions: `co-op` sorts before `coop` in PowerShell 7 and after it in Windows PowerShell 5.1. The ordinal order is the same in both.
+- **`OrdinalIgnoreCase` still differs between editions for a few letters outside ASCII.** It treats final sigma `ς` and `Σ`, and `ǅ` and `Ǆ`, as equal in PowerShell 7 and as different in Windows PowerShell 5.1. Case-sensitive `Ordinal` has no such differences. The culture rule differs between editions too: `InvariantCultureIgnoreCase` treats `ß` and `SS` as equal only in 5.1.
 
 ### 31 — ConvertTo-Dictionary converts every key and value to the first object's types
 
@@ -347,6 +407,7 @@ Get-Item "$env:windir", "$env:windir\notepad.exe" | ConvertTo-Dictionary Name
 - **Values:** the value type is `[object]` unless `-ValueType` is given.
 - **Neither parameter is mandatory,** and each can be given without the other, such as `[object]` keys with `[int]` values.
 - **The result is always a `Dictionary[TKey, TValue]`:** a `Dictionary[object, object]` when neither type is given, and never a `Hashtable`, even when there's no input. New-Dictionary changes the same way (see 35).
+- **`[object]` keys follow the `Hashtable`'s rule** when `-KeyComparer` isn't given, as New-Dictionary's do (`bugs.md` item 20): strings compare with `OrdinalIgnoreCase`, and other keys with their own `Equals` (see 30). Without that rule, `$people | ConvertTo-Dictionary Name` would become case-sensitive, because today the cmdlet compares only `[string]` keys without regard to case.
 - **What that removes:** the order dependence, a `$null` first key that changes how keys compare, and the rejected objects of other types. A value such as `2.5` is rounded only when the caller asks for a type such as `[int]`, and then it converts the way `Add` converts it, without an error. Because the types no longer depend on the input, the dictionary can also be created before the first input object arrives (see 35).
 - **What it costs:** keys and values are no longer typed by default.
   - **The README's examples change,** such as the `Dictionary[int, string]` it shows for `$people | ConvertTo-Dictionary Id Name`.
@@ -360,7 +421,6 @@ Get-Item "$env:windir", "$env:windir\notepad.exe" | ConvertTo-Dictionary Name
 
 **Decision needed:**
 
-- **How `[object]` keys compare when `-KeyComparer` isn't given.** ConvertTo-Dictionary compares only `[string]` keys without regard to case, so with `[object]` keys, `$people | ConvertTo-Dictionary Name` would become case-sensitive. New-Dictionary's `[object]` keys follow the `Hashtable`'s rule instead: strings compare with `OrdinalIgnoreCase`, and other keys with their own `Equals` (`bugs.md` item 20, and see 30).
 - **How `-KeyComparer` fits `[object]` keys.** A `StringComparer` isn't an `IEqualityComparer[object]`, so it can't be passed to a `Dictionary[object, TValue]` as it is. New-Dictionary wraps such a comparer in an `EqualityComparerAdapter[T]`. ConvertTo-Dictionary calls `Activator.CreateInstance` itself (`src/engine/ListFunctions-Next/Cmdlets/Constructs/ConvertToDictionaryCmdlet.cs:317`), so it gets neither the adapter nor the `Hashtable` rule. Building the dictionary with `DictionaryCtor`, as New-Dictionary does, would give it both.
 
 ### 32 — New-Dictionary drops entries whose value is `$null`
@@ -443,14 +503,13 @@ The README documents New-Dictionary's Hashtable. It doesn't document ConvertTo-D
 
 **Decision needed:**
 
-- Should ConvertTo-Dictionary always return a Dictionary?
 - Should `Concatenate` store a list for every key, so that code reading the values doesn't have to check their type?
 - Should `ObjectList` stay a public type that users test for?
 
 **Decided on 2026-10-04:** ConvertTo-Dictionary and New-Dictionary always write a `Dictionary[TKey, TValue]`, whatever their input. Neither cmdlet writes a `Hashtable`.
 
 - **New-Dictionary:** its default `[object]` keys and values give a `Dictionary[object, object]`. The keys keep the `Hashtable`'s comparison, which `DictionaryCtor` already gives `[object]` keys for any other value type: strings compare without regard to case unless `-CaseSensitive` is given (see 25 and 30), and other keys with their own `Equals`. The `Hashtable` comes from `DictionaryCtor.ShouldConstructDefault` and `ConstructTDefault` (`src/engine/ListFunctions.Engine/Modern/Constructors/DictionaryCtor.cs:139` and `:64`).
-- **ConvertTo-Dictionary:** with no input, it writes the empty dictionary that it created before the first input object, typed by `-KeyType` and `-ValueType` (see 31), instead of the `Hashtable` at `src/engine/ListFunctions-Next/Cmdlets/Constructs/ConvertToDictionaryCmdlet.cs:429`. Once `DictionaryCtor` stops creating a `Hashtable`, ConvertTo-Dictionary can build its dictionary with it without getting one back, as 31's second open question suggests.
+- **ConvertTo-Dictionary:** with no input, it writes the empty dictionary that it created before the first input object, typed by `-KeyType` and `-ValueType` (see 31), instead of the `Hashtable` at `src/engine/ListFunctions-Next/Cmdlets/Constructs/ConvertToDictionaryCmdlet.cs:429`. Once `DictionaryCtor` stops creating a `Hashtable`, ConvertTo-Dictionary can build its dictionary with it without getting one back, as 31's open question about `-KeyComparer` suggests.
 - **`[OutputType]`:** `Hashtable` leaves New-Dictionary's `[OutputType]`. It's the reason New-Dictionary's members complete today, so 29's fix has to land with this one.
 - **README:** its command table (`README.md:30`) and its New-Dictionary section (`README.md:314`) describe the `Hashtable`.
 
