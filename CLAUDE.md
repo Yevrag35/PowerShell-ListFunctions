@@ -21,7 +21,7 @@ dotnet build src/engine/ListFunctions-Next/ListFunctions-Next.csproj -c Debug   
 
 ## Tests
 
-`tests/` holds the Pester 6 tests, which run the cmdlets, and `src/engine/ListFunctions.Engine.Tests/` holds the xUnit.net v3 tests, which call `ListFunctions.Engine` directly. Both suites run every test in Windows PowerShell 5.1 and PowerShell 7. Fix each item in `.work/bugs.md` test-first. Load the `lf-testing` skill before you run, write, or change a test, try a cmdlet in a repro or smoke test, or report test results. It covers the commands and their traps, which PowerShell versions to use, when a change needs tests and which suite they go in, and how to write them.
+`tests/` holds the Pester 6 tests, which run the cmdlets, and `src/engine/ListFunctions.Engine.Tests/` holds the xUnit.net v3 tests, which call `ListFunctions.Engine` directly. Both suites run every test in Windows PowerShell 5.1 and PowerShell 7. Load the `lf-testing` skill before you run, write, or change a test, try a cmdlet in a repro or smoke test, or report test results. It covers the commands and their traps, which PowerShell versions to use, when a change needs tests and which suite they go in, and how to write them.
 
 ## Debugging
 

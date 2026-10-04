@@ -1,5 +1,7 @@
 # ListFunctions bug list
 
+> **Historical record only.** This document is kept only as evidence of the bugs it lists and how they were fixed. It doesn't provide any guidance about the future direction of the codebase. Its fix ideas, decisions, test rules, and `BugNN` tags describe the code as it was when each item was written, and they don't apply to new work.
+
 Found while rewriting `README.md` on 2026-09-28. The README describes how the module is meant to work, so each item under **README accuracy** makes a README statement false until it's fixed.
 
 ## Checklist

@@ -1,6 +1,6 @@
 ---
 name: lf-testing
-description: How to run and write the ListFunctions tests in Windows PowerShell 5.1 and PowerShell 7. The Pester 6 tests in `tests/` run the cmdlets, and the xUnit.net v3 tests in `src/engine/ListFunctions.Engine.Tests/` call `ListFunctions.Engine` directly. Covers the commands and their traps, which PowerShell versions to use, the test-first workflow for `.work/bugs.md`, when a change needs tests and which suite they go in, and how to write them. Use it before you run, write, change, or debug a test, fix a bug, add or change a cmdlet, parameter, or Engine type, try a cmdlet in a repro or smoke test, or report test results, even when the request only asks to check that something works.
+description: How to run and write the ListFunctions tests in Windows PowerShell 5.1 and PowerShell 7. The Pester 6 tests in `tests/` run the cmdlets, and the xUnit.net v3 tests in `src/engine/ListFunctions.Engine.Tests/` call `ListFunctions.Engine` directly. Covers the commands and their traps, which PowerShell versions to use, when a change needs tests and which suite they go in, and how to write them. Use it before you run, write, change, or debug a test, fix a bug, add or change a cmdlet, parameter, or Engine type, try a cmdlet in a repro or smoke test, or report test results, even when the request only asks to check that something works.
 ---
 
 # Testing ListFunctions
@@ -57,30 +57,17 @@ Name the versions each run used: the version line that each Pester edition print
 
 ## When a change needs tests
 
-- **An item in `.work/bugs.md`.** Fix it test-first, as described under Fixing a bug test-first. Its **Tests:** line says whether it gets Pester tests, Engine tests, or both.
-- **A bug that isn't in `.work/bugs.md`.** It has no number to tag its tests with, so ask whether to add it to the list first. Either way, write the failing test before the fix.
 - **New or changed cmdlet behavior**, such as a new parameter, parameter set, or alias. Add Pester tests that show the behavior through the cmdlet, with no `BugNN` tag. A new cmdlet gets its own test file. `Module.Tests.ps1` checks that the build exports exactly the manifest's `CmdletsToExport` and `AliasesToExport`, so it fails until `ListFunctions.psd1` lists the new cmdlet and its aliases.
 - **New or changed behavior in an Engine type.** Add Engine tests in the class that mirrors the type's file. If users can reach the behavior through a cmdlet, add a Pester test too.
 - **No new tests:** a refactor that doesn't change behavior, a change to comments or docs, or a release step such as copying the shipped DLLs into `ListFunctions/`. Run the existing tests instead, and if none of them reaches the code you changed, say so. The tests import the build output, not the DLLs under `ListFunctions/`, so they can't check a release.
 
 ## Which suite a test goes in
 
-This is the rule behind each item's **Tests:** line, and it applies to work that isn't on the list too:
-
 - **Pester**, in `tests/<Cmdlet>.Tests.ps1`: anything that can surface during normal use of the module. Test it through the cmdlet, the way a user runs into it.
 - **Engine**, in `src/engine/ListFunctions.Engine.Tests/`: anything whose cause is in `src/engine/ListFunctions.Engine/`. Test the Engine type directly.
 - **Both**: an Engine problem that also surfaces through a cmdlet. The Engine test pins down the type's behavior, and the Pester test shows that the cmdlet passes it on to the user.
 
 Nothing tests `ListFunctions-Next` directly, so a cause there, such as a cmdlet's parameter sets or `ListFunctionCmdletBase`, gets Pester tests only.
-
-## Fixing a bug test-first
-
-1. Read the item in `.work/bugs.md`, especially its repro and its **Cause:** and **Tests:** lines.
-2. Turn the repro into tests in the files that the **Tests:** line names. Tag them with the item's two-digit number: `-Tag 'BugNN'` in Pester and `[Trait("Category", "BugNN")]` in Engine.
-3. Build, run only that tag, and watch the new tests fail in both editions, unless the item says the editions differ. Check that each test fails the way the repro does. A test that fails on a typo, a parameter binding error, or a missing build proves nothing, and one that passes before the fix doesn't test the bug.
-4. Fix the bug.
-5. Run the tag again, and then both suites in full.
-6. Record the fix in the item, as the finished items do: a **Fixed:** paragraph, a **Tests:** line that says which tests were written and where, and a checked box in the checklist at the top of the file.
 
 ## Writing a Pester test
 
@@ -93,7 +80,7 @@ BeforeAll {
 
 Describe 'New-List' {
 	Context 'Pipeline input' {
-		It 'adds a piped array as one element' -Tag 'Bug06' {
+		It 'adds a piped array as one element' {
 			$list = @(1, @(2, 3)) | New-List
 			$list.Count | Should-Be 2
 			Should-BeCollection -Expected @(2, 3) -Actual ([object[]]$list[1])
@@ -132,7 +119,6 @@ public sealed class HashBlockTests : IClassFixture<RunspaceFixture>
 	}
 
 	[Fact]
-	[Trait("Category", "Bug05")]
 	public void GetHashCode_PassesTheObjectAsTheFirstArgument()
 	{
 		using RunspaceScope scope = _runspace.Enter();
@@ -144,7 +130,6 @@ public sealed class HashBlockTests : IClassFixture<RunspaceFixture>
 ```
 
 - A script block runs only on a thread whose `Runspace.DefaultRunspace` is set, and that property is thread-static. Each test class takes a `RunspaceFixture` through `IClassFixture<RunspaceFixture>`, and each test that runs a script block starts with `using RunspaceScope scope = _runspace.Enter();`.
-- A bug's tests get `[Trait("Category", "BugNN")]`, which matches its Pester tag.
 - Name each test `Subject_Behavior`, usually the member it calls followed by the behavior it checks, such as `Compare_SortsNullFirstWithoutRunningTheScript`. Use `[Theory]` with `[InlineData]` for cases that differ only in their data.
 - Pass a `null` argument by name, as in `additionalVariables: null`, so the call shows which parameter it leaves empty.
 - `Assert.IsType<T>` returns its argument as a `T`, and `Assert.Throws<T>` returns the exception, so a single call both checks the value and hands it on to the next assertion.
@@ -153,4 +138,4 @@ public sealed class HashBlockTests : IClassFixture<RunspaceFixture>
 
 ## Repros and smoke tests
 
-The version rule under PowerShell versions applies to repros and smoke tests, and so does the attribute check under Writing a Pester test. `.work/bugs.md`, under Running the repros, shows which DLL to import in each edition. Import it in a new process, as `Invoke-Tests.ps1` does. A process that has loaded the DLL keeps the file locked until it exits, so the next build can't replace it.
+The version rule under PowerShell versions applies to repros and smoke tests, and so does the attribute check under Writing a Pester test. In PowerShell 7, import `ListFunctions.Next.dll` from `src/engine/ListFunctions-Next/bin/<configuration>/net10.0/`. In Windows PowerShell 5.1, import `ListFunctions.NETFramework.dll` from `src/engine/ListFunctions-NETFramework/bin/<configuration>/net48/`. Import it in a new process, as `Invoke-Tests.ps1` does. A process that has loaded the DLL keeps the file locked until it exits, so the next build can't replace it.
