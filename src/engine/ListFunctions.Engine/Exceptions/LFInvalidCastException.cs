@@ -22,8 +22,6 @@ namespace ListFunctions.Exceptions;
 /// </remarks>
 public sealed class LFInvalidCastException : PSInvalidCastException
 {
-	private const string MSG_FORMAT = "Cannot convert value \"{0}\" of type \"{1}\" to type \"{2}\".";
-	private const string ADD_FORMAT = MSG_FORMAT + " Error: {3}";
 	private static readonly string s_namespace = typeof(LFInvalidCastException).Namespace ?? "";
 
 	private readonly string? _itemAsStr;
@@ -124,12 +122,26 @@ public sealed class LFInvalidCastException : PSInvalidCastException
 	/// <exception cref="NullReferenceException">Thrown when <paramref name="inner"/> or <paramref name="convertingTo"/> is null.</exception>
 	private static string FormatMessage(Exception inner, object? item, Type convertingTo, out string? itemAsStr, out string? itemType)
 	{
-		itemType = item?.GetType().GetTypeName();
-		string type = itemType ?? "null";
-		itemAsStr = item?.ToString();
+		string type = getStrings(item, out itemAsStr, out itemType);
 
 		Exception baseEx = inner.GetBaseException();
 
-		return string.Format(ADD_FORMAT, itemAsStr, type, convertingTo.GetTypeName(), baseEx.Message);
+		const string msg = "Cannot convert value \"{0}\" of type \"{1}\" to type \"{2}\": Error: {3}";
+		return string.Format(
+			provider: CultureInfo.CurrentCulture,
+			format: msg,
+			args: [itemAsStr, type, convertingTo.GetTypeName(), baseEx.Message]);
+
+		static string getStrings(object? item, out string? itemAsStr, out string? itemType)
+		{
+			itemAsStr = itemType = null;
+			if (item is not null)
+			{
+				itemType = item.GetType().GetTypeName();
+				itemAsStr = item.ToString();
+			}
+
+			return itemType ?? "null";
+		}
 	}
 }
