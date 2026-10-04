@@ -58,8 +58,8 @@ public sealed class AddMethodInvoker
 	/// method skips the item and still returns <see langword="true"/>.
 	/// </para>
 	/// <para>
-	/// An exception that the <c>Add</c> method throws reaches <paramref name="caughtException"/> wrapped in a
-	/// <see cref="TargetInvocationException"/>.
+	/// When the <c>Add</c> method throws, <paramref name="caughtException"/> is the exception it threw, not the
+	/// <see cref="TargetInvocationException"/> that reflection wraps it in.
 	/// </para>
 	/// </remarks>
 	/// <param name="collection">The collection to add to. It must be an instance of <see cref="ImplementingType"/>.</param>
@@ -91,6 +91,12 @@ public sealed class AddMethodInvoker
 		{
 			_ = _method.Invoke(collection, arguments);
 			return true;
+		}
+		catch (TargetInvocationException e) when (e.InnerException is not null)
+		{
+			// Reflection wraps the exception that the Add method throws.
+			caughtException = e.InnerException;
+			return false;
 		}
 		catch (Exception e)
 		{

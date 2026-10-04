@@ -135,9 +135,7 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 			_arr[0] = result;
 			if (!_addMethod.TryInvoke(_set, _arr, false, out Exception? caught))
 			{
-				// The set's Add method runs through reflection, which wraps what it throws.
-				Exception error = caught is TargetInvocationException { InnerException: { } inner } ? inner : caught;
-				this.WriteError(error.ToRecord(ErrorCategory.InvalidType, item));
+				this.WriteError(caught.ToRecord(ErrorCategory.InvalidType, item));
 			}
 		}
 

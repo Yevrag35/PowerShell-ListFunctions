@@ -160,4 +160,79 @@ Describe 'New-HashSet' {
 			$err[0].TargetObject | Should-Be 'abc'
 		}
 	}
+
+	Context 'Errors while adding' {
+		BeforeAll {
+			# HashSet[T].Add calls GetHashCode, so a typed set can't add an instance of this type. PowerShell converts an
+			# [int] to it through the constructor.
+			Add-Type -TypeDefinition @'
+namespace NewHashSetTests
+{
+	public sealed class ThrowingHashCode
+	{
+		public ThrowingHashCode(int value)
+		{
+			this.Value = value;
+		}
+
+		public int Value { get; private set; }
+
+		public override bool Equals(object obj)
+		{
+			return object.ReferenceEquals(this, obj);
+		}
+
+		public override int GetHashCode()
+		{
+			throw new System.InvalidOperationException("GetHashCode always fails.");
+		}
+	}
+}
+'@
+		}
+
+		It 'writes an error that targets each element a typed set fails to add' {
+			$null = New-HashSet ([NewHashSetTests.ThrowingHashCode]) -InputObject 1, 2 -ErrorVariable err -ErrorAction SilentlyContinue
+			$err.Count | Should-Be 2
+			# Conversion errors have the InvalidType category, so InvalidOperation shows that these errors come from Add.
+			$err[0].CategoryInfo.Category | Should-Be ([System.Management.Automation.ErrorCategory]::InvalidOperation)
+			$err[0].TargetObject | Should-Be 1
+			$err[1].TargetObject | Should-Be 2
+		}
+
+		It 'writes the exception that Add throws when a typed set fails to add an element' {
+			$null = New-HashSet ([NewHashSetTests.ThrowingHashCode]) -InputObject 1 -ErrorVariable err -ErrorAction SilentlyContinue
+			$err.Count | Should-Be 1
+			# Should-HaveType would print the whole exception on failure, which takes minutes. A type name prints quickly.
+			$err[0].Exception.GetType().FullName | Should-Be 'System.InvalidOperationException'
+		}
+
+		# The type is named as a string because Pester reads -ForEach before BeforeAll defines the type.
+		It 'stops at the first element that <Label> fails to add, and writes no set' -ForEach @(
+			@{
+				Label = 'a typed set'
+				Elements = 1, 2
+				Parameters = @{ GenericType = 'NewHashSetTests.ThrowingHashCode' }
+				Failed = 1
+			}
+			@{
+				# 'a' and 'A' share a hash code, so adding 'A' runs -EqualityScript.
+				Label = 'a set with script block equality'
+				Elements = 'a', 'A', 'b'
+				Parameters = @{
+					EqualityScript = { throw 'boom'; $x -eq $y }
+					HashCodeScript = { $_.ToUpperInvariant().GetHashCode() }
+				}
+				Failed = 'A'
+			}
+		) {
+			$set = $Elements | New-HashSet @Parameters -ErrorVariable err -ErrorAction SilentlyContinue
+			Should-BeNull -Actual $set
+			# Like Select-Object -First, the command stops the commands upstream of it with an exception that Windows
+			# PowerShell 5.1 also puts in the error variable. That exception isn't an error record.
+			$records = @($err | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] })
+			$records.Count | Should-Be 1
+			$records[0].TargetObject | Should-Be $Failed
+		}
+	}
 }

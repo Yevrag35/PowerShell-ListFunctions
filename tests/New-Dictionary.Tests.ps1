@@ -105,6 +105,31 @@ Describe 'New-Dictionary' {
 			$err[0].TargetObject | Should-Be 'x'
 		}
 
+		It 'writes an error that targets the key of each entry it fails to add' {
+			# 1 and '1' are different hashtable keys that both convert to [int] 1, and so are 2 and '2'. A hash literal
+			# can't hold both, so the indexer adds them.
+			$source = @{}
+			$source[1] = 'a'
+			$source['1'] = 'b'
+			$source[2] = 'c'
+			$source['2'] = 'd'
+			$dict = $source | New-Dictionary ([int]) -ErrorVariable err -ErrorAction SilentlyContinue
+			$dict.Count | Should-Be 2
+			$err.Count | Should-Be 2
+			# The hashtable decides which entry of each pair comes second and fails, so the keys are sorted.
+			Should-BeCollection -Expected @(1, 2) -Actual ([object[]]($err.TargetObject | Sort-Object))
+		}
+
+		It 'writes the exception that Add throws for an entry it fails to add' {
+			$source = @{}
+			$source[1] = 'a'
+			$source['1'] = 'b'
+			$null = $source | New-Dictionary ([int]) -ErrorVariable err -ErrorAction SilentlyContinue
+			$err.Count | Should-Be 1
+			# Should-HaveType would print the whole exception on failure, which takes minutes. A type name prints quickly.
+			$err[0].Exception.GetType().FullName | Should-Be 'System.ArgumentException'
+		}
+
 		It 'clones values with -CloneValues before it converts them' -Tag 'Bug08' {
 			$source = @{ Items = [System.Collections.ArrayList]@(1, 2) }
 			$dict = $source | New-Dictionary [string] ([System.Collections.ArrayList]) -CloneValues

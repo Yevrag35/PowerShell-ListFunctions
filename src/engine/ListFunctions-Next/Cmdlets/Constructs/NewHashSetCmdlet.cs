@@ -175,14 +175,14 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 		}
 		else
 		{
-			object?[] args = new object[1];
 			foreach (object? item in elements)
 			{
 				try
 				{
-					args[0] = item;
-					this.AddToCollection(collection, args, (x, types) =>
-						LanguagePrimitives.ConvertTo(x, types[0]));
+					if (!this.AddToCollection(collection, item, LanguagePrimitives.ConvertTo))
+					{
+						flag = false;
+					}
 				}
 				catch (PSInvalidCastException e)
 				{
@@ -207,10 +207,10 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	/// <param name="wantsToStop"><see langword="true"/> to skip writing the set; otherwise, <see langword="false"/>.</param>
 	protected override void End(object collection, bool wantsToStop)
 	{
-		if (wantsToStop)
-			return;
-
-		this.WriteObject(collection, false);
+		if (!wantsToStop)
+		{
+			this.WriteObject(collection, false);
+		}
 	}
 
 	#endregion

@@ -175,9 +175,11 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// is then converted to <see cref="ValueType"/> unless that type is <see cref="object"/>.
 	/// </para>
 	/// <para>
-	/// A key or value that can't be converted produces a non-terminating error, and its entry is skipped. The
-	/// remaining entries are still copied. A <see langword="null"/> value isn't converted, and its entry is skipped
-	/// without an error.
+	/// A key or value that can't be converted produces a non-terminating error, and its entry is skipped. An entry that
+	/// can't be added, such as one whose converted key is already in the dictionary, produces a non-terminating error
+	/// for the exception that the dictionary threw, with the converted key as its target. Either way, the remaining
+	/// entries are still copied. A <see langword="null"/> value isn't converted, and its entry is skipped without an
+	/// error.
 	/// </para>
 	/// </remarks>
 	/// <param name="collection">The dictionary to copy entries into.</param>

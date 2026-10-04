@@ -41,6 +41,7 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// </summary>
 	protected const string AND_COPY = WITH_CUSTOM_EQUALITY + "AndCopy";
 
+	private object?[]? _addArgs;
 	private AddMethodInvoker _addMethod = null!;
 	private RuntimeDefinedParameter _caseSensitive = null!;
 	private T _collection = default!;
@@ -121,7 +122,7 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// <see cref="GetConstructor(IEqualityComparer, Type[])"/>. It passes <see cref="Capacity"/> to that object and
 	/// constructs the collection with it. It also prepares the invoker that
 	/// <see cref="AddToCollection(T, object[], bool)"/> and
-	/// <see cref="AddToCollection(T, object[], Func{object, Type[], object})"/> use to call the collection's
+	/// <see cref="AddToCollection(T, object, Func{object, Type, object})"/> use to call the collection's
 	/// <c>Add</c> method.
 	/// </remarks>
 	protected sealed override void BeginCore()
@@ -252,40 +253,47 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	}
 
 	/// <summary>
-	/// Converts the specified arguments and passes them to the collection's <c>Add</c> method.
+	/// Converts the specified item and passes it to the collection's <c>Add</c> method.
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	/// The method does nothing when <paramref name="collection"/> or <paramref name="items"/> is
-	/// <see langword="null"/>, when <paramref name="items"/> is empty, or when its first element is
-	/// <see langword="null"/>. Each element of <paramref name="items"/> is replaced in place with the result of
+	/// The method is for collections whose <c>Add</c> method takes a single argument, such as sets. It does nothing
+	/// when <paramref name="collection"/> or <paramref name="item"/> is <see langword="null"/>. Otherwise it passes
+	/// <paramref name="item"/> and the collection's element type, its first generic type argument, to
 	/// <paramref name="conversion"/>.
 	/// </para>
 	/// <para>
-	/// When any converted argument is <see langword="null"/>, the call to <c>Add</c> is skipped without an error. When
-	/// <c>Add</c> throws, the method writes a non-terminating error instead of throwing. Exceptions thrown by
-	/// <paramref name="conversion"/> propagate to the caller.
+	/// When the converted item is <see langword="null"/>, the call to <c>Add</c> is skipped without an error. When
+	/// <c>Add</c> throws, the method writes a non-terminating error for that exception instead of throwing, and returns
+	/// <see langword="false"/>. The error's target object is <paramref name="item"/> as it was before conversion.
+	/// Exceptions thrown by <paramref name="conversion"/> propagate to the caller.
+	/// </para>
+	/// <para>
+	/// <b>Performance:</b> The method reuses one argument array for every call, so it doesn't allocate an array for
+	/// each item. For the same reason, it isn't thread-safe.
 	/// </para>
 	/// </remarks>
 	/// <param name="collection">The collection to add to.</param>
-	/// <param name="items">The arguments for the <c>Add</c> method, in parameter order. The array is modified in place.</param>
-	/// <param name="conversion">A function that receives an argument and the collection's generic type arguments and returns the converted argument.</param>
-	protected void AddToCollection(T collection, object?[]? items, Func<object?, Type[], object?> conversion)
+	/// <param name="item">The item to convert and add, or <see langword="null"/>.</param>
+	/// <param name="conversion">A function that receives <paramref name="item"/> and the collection's element type and returns the converted item.</param>
+	/// <returns><see langword="true"/> when the item was added or skipped; <see langword="false"/> when <c>Add</c> threw.</returns>
+	protected bool AddToCollection(T collection, object? item, Func<object?, Type, object?> conversion)
 	{
-		if (collection is null || items is null || items.Length < 1 || items[0] is null)
+		if (collection is null || item is null)
 		{
-			return;
+			return true;
 		}
 
-		for (int i = items.Length - 1; i >= 0; i--)
+		object?[] args = _addArgs ??= new object?[1];
+		args[0] = conversion(item, _genericTypes[0]);
+
+		if (_addMethod.TryInvoke(collection, args, false, out Exception? caughtEx))
 		{
-			items[i] = conversion(items[i], _genericTypes);
+			return true;
 		}
 
-		if (!_addMethod.TryInvoke(collection, items, false, out Exception? caughtEx))
-		{
-			this.WriteError(caughtEx.ToRecord(ErrorCategory.InvalidOperation, items));
-		}
+		this.WriteError(caughtEx.ToRecord(ErrorCategory.InvalidOperation, item));
+		return false;
 	}
 	/// <summary>
 	/// Passes the specified arguments to the collection's <c>Add</c> method.
@@ -294,7 +302,8 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// <para>
 	/// The method does nothing when <paramref name="collection"/> is <see langword="null"/>, or when
 	/// <paramref name="item"/> is <see langword="null"/> and <paramref name="addIfNull"/> is <see langword="false"/>.
-	/// When <c>Add</c> throws, the method writes a non-terminating error instead of throwing.
+	/// When <c>Add</c> throws, the method writes a non-terminating error for that exception instead of throwing. The
+	/// error's target object is the first argument, such as a dictionary's key.
 	/// </para>
 	/// <para>
 	/// When any argument is <see langword="null"/>, the call to <c>Add</c> is skipped without an error.
@@ -315,7 +324,9 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 
 		if (!_addMethod.TryInvoke(collection, item, false, out Exception? caughtEx))
 		{
-			this.WriteError(caughtEx.ToRecord(ErrorCategory.InvalidOperation, item));
+			// The caller can reuse the array for its next entry, so the record keeps the first argument instead.
+			object? target = item.Length > 0 ? item[0] : null;
+			this.WriteError(caughtEx.ToRecord(ErrorCategory.InvalidOperation, target));
 		}
 	}
 
