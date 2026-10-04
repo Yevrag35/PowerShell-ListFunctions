@@ -56,7 +56,7 @@ public sealed class EqualityBlock : ComparingBase, IEqualityBlock
 	/// <param name="equalityBlock">The script block that determines whether <c>$x</c> and <c>$y</c> are equal. This value must not be <see langword="null"/>.</param>
 	/// <param name="hashCodeBlock">The provider that computes hash codes. This value must not be <see langword="null"/>.</param>
 	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="equalityBlock"/> is null.</exception>
-	/// <exception cref="ArgumentException">Thrown when <paramref name="equalityBlock"/> contains no statements.</exception>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="equalityBlock"/> has no statements to run, or has a <c>begin</c> block, a <c>clean</c> block, or both a <c>process</c> block and an <c>end</c> block.</exception>
 	public EqualityBlock(ScriptBlock equalityBlock, IHashBlock hashCodeBlock) : this(equalityBlock, hashCodeBlock, additionalVariables: null)
 	{
 	}
@@ -74,7 +74,7 @@ public sealed class EqualityBlock : ComparingBase, IEqualityBlock
 	/// <param name="hashCodeBlock">The provider that computes hash codes. This value must not be <see langword="null"/>.</param>
 	/// <param name="additionalVariables">The variables to define in the scope of both script blocks, or <see langword="null"/> for none. The constructor copies them.</param>
 	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="equalityBlock"/> is null.</exception>
-	/// <exception cref="ArgumentException">Thrown when <paramref name="equalityBlock"/> contains no statements.</exception>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="equalityBlock"/> has no statements to run, or has a <c>begin</c> block, a <c>clean</c> block, or both a <c>process</c> block and an <c>end</c> block.</exception>
 	public EqualityBlock(ScriptBlock equalityBlock, IHashBlock hashCodeBlock, IEnumerable<PSVariable>? additionalVariables) : base(equalityBlock, preValidated: false)
 	{
 		_additionalVariables = additionalVariables is not null
@@ -101,7 +101,7 @@ public sealed class EqualityBlock : ComparingBase, IEqualityBlock
 	/// <param name="hashCodeBlock">The provider that computes hash codes. This value must not be <see langword="null"/>.</param>
 	/// <param name="variables">The variables to define in the scope of both script blocks. The span can be empty. The constructor copies it.</param>
 	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="equalityBlock"/> is null.</exception>
-	/// <exception cref="ArgumentException">Thrown when <paramref name="equalityBlock"/> contains no statements.</exception>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="equalityBlock"/> has no statements to run, or has a <c>begin</c> block, a <c>clean</c> block, or both a <c>process</c> block and an <c>end</c> block.</exception>
 	public EqualityBlock(ScriptBlock equalityBlock, IHashBlock hashCodeBlock, params ReadOnlySpan<PSVariable> variables) : base(equalityBlock, preValidated: false)
 	{
 		_additionalVariables = !variables.IsEmpty

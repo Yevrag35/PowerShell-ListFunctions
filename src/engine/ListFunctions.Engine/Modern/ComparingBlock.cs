@@ -31,8 +31,8 @@ public static class ComparingBlock
 	/// <paramref name="genericType"/> and calls it through reflection.
 	/// </para>
 	/// <para>
-	/// Unlike the <see cref="ComparingBlock{T}"/> constructor, this method doesn't check that the script block contains
-	/// any statements. The caller is expected to have validated it.
+	/// Unlike the <see cref="ComparingBlock{T}"/> constructor, this method doesn't validate the script block. The caller is
+	/// expected to have validated it.
 	/// </para>
 	/// </remarks>
 	/// <param name="scriptBlock">The script block that compares <c>$x</c> (or <c>$left</c>) with <c>$y</c> (or <c>$right</c>). This value must not be <see langword="null"/>.</param>
@@ -53,8 +53,8 @@ public static class ComparingBlock
 	/// Creates a <see cref="ComparingBlock{T}"/> from the specified script block.
 	/// </summary>
 	/// <remarks>
-	/// Unlike the <see cref="ComparingBlock{T}"/> constructor, this method doesn't check that the script block contains
-	/// any statements. The caller is expected to have validated it.
+	/// Unlike the <see cref="ComparingBlock{T}"/> constructor, this method doesn't validate the script block. The caller is
+	/// expected to have validated it.
 	/// </remarks>
 	/// <typeparam name="T">The type of the objects to compare.</typeparam>
 	/// <param name="scriptBlock">The script block that compares <c>$x</c> (or <c>$left</c>) with <c>$y</c> (or <c>$right</c>). This value must not be <see langword="null"/>.</param>
@@ -139,7 +139,7 @@ public sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparingB
 	/// <param name="scriptBlock">The script block that compares <c>$x</c> (or <c>$left</c>) with <c>$y</c> (or <c>$right</c>). This value must not be <see langword="null"/>.</param>
 	/// <param name="additionalVariables">The variables to define in the script block's scope along with the operands, or <see langword="null"/> for none. The constructor copies them.</param>
 	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="scriptBlock"/> is null.</exception>
-	/// <exception cref="ArgumentException">Thrown when <paramref name="scriptBlock"/> contains no statements.</exception>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="scriptBlock"/> has no statements to run, or has a <c>begin</c> block, a <c>clean</c> block, or both a <c>process</c> block and an <c>end</c> block.</exception>
 	public ComparingBlock(ScriptBlock scriptBlock, IEnumerable<PSVariable>? additionalVariables)
 		: this(scriptBlock, preValidated: false, additionalVariables)
 	{
@@ -152,7 +152,7 @@ public sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparingB
 	/// <param name="preValidated"><see langword="true"/> if the caller has already validated <paramref name="scriptBlock"/>; otherwise, <see langword="false"/>.</param>
 	/// <param name="additionalVariables">The variables to define in the script block's scope along with the operands, or <see langword="null"/> for none. The constructor copies them.</param>
 	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="scriptBlock"/> is null.</exception>
-	/// <exception cref="ArgumentException">Thrown when <paramref name="preValidated"/> is false and <paramref name="scriptBlock"/> contains no statements.</exception>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="preValidated"/> is false and <paramref name="scriptBlock"/> has no statements to run, or has a <c>begin</c> block, a <c>clean</c> block, or both a <c>process</c> block and an <c>end</c> block.</exception>
 	internal ComparingBlock(ScriptBlock scriptBlock, bool preValidated, IEnumerable<PSVariable>? additionalVariables)
 		: base(scriptBlock, preValidated)
 	{

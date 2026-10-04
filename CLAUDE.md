@@ -36,10 +36,11 @@ There are four projects under `src/engine/`:
 	- `ScriptBlockFilter` evaluates predicates for `Assert-Any`/`Assert-All`.
 	- `Modern/Constructors/*Ctor` build closed generic collection types through reflection. `AddMethodInvoker` calls their `Add` method.
 	- `Modern/Variables` injects the per-item context variables into the ScriptBlocks: `$_`, `$this`, and `$psitem` for single items, and `$left`/`$right` or `$x`/`$y` for equality.
+	- `Validation/` holds the parameter transformation and validation attributes: `ArgumentToTypeTransform` and `ListTransform` convert arguments, and `IsScriptBlock` and `ValidateScriptVariable` check them. It also holds a `ValidateNotNullOrWhiteSpace` polyfill for Windows PowerShell 5.1. The `net10.0` build forwards that type to PowerShell 7's own attribute.
 	- Its internals are exposed to `ListFunctions.Next`, `ListFunctions.NETFramework`, and `ListFunctions.Engine.Tests` through `<AssemblyAttribute>` InternalsVisibleTo items in the csproj.
 	- `Internal/VarList.cs` is excluded from compilation on purpose.
 - **`ListFunctions-Next`** targets `net10.0` and builds `ListFunctions.Next.dll`, the PowerShell 7 binary module. All cmdlets live here, under `Cmdlets/Assertions`, `Cmdlets/Constructs`, and `Cmdlets/Finds`.
-- **`ListFunctions-NETFramework`** is an SDK-style project that targets `net48` and builds `ListFunctions.NETFramework.dll`, the Windows PowerShell 5.1 module. It has almost no code of its own: a `ModuleInitializer` that adds an `AssemblyResolve` hook to load dependencies from its own folder, plus a `ValidateNotNullOrWhiteSpace` polyfill. It compiles **every `.cs` file in `ListFunctions-Next`** through a wildcard `<Compile Include>`.
+- **`ListFunctions-NETFramework`** is an SDK-style project that targets `net48` and builds `ListFunctions.NETFramework.dll`, the Windows PowerShell 5.1 module. It has almost no code of its own, only a `ModuleInitializer` that adds an `AssemblyResolve` hook to load dependencies from its own folder. It compiles **every `.cs` file in `ListFunctions-Next`** through a wildcard `<Compile Include>`.
 	- As a result, all code in `ListFunctions-Next` must also compile for .NET Framework 4.8 against the PowerShell 5 reference assemblies.
 	- Wrap newer BCL or PowerShell 7 APIs in `#if NETCOREAPP` or `#if NET9_0_OR_GREATER`, as the existing code does.
 	- Building only `ListFunctions-Next` does not catch these errors. Build the full solution.

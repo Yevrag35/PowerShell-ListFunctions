@@ -26,7 +26,7 @@ public sealed class HashBlock : ComparingBase, IHashBlock
 	/// </summary>
 	/// <param name="scriptBlock">The script block that computes the hash code of <c>$_</c>. This value must not be <see langword="null"/>.</param>
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="scriptBlock"/> is null.</exception>
-	/// <exception cref="ArgumentException">Thrown when <paramref name="scriptBlock"/> contains no statements.</exception>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="scriptBlock"/> has no statements to run, or has a <c>begin</c> block, a <c>clean</c> block, or both a <c>process</c> block and an <c>end</c> block.</exception>
 	public HashBlock(ScriptBlock scriptBlock) : base(scriptBlock, preValidated: false)
 	{
 		_thisVar = new();
@@ -49,7 +49,7 @@ public sealed class HashBlock : ComparingBase, IHashBlock
 	/// <param name="scriptBlock">The script block that computes the hash code of <c>$_</c>. This value must not be <see langword="null"/>.</param>
 	/// <param name="variables">The list to use as the working list of script block variables, or <see langword="null"/> to create one.</param>
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="scriptBlock"/> is null.</exception>
-	/// <exception cref="ArgumentException">Thrown when <paramref name="scriptBlock"/> contains no statements.</exception>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="scriptBlock"/> has no statements to run, or has a <c>begin</c> block, a <c>clean</c> block, or both a <c>process</c> block and an <c>end</c> block.</exception>
 	public HashBlock(ScriptBlock scriptBlock, List<PSVariable>? variables) : base(scriptBlock, preValidated: false)
 	{
 		_varList = variables ?? new(4);

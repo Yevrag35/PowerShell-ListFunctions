@@ -26,12 +26,26 @@ public sealed class RunspaceFixture : IDisposable
 	private readonly Runspace _runspace;
 
 	/// <summary>
+	/// Gets the engine intrinsics of the fixture's runspace, which PowerShell passes to the transformation and validation
+	/// attributes of each parameter that it binds.
+	/// </summary>
+	/// <remarks>
+	/// The object is the runspace's <c>$ExecutionContext</c>. Its <see cref="EngineIntrinsics.SessionState"/> property
+	/// returns the session state that is current when the property is read: a module's session state while code in that
+	/// module runs, and otherwise the top-level session state, whose <see cref="SessionState.Module"/> is
+	/// <see langword="null"/>.
+	/// </remarks>
+	/// <value>The value of the runspace's <c>$ExecutionContext</c> variable.</value>
+	public EngineIntrinsics EngineIntrinsics { get; }
+
+	/// <summary>
 	/// Initializes a new <see cref="RunspaceFixture"/> instance and opens its runspace.
 	/// </summary>
 	public RunspaceFixture()
 	{
 		_runspace = RunspaceFactory.CreateRunspace(InitialSessionState.CreateDefault());
 		_runspace.Open();
+		this.EngineIntrinsics = (EngineIntrinsics)_runspace.SessionStateProxy.GetVariable("ExecutionContext");
 	}
 
 	/// <summary>

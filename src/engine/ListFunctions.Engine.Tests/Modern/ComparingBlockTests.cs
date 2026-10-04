@@ -94,6 +94,16 @@ public sealed class ComparingBlockTests : IClassFixture<RunspaceFixture>
 	}
 
 	[Fact]
+	public void Compare_RunsAScriptWithOnlyAProcessBlock()
+	{
+		using RunspaceScope scope = _runspace.Enter();
+		var block = new ComparingBlock<int>(ScriptBlock.Create("process { $x.CompareTo($y) }"), additionalVariables: null);
+
+		Assert.Equal(-1, Math.Sign(block.Compare(1, 2)));
+		Assert.Equal(1, Math.Sign(block.Compare(3, 2)));
+	}
+
+	[Fact]
 	public void SortedSet_OrdersItsElementsWithTheScript()
 	{
 		using RunspaceScope scope = _runspace.Enter();
@@ -110,5 +120,15 @@ public sealed class ComparingBlockTests : IClassFixture<RunspaceFixture>
 
 		var block = Assert.IsType<ComparingBlock<string>>(comparer);
 		Assert.Equal(typeof(string), ((IComparingBlock)block).ChecksType);
+	}
+
+	// ScriptBlock.InvokeWithContext, which runs the script, refuses a script block that has a begin block, or both a
+	// process block and an end block.
+	[Theory]
+	[InlineData("begin { } process { $x.CompareTo($y) }")]
+	[InlineData("process { $x.CompareTo($y) } end { $x.CompareTo($y) }")]
+	public void Constructor_ThrowsWhenInvokeWithContextCannotRunTheScript(string comparingScript)
+	{
+		Assert.Throws<ArgumentException>(() => new ComparingBlock<int>(ScriptBlock.Create(comparingScript), additionalVariables: null));
 	}
 }

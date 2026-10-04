@@ -14,13 +14,16 @@ internal static class ScriptBlockExtensions
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	/// The method returns <see langword="true"/> when the script block has both a <c>begin</c> block and a <c>process</c> block.
-	/// Otherwise, it returns <see langword="true"/> only when the <c>end</c> block, which holds the statements of a script
-	/// block without named blocks, contains at least one statement.
+	/// The module runs these script blocks with
+	/// <see cref="ScriptBlock.InvokeWithContext(Dictionary{string, ScriptBlock}, List{PSVariable}, object[])"/>, which runs a
+	/// single named block: the <c>process</c> block when there is one, and otherwise the <c>end</c> block, which holds the
+	/// statements of a script block without named blocks. It refuses a script block that has a <c>begin</c> block, a
+	/// <c>clean</c> block, or both a <c>process</c> block and an <c>end</c> block.
 	/// </para>
 	/// <para>
-	/// A script block that has only a <c>process</c> block, or only a <c>begin</c> block, has no <c>end</c> block, so the
-	/// method returns <see langword="false"/> for it.
+	/// The method returns <see langword="true"/> when <c>InvokeWithContext</c> can run the script block and the block that
+	/// it runs contains at least one statement. Windows PowerShell 5.1 has no <c>clean</c> blocks, so only the .NET 10 build
+	/// looks for one.
 	/// </para>
 	/// </remarks>
 	/// <param name="scriptBlock">The script block to check. This value must not be <see langword="null"/>.</param>
@@ -33,22 +36,24 @@ internal static class ScriptBlockExtensions
 	{
 		Guard.NotNull(scriptBlock);
 
-		if (scriptBlock.Ast is not ScriptBlockAst scriptAst)
+		if (scriptBlock.Ast is not ScriptBlockAst scriptAst || scriptAst.BeginBlock is not null)
 		{
 			return false;
 		}
 
-		if (!(scriptAst.BeginBlock is null || scriptAst.ProcessBlock is null))
-		{
-			return true;
-		}
-		else if (scriptAst.EndBlock is null)
+#if NETCOREAPP
+		if (scriptAst.CleanBlock is not null)
 		{
 			return false;
 		}
+#endif
 
-		ReadOnlyCollection<StatementAst> statements = scriptAst.EndBlock.Statements;
-		return statements.Count != 0;
+		if (scriptAst.ProcessBlock is not null)
+		{
+			return scriptAst.EndBlock is null && scriptAst.ProcessBlock.Statements.Count != 0;
+		}
+
+		return scriptAst.EndBlock is not null && scriptAst.EndBlock.Statements.Count != 0;
 	}
 
 	// PowerShell doesn't copy the args array: a script block without a param block gets that array as $args. Pass a

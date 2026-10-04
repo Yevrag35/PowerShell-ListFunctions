@@ -51,6 +51,32 @@ Describe 'New-HashSet' {
 			$set = New-HashSet -EqualityScript { $x -eq $y } -HashCodeScript { $args[0].Length }
 			$set.Comparer.GetHashCode('abcd') | Should-Be 4
 		}
+
+		# ScriptBlock.InvokeWithContext, which runs the script blocks, runs the process block when there is one. It refuses
+		# a script block that has a begin block, or both a process block and an end block.
+		It 'accepts a <Parameter> that has only a process block' -ForEach @(
+			@{
+				Parameter = '-EqualityScript'
+				EqualityScript = { process { [string]::Equals($x, $y, 'OrdinalIgnoreCase') } }
+				HashCodeScript = { $_.ToUpperInvariant().GetHashCode() }
+			}
+			@{
+				Parameter = '-HashCodeScript'
+				EqualityScript = { [string]::Equals($x, $y, 'OrdinalIgnoreCase') }
+				HashCodeScript = { process { $_.ToUpperInvariant().GetHashCode() } }
+			}
+		) {
+			$set = New-HashSet -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript
+			$set.Add('abc') | Should-BeTrue
+			$set.Add('ABC') | Should-BeFalse
+		}
+
+		It 'rejects a <Parameter> that has a begin block' -ForEach @(
+			@{ Parameter = '-EqualityScript'; EqualityScript = { begin { } process { $x -eq $y } }; HashCodeScript = { $_.GetHashCode() } }
+			@{ Parameter = '-HashCodeScript'; EqualityScript = { $x -eq $y }; HashCodeScript = { begin { } process { $_.GetHashCode() } } }
+		) {
+			{ New-HashSet -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript } | Should-Throw -FullyQualifiedErrorId 'ParameterArgumentValidationError,*'
+		}
 	}
 
 	Context 'Capacity' {

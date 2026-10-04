@@ -52,6 +52,15 @@ public sealed class HashBlockTests : IClassFixture<RunspaceFixture>
 	}
 
 	[Fact]
+	public void GetHashCode_RunsAScriptWithOnlyAProcessBlock()
+	{
+		using RunspaceScope scope = _runspace.Enter();
+		var block = new HashBlock(ScriptBlock.Create("process { $_.Length }"));
+
+		Assert.Equal(4, block.GetHashCode("abcd", additionalVariables: null));
+	}
+
+	[Fact]
 	public void GetHashCode_PassesAdditionalVariablesToTheScript()
 	{
 		using RunspaceScope scope = _runspace.Enter();
@@ -73,5 +82,15 @@ public sealed class HashBlockTests : IClassFixture<RunspaceFixture>
 		var block = new HashBlock(ScriptBlock.Create(hashCodeScript));
 
 		Assert.Throws<HashCodeScriptException>(() => block.GetHashCode("abcd", additionalVariables: null));
+	}
+
+	// ScriptBlock.InvokeWithContext, which runs the script, refuses a script block that has a begin block, or both a
+	// process block and an end block.
+	[Theory]
+	[InlineData("begin { } process { $_.Length }")]
+	[InlineData("process { $_.Length } end { $_.Length }")]
+	public void Constructor_ThrowsWhenInvokeWithContextCannotRunTheScript(string hashCodeScript)
+	{
+		Assert.Throws<ArgumentException>(() => new HashBlock(ScriptBlock.Create(hashCodeScript)));
 	}
 }

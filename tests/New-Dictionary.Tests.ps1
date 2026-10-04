@@ -56,6 +56,33 @@ Describe 'New-Dictionary' {
 			$dict[21] | Should-Be 'a'
 			$dict[2] | Should-Be 'b'
 		}
+
+		# ScriptBlock.InvokeWithContext, which runs the script blocks, runs the process block when there is one. It refuses
+		# a script block that has a begin block, or both a process block and an end block.
+		It 'accepts a <Parameter> that has only a process block' -ForEach @(
+			@{
+				Parameter = '-EqualityScript'
+				EqualityScript = { process { [string]::Equals($x, $y, 'OrdinalIgnoreCase') } }
+				HashCodeScript = { $_.ToUpperInvariant().GetHashCode() }
+			}
+			@{
+				Parameter = '-HashCodeScript'
+				EqualityScript = { [string]::Equals($x, $y, 'OrdinalIgnoreCase') }
+				HashCodeScript = { process { $_.ToUpperInvariant().GetHashCode() } }
+			}
+		) {
+			$dict = New-Dictionary -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript
+			$dict.Add('abc', 1)
+			$dict.ContainsKey('ABC') | Should-BeTrue
+		}
+
+		# New-Dictionary checks the script blocks when it creates the dictionary, so the error ends the command.
+		It 'rejects a <Parameter> that has a begin block' -ForEach @(
+			@{ Parameter = '-EqualityScript'; EqualityScript = { begin { } process { $x -eq $y } }; HashCodeScript = { $_.GetHashCode() } }
+			@{ Parameter = '-HashCodeScript'; EqualityScript = { $x -eq $y }; HashCodeScript = { begin { } process { $_.GetHashCode() } } }
+		) {
+			{ New-Dictionary -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript } | Should-Throw -FullyQualifiedErrorId 'System.ArgumentException,*'
+		}
 	}
 
 	Context 'Copying from InputObject' {

@@ -88,8 +88,28 @@ public sealed class EqualityBlockTests : IClassFixture<RunspaceFixture>
 	}
 
 	[Fact]
+	public void Equals_RunsAScriptWithOnlyAProcessBlock()
+	{
+		using RunspaceScope scope = _runspace.Enter();
+		var block = new EqualityBlock(ScriptBlock.Create("process { $x -eq $y }"), new HashBlock(ScriptBlock.Create("0")));
+
+		Assert.True(block.Equals(1, 1));
+		Assert.False(block.Equals(1, 2));
+	}
+
+	[Fact]
 	public void Constructor_ThrowsWhenTheScriptHasNoStatements()
 	{
 		Assert.Throws<ArgumentException>(() => new EqualityBlock(ScriptBlock.Create("# No statements"), new HashBlock(ScriptBlock.Create("0"))));
+	}
+
+	// ScriptBlock.InvokeWithContext, which runs the script, refuses a script block that has a begin block, or both a
+	// process block and an end block.
+	[Theory]
+	[InlineData("begin { } process { $x -eq $y }")]
+	[InlineData("process { $x -eq $y } end { $x -eq $y }")]
+	public void Constructor_ThrowsWhenInvokeWithContextCannotRunTheScript(string equalityScript)
+	{
+		Assert.Throws<ArgumentException>(() => new EqualityBlock(ScriptBlock.Create(equalityScript), new HashBlock(ScriptBlock.Create("0"))));
 	}
 }

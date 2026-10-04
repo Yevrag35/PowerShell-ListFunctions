@@ -7,10 +7,12 @@ namespace ListFunctions.Validation;
 /// </summary>
 /// <remarks>
 /// <para>
-/// A script block passes when it has both a <c>begin</c> block and a <c>process</c> block, or when its <c>end</c> block,
-/// which holds the statements of a script block without named blocks, contains at least one statement. An empty script
-/// block, such as <c>{ }</c>, fails, and so does a script block that has only a <c>begin</c> block or only a
-/// <c>process</c> block.
+/// A script block passes when PowerShell can invoke it as a single block that contains at least one statement, the way
+/// <see cref="ScriptBlock.InvokeWithContext(Dictionary{string, ScriptBlock}, List{PSVariable}, object[])"/> invokes it.
+/// That block is the <c>process</c> block when there is one, and otherwise the <c>end</c> block, which holds the
+/// statements of a script block without named blocks. An empty script block, such as <c>{ }</c>, fails, and so does a
+/// script block that has a <c>begin</c> block, a <c>clean</c> block, or both a <c>process</c> block and an <c>end</c>
+/// block.
 /// </para>
 /// <para>
 /// The attribute checks only <see cref="ScriptBlock"/> arguments. An argument of any other type, including

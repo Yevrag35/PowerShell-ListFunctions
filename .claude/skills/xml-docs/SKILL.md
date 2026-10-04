@@ -38,7 +38,7 @@ public void Foo() { }
 
 ### Files with `using ZLinq;`
 
-In a file with `using ZLinq;`, write every cref to `ArgumentNullException` as `System.ArgumentNullException`, whether it's in `<exception cref>`, `<see cref>`, or `<seealso cref>`. Other exceptions, such as `ArgumentException`, keep the short form. From `src/engine/ListFunctions-Next/Validation/ValidateScriptVariableAttribute.cs`:
+In a file with `using ZLinq;`, write every cref to `ArgumentNullException` as `System.ArgumentNullException`, whether it's in `<exception cref>`, `<see cref>`, or `<seealso cref>`. Other exceptions, such as `ArgumentException`, keep the short form. From `src/engine/ListFunctions.Engine/Validation/ValidateScriptVariableAttribute.cs`:
 
 ```csharp
 /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="variableNames"/> is null.</exception>
