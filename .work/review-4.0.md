@@ -218,7 +218,7 @@ The same missing conversion breaks input of mixed types without `-ValueType`, me
 
 - **PowerShell doesn't convert the value for the cmdlet.** In a script, `$d.Add(1, 1)` works because PowerShell's method binder converts each argument with `LanguagePrimitives`. The cmdlet calls `IDictionary.Add` from C#, which only casts, so the cmdlet has to convert the value itself.
 - **Custom objects survive the conversion.** `LanguagePrimitives.ConvertTo` to `[object]` keeps a `[pscustomobject]` and its properties, so `$people | ConvertTo-Dictionary Id` still stores the whole objects.
-- **The conversion doesn't help objects of different types.** With the fix, a `FileInfo` that follows a `DirectoryInfo` still fails, with a conversion error instead (see 31).
+- **The conversion alone doesn't help objects of different types.** With only this fix, a `FileInfo` that follows a `DirectoryInfo` would still fail, with a conversion error instead. 31's decision, `[object]` values unless `-ValueType` is given, removes that case.
 
 **Fix idea:** When there's no value selector, convert the input object to the value type, the same way a selected value is converted.
 
@@ -341,28 +341,25 @@ Get-Item "$env:windir", "$env:windir\notepad.exe" | ConvertTo-Dictionary Name
 - **The `-KeyComparer` failure** has the same cause as the one in 37: a comparer that doesn't fit the inferred key type.
 - **27's fix doesn't help objects of different types.** `notepad.exe` then fails with a conversion error from `FileInfo` to `DirectoryInfo`. `Get-ChildItem` lists folders before files, so a folder that holds both loses all its files.
 
-**Decision needed:** what to change. For example:
+**Decided on 2026-10-04:** the cmdlet stops inferring types.
 
-- Make the values `[object]` unless `-ValueType` is given.
-- Infer the key type from the first key that isn't `$null`.
-- Write an error when a conversion changes a value, as `1.6` to `2` does.
-- Add `-KeyType` (see 37).
-
-**Decided on 2026-10-04:** how each kind of `$null` is handled.
-
+- **Keys:** the key type is `[object]` unless the new `-KeyType` parameter is given (see 37).
+- **Values:** the value type is `[object]` unless `-ValueType` is given.
+- **Neither parameter is mandatory,** and each can be given without the other, such as `[object]` keys with `[int]` values.
+- **What that removes:** the order dependence, a `$null` first key that changes how keys compare, and the rejected objects of other types. A value such as `2.5` is rounded only when the caller asks for a type such as `[int]`, and then it converts the way `Add` converts it, without an error. Because the types no longer depend on the input, the dictionary can also be created before the first input object arrives (see 35).
+- **What it costs:** keys and values are no longer typed by default, so the README's examples change, such as the `Dictionary[int, string]` it shows for `$people | ConvertTo-Dictionary Id Name`.
 - **A `$null` input object** is skipped, as it is now.
-- **A `$null` key** is an error instead of a skip, so it never decides the key type. That replaces the option above to infer the key type from the first key that isn't `$null`, and the fix idea in 28 to warn when every key is `$null`.
-- **A `$null` value** is always stored, because it may be intentional. It goes through `LanguagePrimitives` like every other value (see 27), so it only has to be stored, not kept as `$null`: it becomes `''` for `[string]` and `0` for `[int]`. 38 shows the types for which that conversion fails.
+- **A `$null` key** is a non-terminating error instead of a silent skip, and its object is skipped. The errors also make the fix idea in 28, a warning when every key is `$null`, unnecessary. The error isn't terminating because:
+  - **It matches the cmdlet's other key errors.** A duplicate key under `-DuplicateKeyBehavior Error`, and a key that can't be converted, already write non-terminating errors, although `Dictionary.Add` throws for both.
+  - **A terminating error would lose the whole dictionary,** because ConvertTo-Dictionary writes it only at the end. `-ErrorAction Stop` can still stop at the first `$null` key.
+  - **It matches a native loop.** Measured in both editions, `$h.Add($null, $_)` in a `ForEach-Object` loop writes one error for that item and adds the others. For comparison, a hashtable literal or an indexer with a `$null` key ends its statement, and `Group-Object -AsHashTable` writes one non-terminating error that calls the `$null` key a key duplication, and outputs nothing.
+- **A `$null` value** is always stored, because it may be intentional. It goes through `LanguagePrimitives` like every other value (see 27), so it only has to be stored, not kept as `$null`. With `[object]` values, it stays `$null`. With a `-ValueType`, it becomes what that type stores for `$null`, such as `''` for `[string]` and `0` for `[int]`. When `$null` can't be converted to that type, as for `[datetime]` (see 38), it gets the conversion error that any value that can't be converted gets, and `[Nullable[datetime]]` stores it instead.
 
-**Still open:**
+**Decision needed:**
 
-- **Whether a `$null` key is a terminating error:**
-  - **Terminating,** as proposed. `Dictionary.Add` throws `ArgumentNullException` for a `$null` key.
-  - **Non-terminating, with the object skipped.** The cmdlet already handles a duplicate key under `-DuplicateKeyBehavior Error`, and a key that can't be converted, this way. A terminating error throws away the whole dictionary, because ConvertTo-Dictionary writes it only at the end, while `-ErrorAction Stop` can still stop at the first `$null` key.
-  - **Native PowerShell, measured in both editions:** `$h.Add($null, $_)` in a `ForEach-Object` loop writes one error for that item and adds the others. A hashtable literal or an indexer with a `$null` key ends its statement. `Group-Object -AsHashTable` writes one non-terminating error that calls the `$null` key a key duplication, and outputs nothing.
-- **How the value type is chosen:**
-  - **Infer it from the first value that isn't `$null`.** Keep the entries that come before it, and convert their `$null` values once the type is known, so the input order no longer matters. When `LanguagePrimitives` can't convert `$null` to that type, as for `[datetime]`, `[guid]`, `[timespan]`, and enums, use `Nullable[T]`, so that a `$null` can be stored. That's needed only for values from a property or selector, since an input object is never `$null`. When every value is `$null`, the type is `[object]`. An explicit `-ValueType` that can't hold `$null` keeps the conversion error.
-  - **Make the values `[object]` unless `-ValueType` is given,** the first option above. That removes the order dependence, the rejected objects of other types, the rounding of `2.5` to `2`, and the dropped `$null` values in 38, without `Nullable[T]` or entries that wait for the type. The cost is typed values: `$people | ConvertTo-Dictionary Id Name` would give a `Dictionary[int, object]` instead of the `Dictionary[int, string]` that the README shows.
+- **How `[object]` keys compare when `-KeyComparer` isn't given.** ConvertTo-Dictionary compares only `[string]` keys without regard to case, so with `[object]` keys, `$people | ConvertTo-Dictionary Name` would become case-sensitive. New-Dictionary's `[object]` keys follow the `Hashtable`'s rule instead: strings compare with `OrdinalIgnoreCase`, and other keys with their own `Equals` (`bugs.md` item 20, and see 30).
+- **How `-KeyComparer` fits `[object]` keys.** A `StringComparer` isn't an `IEqualityComparer[object]`, so it can't be passed to a `Dictionary[object, TValue]` as it is. New-Dictionary wraps such a comparer in an `EqualityComparerAdapter[T]`. ConvertTo-Dictionary calls `Activator.CreateInstance` itself (`src/engine/ListFunctions-Next/Cmdlets/Constructs/ConvertToDictionaryCmdlet.cs:317`), so it gets neither the adapter nor the `Hashtable` rule. Building the dictionary with `DictionaryCtor`, as New-Dictionary does, would give it both.
+- **Whether `[object]` keys and values give a `Dictionary[object, object]` or a `Hashtable`,** as New-Dictionary does (see 35).
 
 ### 32 — New-Dictionary drops entries whose value is `$null`
 
@@ -378,9 +375,7 @@ $h = @{}; $h.Add('x', $null)
 - **It breaks a later rule:** the rule decided in items 04 and 19 says a typed collection stores what `Add` stores, which is `0` here.
 - **The README doesn't mention it:** its `-InputObject` row says nothing about the skip.
 
-**Decision needed:** keep these entries and convert their `$null` values the way `Add` does, or keep skipping them and document it.
-
-**Decided on 2026-10-04:** keep them. The rule decided for ConvertTo-Dictionary under 31 applies here too: a `$null` value may be intentional, so it's never skipped, and it's converted through `LanguagePrimitives` like every other value. New-Dictionary's value type is always `-ValueType` or `[object]`, so a `$null` for a value type that can't hold one, such as `[datetime]`, would get a conversion error, like an explicit `-ValueType` in ConvertTo-Dictionary (see 38).
+**Decided on 2026-10-04:** keep these entries, and convert their `$null` values the way `Add` does. The rule decided for ConvertTo-Dictionary under 31 applies here too: a `$null` value may be intentional, so it's never skipped, and it's converted through `LanguagePrimitives` like every other value. New-Dictionary's value type is always `-ValueType` or `[object]`, so a `$null` for a value type that can't hold one, such as `[datetime]`, would get a conversion error, like an explicit `-ValueType` in ConvertTo-Dictionary (see 38).
 
 ### 33 — A failing comparison script has a different effect in each collection cmdlet
 
@@ -483,6 +478,8 @@ The README says that the element type is always `[object]` in this mode. New-Dic
 
 **Decision needed:** which of these to align. Adding an alias or a parameter later isn't a breaking change. Removing one, or changing a position or a default, is.
 
+**Decided on 2026-10-04:** ConvertTo-Dictionary gets `-KeyType`, and stops inferring its key and value types (see 31). The rest of this item is still open.
+
 ### 38 — Each cmdlet handles `$null` input differently
 
 ```powershell
@@ -496,8 +493,6 @@ $null | Find-IndexOf { $null -eq $_ }            # 0: counted as an element
 ```
 
 ConvertTo-Dictionary skips `$null` objects and `$null` keys, but keeps `$null` values (`bugs.md` item 19). Only New-List has `-IncludeNullElements`.
-
-**Decision needed:** one rule, or a documented reason for each difference.
 
 **Correction, found on 2026-10-04:** ConvertTo-Dictionary doesn't keep every `$null` value. When `$null` can't be converted to the value type, the value writes a conversion error, and its entry is dropped:
 
@@ -513,7 +508,12 @@ $d = $items | ConvertTo-Dictionary K V
 - **Which types are fine:** `$null` converts to `0` for `[int]`, `''` for `[string]`, and `$null` for classes such as `[version]`.
 - **The error is hard to act on:** it shows the `$null` as `""`, and it doesn't name the key.
 
-**Decided on 2026-10-04, for ConvertTo-Dictionary:** a `$null` input object is skipped, a `$null` key is an error, and a `$null` value is always stored (see 31). New-Dictionary keeps `$null` values too (see 32).
+After 31's decision, this happens only when `-ValueType` names such a type. `[object]` values store `$null` as it is.
+
+**Decided on 2026-10-04:** keep the differences, and document the reason for each one, instead of making one rule. A `$null` key isn't the same thing as a `$null` element in a list or a set.
+
+- **ConvertTo-Dictionary:** a `$null` input object is skipped, a `$null` key writes a non-terminating error and its object is skipped, and a `$null` value is always stored (see 31).
+- **New-Dictionary:** a `$null` value is kept too (see 32).
 
 ### 39 — `-InputObject` gives wrong answers in two cases
 
@@ -528,10 +528,17 @@ $s | Find-IndexOf { $_ -eq 2 }               # 1
 
 Only an `IList` passed to `-InputObject` supplies its elements (`ListFunctionCmdletBase.GetInputElements`, `src/engine/ListFunctions-Next/Cmdlets/ListFunctionCmdletBase.cs:483`). So the sets that this module builds don't.
 
-**Decision needed:**
+More about the first case, measured on 2026-10-04 in both editions:
 
-- Should `-InputObject` expand any `IEnumerable` except strings and dictionaries? Changing that after 4.0.0 is a breaking change.
-- Should a command that gets both pipeline input and `-InputObject` throw, instead of writing a result?
+- **Why it happens:** `-InputObject` is the cmdlet's only pipeline parameter, and the command line binds it before the begin block. Each piped object then has no parameter left to bind to, so PowerShell writes an `InputObjectNotBound` error for it and skips the process block. The cmdlet processes neither input, and then writes its result for no input.
+- **Every cmdlet does it:** Assert-AnyObject writes `$false`, Assert-AllObject writes `$true`, and New-List writes an empty list. Native `ForEach-Object` gets the same two errors but writes nothing.
+- **The cmdlet can tell:** in the begin block, `MyInvocation.ExpectingInput` is true and `-InputObject` is already bound, even when the pipeline turns out to be empty.
+
+**Decided on 2026-10-04:**
+
+- **Expansion:** `-InputObject` supplies the same elements that piping the same value would, so `-InputObject $s` searches the set's elements. `LanguagePrimitives.GetEnumerable` matched the pipeline for every value tried, in both editions.
+- **Strings and dictionaries:** a `[string]` or a dictionary passed to `-InputObject` stays one element, as it does in the pipeline, and the cmdlet writes a warning, not an error. A string isn't truly enumerable, and a dictionary such as a hashtable enumerates in a pseudo-random order.
+- **Both inputs:** this is a bug, not a decision. The cmdlet throws a terminating error and writes no result, so a `-1` never reaches the output. An error thrown from the begin block ends the statement before PowerShell binds any piped object, so it's the only error, without the `InputObjectNotBound` errors. That was measured with an advanced function in both editions.
 
 ### 40 — Condition script blocks hide their errors by default
 
