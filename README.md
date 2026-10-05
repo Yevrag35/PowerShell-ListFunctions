@@ -27,7 +27,7 @@ ListFunctions runs on Windows PowerShell 5.1 (.NET Framework 4.8) and on PowerSh
 | [New-List](#new-list) | | `List[T]` | Creates a list. |
 | [New-HashSet](#new-hashset) | | `HashSet[T]` | Creates a set of distinct elements, optionally with script block equality. |
 | [New-SortedSet](#new-sortedset) | | `SortedSet[T]` | Creates a sorted set of distinct elements, optionally with a script block sort order. |
-| [New-Dictionary](#new-dictionary) | | `Dictionary[TKey, TValue]` or `Hashtable` | Creates a dictionary, optionally with script block key equality. |
+| [New-Dictionary](#new-dictionary) | | `Dictionary[TKey, TValue]` | Creates a dictionary, optionally with script block key equality. |
 | [ConvertTo-Dictionary](#convertto-dictionary) | | `Dictionary[TKey, TValue]` | Indexes objects in a dictionary by a property or a computed key. |
 
 ## Input
@@ -199,7 +199,7 @@ Unless you supply script block equality, the set compares elements like this:
 
 | Element type | Comparison |
 | --- | --- |
-| `[object]` (the default) | Like PowerShell's `-eq` operator. Strings are compared without regard to case, and values of different types are converted before they're compared, so `1` and `'1'` are the same element. |
+| `[object]` (the default) | Two strings are compared the same way as `[string]` elements, and any other two elements with their own `Equals` method. Values aren't converted before they're compared, so `1`, `'1'`, and `[long]1` are three different elements. |
 | `[string]` | Ordinal, without regard to case. |
 | Any other type | The type's default equality. |
 
@@ -272,7 +272,7 @@ $set.Count              # 2
 
 Creates a `System.Collections.Generic.SortedSet[T]`, which holds each distinct element once and keeps the elements in sorted order. Input elements are converted to `T` as they're added. An element that can't be converted writes a non-terminating error and isn't added.
 
-Unless you supply a script block sort order, the set uses the default order of `T`, which is `[string]` unless you pass `-GenericType`. A `[string]` set compares strings without regard to case. Elements that compare as equal are duplicates, so a `[string]` set holds only one of `'a'` and `'A'`.
+Unless you supply a script block sort order, the set uses the default order of `T`, which is `[string]` unless you pass `-GenericType`. A `[string]` set compares strings ordinally, without regard to case: it orders them by the codes of their characters, as if they were uppercase. So digits sort before letters, and punctuation such as `_` and letters outside ASCII, such as `é`, sort after `Z`. The order doesn't depend on your culture or on the PowerShell edition. Elements that compare as equal are duplicates, so a `[string]` set holds only one of `'a'` and `'A'`.
 
 `T` needs a default order: it has to implement `IComparable[T]`, as `[int]` implements `IComparable[int]`, or be an enum, or be a `Nullable[U]` whose `U` qualifies. `[string]`, `[int]`, `[datetime]`, and `[version]` all qualify. Any other type, such as `[object]` or `[psobject]`, is an error before the command reads any input. To sort elements of those types, pass `-ComparingScript`.
 
@@ -283,6 +283,10 @@ $set                    # 1, 3, 5
 # Without a type, the elements are strings, so numbers sort as text.
 $set = 5, 3, 10 | New-SortedSet
 $set                    # 10, 3, 5
+
+# Strings sort by the codes of their uppercase characters.
+$set = 'b', '_x', 'a', 'Z' | New-SortedSet
+$set                    # a, b, Z, _x
 ```
 
 #### Script block sort order
@@ -317,16 +321,18 @@ $set.Name               # Bob, Ann
 
 ### New-Dictionary
 
-Creates a `System.Collections.Generic.Dictionary[TKey, TValue]`. If `-KeyType` and `-ValueType` are both `[object]`, which is the default, it creates a `System.Collections.Hashtable` instead. `[string]` and `[object]` keys, including the keys of a `Hashtable`, are compared without regard to case unless you pass `-CaseSensitive`. `[object]` keys that aren't both strings are compared with their own `Equals` method, so `1` and `'1'` are different keys.
+Creates a `System.Collections.Generic.Dictionary[TKey, TValue]`. `-KeyType` and `-ValueType` are both `[object]` unless you pass them. `[string]` keys are compared ordinally, without regard to case unless you pass `-CaseSensitive`. `[object]` keys are compared the same way when both are strings, and with their own `Equals` method otherwise, so `1` and `'1'` are different keys.
+
+With `[object]` keys, PowerShell's dot notation, such as `$dict.apple`, doesn't read or set keys. Use the indexer, `$dict['apple']`, or pass `[string]` as the key type.
 
 ```powershell
-# A Hashtable.
-$table = New-Dictionary
+# A Dictionary[object, object].
+$dict = New-Dictionary
+$dict['apple'] = 1
+$dict['APPLE']          # 1
 
 # A Dictionary[string, int].
 $dict = New-Dictionary [string] [int]
-$dict['apple'] = 1
-$dict['APPLE']          # 1
 
 # A Dictionary[string, int] with case-sensitive keys.
 $dict = New-Dictionary [string] [int] -CaseSensitive
@@ -334,8 +340,8 @@ $dict = New-Dictionary [string] [int] -CaseSensitive
 # A Dictionary[string, int] that starts with a copy of a hashtable's entries.
 $dict = @{ one = 1; two = 2 } | New-Dictionary [string] [int]
 
-# A Hashtable that starts with a copy of $source's entries. -CloneValues gives the copy
-# its own ArrayList, so changes to $source.Items don't show up in $copy.Items.
+# A Dictionary[object, object] that starts with a copy of $source's entries. -CloneValues gives
+# the copy its own ArrayList, so changes to $source.Items don't show up in $copy['Items'].
 $source = @{ Items = [System.Collections.ArrayList]@(1, 2) }
 $copy = $source | New-Dictionary -CloneValues
 ```
@@ -357,7 +363,7 @@ $dict.Add([pscustomobject]@{ Id = 1; Name = 'second' }, 'b')    # Error: the key
 | `-KeyType` | Position 0. The key type, `TKey`. Default: `[object]`. |
 | `-ValueType` | Position 1. The value type, `TValue`. Default: `[object]`. |
 | `-Capacity` | Alias: `Size`. The initial capacity, which is how many entries the dictionary can hold before it has to grow. Default: `0`. |
-| `-InputObject` | Alias: `CopyFrom`. A hashtable whose entries are copied into the new dictionary. Its keys and values are converted to `-KeyType` and `-ValueType`, and an entry that can't be converted writes a non-terminating error and isn't copied. Accepts pipeline input. |
+| `-InputObject` | Alias: `CopyFrom`. A hashtable whose entries are copied into the new dictionary. Its keys and values are converted to `-KeyType` and `-ValueType`, and an entry that can't be converted writes a non-terminating error and isn't copied. A `$null` value is converted too, to what `$dict.Add($key, $null)` would store, such as `''` for `[string]` and `0` for `[int]`. Accepts pipeline input. |
 | `-CloneValues` | Clones the values copied from `-InputObject`, so the new dictionary doesn't share them with the hashtable. Applies to values that implement `ICloneable` and to `PSObject` values. |
 | `-CaseSensitive` | Compares string keys with regard to case. Available when the key type is `[object]` or `[string]`. |
 | `-EqualityScript` | A script block that returns whether two keys are equal. Requires `-HashCodeScript`. |
@@ -366,9 +372,13 @@ $dict.Add([pscustomobject]@{ Id = 1; Name = 'second' }, 'b')    # Error: the key
 
 ### ConvertTo-Dictionary
 
-Builds a `Dictionary[TKey, TValue]` that indexes the input objects by a key: either a property's value or a value that a script block returns. Each dictionary value is the input object itself, unless you choose a property or a script block for the value. When that property or script block gives `$null`, the value is `$null` converted to the value type, which is what `$dict.Add($key, $null)` would store: `''` for `[string]`, `0` for `[int]`, and `$null` for `[object]`.
+Builds a `Dictionary[TKey, TValue]` that indexes the input objects by a key: either a property's value or a value that a script block returns. Each dictionary value is the input object itself, unless you choose a property or a script block for the value.
 
-The key type is the type of the first input object's key. The value type is the type of the first object's value, or `[object]` if that value is a custom object, unless you pass `-ValueType`. `[string]` keys are compared without regard to case unless you pass a different `-KeyComparer`. Every key and value is converted to these types the way `$dict.Add($key, $value)` would convert it, including an input object that is its own value. An object whose key or value can't be converted writes a non-terminating error and isn't added. The command skips input objects that are `$null` and objects whose key is `$null`. With no input, it returns an empty `Hashtable`.
+`TKey` and `TValue` are `[object]` unless you pass `-KeyType` and `-ValueType`, whatever the input objects are. Every key and value is converted to these types the way `$dict.Add($key, $value)` would convert it, including an input object that is its own value. An object whose key or value can't be converted writes a non-terminating error and isn't added. When a value is `$null`, the dictionary stores what `$dict.Add($key, $null)` would store: `$null` for `[object]`, `''` for `[string]`, and `0` for `[int]`.
+
+`[string]` keys are compared ordinally, without regard to case. `[object]` keys are compared the same way when both are strings, and with their own `Equals` method otherwise, so `1` and `'1'` are different keys. To compare keys another way, pass `-KeyComparer`. With `[object]` keys, PowerShell's dot notation, such as `$byName.Jane`, doesn't read or set keys. Use the indexer, `$byName['Jane']`, or pass `[string]` as `-KeyType`.
+
+The command skips input objects that are `$null`. An object whose key is `$null`, such as one that doesn't have the property that `-KeyPropertyName` names, writes a non-terminating error and isn't added. With no input, the command returns an empty dictionary.
 
 ```powershell
 $people = @(
@@ -377,20 +387,23 @@ $people = @(
     [pscustomobject]@{ Id = 3; Name = 'Jim'; Dept = 'IT' }
 )
 
-# A Dictionary[int, object] of people, keyed by Id.
+# A Dictionary[object, object] of people, keyed by Id.
 $byId = $people | ConvertTo-Dictionary -KeyPropertyName Id
 $byId[2].Name           # Jane
 
-# A Dictionary[int, string] of names, keyed by Id.
+# A Dictionary[object, object] of names, keyed by Id.
 $names = $people | ConvertTo-Dictionary Id Name
 $names[3]               # Jim
+
+# The same names in a Dictionary[int, string].
+$names = $people | ConvertTo-Dictionary Id Name -KeyType [int] -ValueType [string]
 
 # Keys and values that script blocks return.
 $ids = $people | ConvertTo-Dictionary -KeySelector { $_.Name.ToLower() } -ValueSelector { $_.Id }
 $ids['jane']            # 2
 
 # A Dictionary[int, System.Diagnostics.Process] of processes, keyed by process ID.
-$processes = Get-Process | ConvertTo-Dictionary Id
+$processes = Get-Process | ConvertTo-Dictionary Id -KeyType [int] -ValueType [System.Diagnostics.Process]
 ```
 
 `-DuplicateKeyBehavior` decides what happens when two input objects have the same key:
@@ -414,8 +427,9 @@ $byDept['HR']           # Jane
 | `-KeySelector` | Position 0. A script block that returns each object's key. Use it instead of `-KeyPropertyName`. |
 | `-ValuePropertyName` | Position 1. Aliases: `ValueName`, `Value`. The name of the property that holds each object's value, or a script block that returns the value. Any other value, such as a number, is an error. You can't use it with `-ValueSelector`. |
 | `-ValueSelector` | A script block that returns each object's value. You can't use it with `-ValuePropertyName`. |
-| `-ValueType` | The value type, `TValue`. Default: the type of the first object's value. |
-| `-KeyComparer` | The `IEqualityComparer` for the keys, such as `([System.StringComparer]::Ordinal)` for case-sensitive string keys. |
+| `-KeyType` | The key type, `TKey`. Default: `[object]`. |
+| `-ValueType` | The value type, `TValue`. Default: `[object]`. |
+| `-KeyComparer` | The `IEqualityComparer` for the keys, such as `([System.StringComparer]::Ordinal)` for case-sensitive string keys. It works with any key type. A `StringComparer` compares two strings as strings, and any other two keys with their own `Equals` method. |
 | `-DuplicateKeyBehavior` | `Error`, `Skip`, or `Concatenate`. Default: `Error`. |
 
 ## Stopping early

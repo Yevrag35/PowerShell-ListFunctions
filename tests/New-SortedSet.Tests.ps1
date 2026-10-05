@@ -2,15 +2,17 @@ BeforeAll {
 	& "$PSScriptRoot/Import-ListFunctions.ps1"
 }
 
+# Should-BeCollection doesn't compare the order of the elements, so the tests that check an order compare the joined
+# elements instead.
 Describe 'New-SortedSet' {
 	It 'passes the elements to -ComparingScript as $args[0] and $args[1]' -Tag 'Bug05' {
 		$set = 5, 3, 1 | New-SortedSet [int] -ComparingScript { $args[0].CompareTo($args[1]) }
-		Should-BeCollection -Expected @(1, 3, 5) -Actual ([object[]]$set)
+		($set -join ', ') | Should-Be '1, 3, 5'
 	}
 
 	It 'sorts in reverse when -ComparingScript swaps $args[0] and $args[1]' -Tag 'Bug05' {
 		$set = 1, 3, 5 | New-SortedSet [int] -ComparingScript { $args[1].CompareTo($args[0]) }
-		Should-BeCollection -Expected @(5, 3, 1) -Actual ([object[]]$set)
+		($set -join ', ') | Should-Be '5, 3, 1'
 	}
 
 	It 'treats a piped array as one element' -Tag 'Bug06' {
@@ -29,7 +31,7 @@ Describe 'New-SortedSet' {
 		) {
 			$set = $Elements | New-SortedSet
 			Should-HaveType -Expected ([System.Collections.Generic.SortedSet[string]]) -Actual $set
-			Should-BeCollection -Expected @('1', '10', '2', '9') -Actual ([object[]]$set)
+			($set -join ', ') | Should-Be '1, 10, 2, 9'
 			$set.Contains('10') | Should-BeTrue
 		}
 
@@ -46,11 +48,11 @@ Describe 'New-SortedSet' {
 
 		# Comparer[T].Default sorts these types by value, although they don't implement IComparable[T] of themselves.
 		It 'sorts [<Name>] elements without -ComparingScript' -ForEach @(
-			@{ Name = 'ConsoleColor'; Type = [ConsoleColor]; Elements = @('Red', 'Black', 'Blue'); Expected = @([ConsoleColor]::Black, [ConsoleColor]::Blue, [ConsoleColor]::Red) }
-			@{ Name = 'Nullable[int]'; Type = [Nullable[int]]; Elements = @(3, 1, 2); Expected = @(1, 2, 3) }
+			@{ Name = 'ConsoleColor'; Type = [ConsoleColor]; Elements = @('Red', 'Black', 'Blue'); Expected = 'Black, Blue, Red' }
+			@{ Name = 'Nullable[int]'; Type = [Nullable[int]]; Elements = @(3, 1, 2); Expected = '1, 2, 3' }
 		) {
 			$set = $Elements | New-SortedSet $Type
-			Should-BeCollection -Expected $Expected -Actual ([object[]]$set)
+			($set -join ', ') | Should-Be $Expected
 		}
 
 		It 'keeps the elements as they are with -ComparingScript and no type' {
@@ -58,7 +60,22 @@ Describe 'New-SortedSet' {
 			$people = [pscustomobject]@{ Id = 2; Name = 'Bob' }, [pscustomobject]@{ Id = 1; Name = 'Ann' }
 			$set = $people | New-SortedSet -ComparingScript { $x.Id - $y.Id }
 			Should-HaveType -Expected ([System.Collections.Generic.SortedSet[object]]) -Actual $set
-			Should-BeCollection -Expected @('Ann', 'Bob') -Actual ([object[]]$set.Name)
+			($set.Name -join ', ') | Should-Be 'Ann, Bob'
+		}
+	}
+
+	# [string] elements compare with OrdinalIgnoreCase, as if they were uppercase, by character code. So '_' and letters
+	# outside ASCII sort after 'Z', and the order is the same in every culture and in both editions. They used to sort by
+	# the invariant culture, which puts '_' first and the accented e among the other e's.
+	Context 'String order' {
+		It 'sorts [string] elements by character code without regard to case' {
+			$set = 'b', '_x', 'a', ([string][char]0xE9), 'Z' | New-SortedSet
+			($set -join ', ') | Should-Be ('a, b, Z, _x, ' + [char]0xE9)
+		}
+
+		It "treats 'a' and 'A' as the same element" {
+			$set = 'a', 'A' | New-SortedSet
+			$set.Count | Should-Be 1
 		}
 	}
 

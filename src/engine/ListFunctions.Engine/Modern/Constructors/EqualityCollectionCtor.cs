@@ -7,14 +7,22 @@ namespace ListFunctions.Modern.Constructors;
 /// <remarks>
 /// <para>
 /// When no comparer is passed to the constructor, the collection uses a default comparer for the type that the
-/// derived class uses for equality, which the derived class can choose by overriding
-/// <see cref="GetDefaultComparer(Type)"/>. String comparisons ignore case unless <see cref="IsCaseSensitive"/> is
-/// <see langword="true"/>.
+/// derived class uses for equality. <see cref="string"/> values compare with
+/// <see cref="StringComparer.OrdinalIgnoreCase"/>, or with <see cref="StringComparer.Ordinal"/> when
+/// <see cref="IsCaseSensitive"/> is <see langword="true"/>. <see cref="object"/> values compare with the same
+/// <see cref="StringComparer"/>, which compares two strings as strings, and any other two values with their own
+/// <see cref="object.Equals(object)"/> and <see cref="object.GetHashCode"/> methods, so <c>1</c> and <c>"1"</c> aren't
+/// equal. Values of any other type compare with <see cref="EqualityComparer{T}.Default"/>.
 /// </para>
 /// <para>
 /// A comparer that is passed doesn't have to be an <see cref="IEqualityComparer{T}"/> of that type. Any other
-/// <see cref="IEqualityComparer"/>, such as an <see cref="EqualityBlock"/> for a collection of <see cref="int"/>, is
-/// wrapped in an <see cref="EqualityComparerAdapter{T}"/>.
+/// <see cref="IEqualityComparer"/>, such as an <see cref="EqualityBlock"/> for a collection of <see cref="int"/>, or a
+/// <see cref="StringComparer"/> for a collection of <see cref="object"/>, is wrapped in an
+/// <see cref="EqualityComparerAdapter{T}"/>.
+/// </para>
+/// <para>
+/// <see cref="GenericCollectionCtor.Construct"/> always creates an instance of
+/// <see cref="GenericCollectionCtor.ConstructingGenericType"/>. There's no fallback collection.
 /// </para>
 /// <para>
 /// Instances aren't thread-safe. The object caches the default comparer the first time it needs one.
@@ -94,26 +102,18 @@ public abstract class EqualityCollectionCtor : GenericCollectionCtor
 	}
 
 	/// <summary>
-	/// Creates the fallback collection with the equality comparer that the collection would otherwise use.
+	/// Throws, because the object never creates a fallback collection.
 	/// </summary>
 	/// <remarks>
-	/// This method passes the comparer that <see cref="GetConstructorArguments(Type[])"/> describes to
-	/// <see cref="ConstructDefault(IEqualityComparer)"/>.
+	/// <see cref="ShouldConstructDefault(Type[])"/> always returns <see langword="false"/>, so
+	/// <see cref="GenericCollectionCtor.Construct"/> never calls this method.
 	/// </remarks>
-	/// <returns>The new, empty collection.</returns>
+	/// <returns>The method doesn't return.</returns>
+	/// <exception cref="NotSupportedException">Thrown always.</exception>
 	protected sealed override object ConstructDefault()
 	{
-		return this.ConstructDefault(this.GetComparerOrDefault());
+		throw new NotSupportedException("A collection with an equality comparer has no fallback collection.");
 	}
-	/// <summary>
-	/// Creates the fallback collection with the specified equality comparer.
-	/// </summary>
-	/// <param name="comparer">
-	/// The comparer passed to the constructor, or the default comparer when that was <see langword="null"/>. An
-	/// implementation can ignore it.
-	/// </param>
-	/// <returns>The new, empty collection. This value must not be <see langword="null"/>.</returns>
-	protected abstract object ConstructDefault(IEqualityComparer comparer);
 	/// <summary>
 	/// Returns the comparer passed to the constructor, or a default comparer for the type used for equality.
 	/// </summary>
@@ -157,28 +157,30 @@ public abstract class EqualityCollectionCtor : GenericCollectionCtor
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	/// The method runs each time the collection is created, so its result can depend on <see cref="IsCaseSensitive"/>.
-	/// A comparer that isn't an <see cref="IEqualityComparer{T}"/> of <paramref name="equalityType"/> is wrapped in an
-	/// <see cref="EqualityComparerAdapter{T}"/>.
+	/// For <see cref="string"/> and <see cref="object"/>, the method returns <see cref="StringComparer.OrdinalIgnoreCase"/>,
+	/// or <see cref="StringComparer.Ordinal"/> when <see cref="IsCaseSensitive"/> is <see langword="true"/>. A
+	/// <see cref="StringComparer"/> compares two strings as strings, and any other two objects with their own
+	/// <see cref="object.Equals(object)"/> and <see cref="object.GetHashCode"/> methods. For any other type, the method
+	/// returns <see langword="null"/>.
 	/// </para>
 	/// <para>
-	/// For <see cref="string"/>, the base implementation returns <see cref="StringComparer.InvariantCultureIgnoreCase"/>,
-	/// or <see cref="StringComparer.InvariantCulture"/> when <see cref="IsCaseSensitive"/> is <see langword="true"/>. For
-	/// any other type, it returns <see langword="null"/>.
+	/// The method runs each time the collection is created, so its result can depend on <see cref="IsCaseSensitive"/>.
+	/// The comparer isn't an <see cref="IEqualityComparer{T}"/> of <see cref="object"/>, so for <see cref="object"/>,
+	/// the caller wraps it in an <see cref="EqualityComparerAdapter{T}"/>.
 	/// </para>
 	/// </remarks>
 	/// <param name="equalityType">The type that the collection compares for equality.</param>
 	/// <returns>The default comparer, or <see langword="null"/> to use <see cref="EqualityComparer{T}.Default"/>.</returns>
-	protected virtual IEqualityComparer? GetDefaultComparer(Type equalityType)
+	private StringComparer? GetDefaultComparer(Type equalityType)
 	{
-		if (!typeof(string).Equals(equalityType))
+		if (!IsTypeObjectOrString(equalityType))
 		{
 			return null;
 		}
 
-		return !this.IsCaseSensitive
-			? StringComparer.InvariantCultureIgnoreCase
-			: StringComparer.InvariantCulture;
+		return this.IsCaseSensitive
+			? StringComparer.Ordinal
+			: StringComparer.OrdinalIgnoreCase;
 	}
 	/// <summary>
 	/// Returns the specified comparer as an <see cref="IEqualityComparer{T}"/> of the specified type, and wraps it in an
@@ -209,14 +211,12 @@ public abstract class EqualityCollectionCtor : GenericCollectionCtor
 	/// <remarks>
 	/// <para>
 	/// The comparer is the one passed to this object's constructor. When that comparer is <see langword="null"/>, the
-	/// method uses the comparer from <see cref="GetDefaultComparer(Type)"/>, or
-	/// <see cref="EqualityComparer{T}.Default"/> for the type used for equality when that returns
-	/// <see langword="null"/>.
+	/// method uses the default comparer for the type used for equality, as the class remarks describe.
 	/// </para>
 	/// <para>
-	/// When the comparer passed to the constructor isn't an <see cref="IEqualityComparer{T}"/> of the type used for
-	/// equality, such as an <see cref="EqualityBlock"/> for a value type, the method wraps it in an
-	/// <see cref="EqualityComparerAdapter{T}"/>.
+	/// When the comparer isn't an <see cref="IEqualityComparer{T}"/> of the type used for equality, such as an
+	/// <see cref="EqualityBlock"/> for a value type, or a <see cref="StringComparer"/> for <see cref="object"/>, the
+	/// method wraps it in an <see cref="EqualityComparerAdapter{T}"/>.
 	/// </para>
 	/// </remarks>
 	/// <param name="genericTypes">The generic type arguments of the collection. This implementation doesn't use them.</param>
@@ -249,97 +249,18 @@ public abstract class EqualityCollectionCtor : GenericCollectionCtor
 	}
 
 	/// <summary>
-	/// Determines whether <see cref="GenericCollectionCtor.Construct"/> creates the fallback collection.
+	/// Determines whether <see cref="GenericCollectionCtor.Construct"/> creates a fallback collection.
 	/// </summary>
 	/// <remarks>
-	/// This method passes the comparer from the constructor to
-	/// <see cref="ShouldConstructDefault(IEqualityComparer, Type[])"/>.
+	/// A collection with an equality comparer has no fallback, so <see cref="GenericCollectionCtor.Construct"/> always
+	/// creates an instance of <see cref="GenericCollectionCtor.ConstructingGenericType"/>, with the comparer that
+	/// <see cref="GetConstructorArguments(Type[])"/> describes.
 	/// </remarks>
-	/// <param name="genericTypes">The generic type arguments of the collection.</param>
-	/// <returns>
-	/// <see langword="true"/> to create the fallback collection; otherwise, <see langword="false"/>.
-	/// </returns>
+	/// <param name="genericTypes">The generic type arguments of the collection. This implementation doesn't use them.</param>
+	/// <returns>Always <see langword="false"/>.</returns>
 	protected sealed override bool ShouldConstructDefault(Type[] genericTypes)
 	{
-		return this.ShouldConstructDefault(_comparer, genericTypes);
+		return false;
 	}
-	/// <summary>
-	/// Determines whether <see cref="GenericCollectionCtor.Construct"/> creates the fallback collection, given the
-	/// comparer passed to the constructor.
-	/// </summary>
-	/// <param name="comparer">The comparer passed to the constructor, or <see langword="null"/> if none was passed.</param>
-	/// <param name="genericTypes">The generic type arguments of the collection.</param>
-	/// <returns>
-	/// <see langword="true"/> to create the fallback collection; otherwise, <see langword="false"/>. This
-	/// implementation returns <see langword="true"/> only when <paramref name="genericTypes"/> is empty.
-	/// </returns>
-	protected virtual bool ShouldConstructDefault(IEqualityComparer? comparer, Type[] genericTypes)
-	{
-		return genericTypes.Length <= 0;
-	}
-}
-
-/// <summary>
-/// Provides the base class for objects that create generic collections with an equality comparer and fall back to a
-/// collection of a specific type.
-/// </summary>
-/// <remarks>
-/// Because <typeparamref name="TDefault"/> is constrained to reference types, the fallback collection is returned
-/// without boxing.
-/// </remarks>
-/// <typeparam name="TDefault">The type of the fallback collection.</typeparam>
-public abstract class EqualityCollectionCtor<TDefault> : EqualityCollectionCtor where TDefault : class
-{
-	/// <summary>
-	/// Initializes a new <see cref="EqualityCollectionCtor{TDefault}"/> instance with the specified generic type
-	/// definition, equality comparer, type arguments, and callback that closes the definition over the arguments.
-	/// </summary>
-	/// <param name="genericTypeDefinition">
-	/// The open generic type definition of the collection. It must be a generic class that isn't abstract, and it
-	/// must not be <see langword="null"/>.
-	/// </param>
-	/// <param name="comparer">
-	/// The equality comparer for the collection, or <see langword="null"/> to use a default comparer.
-	/// </param>
-	/// <param name="genericTypes">The type arguments to close <paramref name="genericTypeDefinition"/> over.</param>
-	/// <param name="callback">
-	/// The method that closes <paramref name="genericTypeDefinition"/> over <paramref name="genericTypes"/>, or
-	/// <see langword="null"/> to call <see cref="Type.MakeGenericType(Type[])"/>.
-	/// </param>
-	/// <exception cref="ArgumentNullException">Thrown when <paramref name="genericTypeDefinition"/> is null.</exception>
-	/// <exception cref="ArgumentException">
-	/// Thrown when <paramref name="genericTypeDefinition"/> isn't a generic type, isn't a class, or is abstract; or
-	/// when <paramref name="callback"/> is null and <paramref name="genericTypes"/> doesn't satisfy the definition's
-	/// type parameters.
-	/// </exception>
-	/// <exception cref="InvalidOperationException">
-	/// Thrown when <paramref name="callback"/> is null and <paramref name="genericTypeDefinition"/> is a closed generic
-	/// type instead of a generic type definition.
-	/// </exception>
-	protected EqualityCollectionCtor(Type genericTypeDefinition, IEqualityComparer? comparer, Type[] genericTypes, CreateConstructingType? callback)
-		: base(genericTypeDefinition, comparer, genericTypes, callback)
-	{
-	}
-
-	/// <summary>
-	/// Creates the fallback collection by calling <see cref="ConstructTDefault(IEqualityComparer)"/>.
-	/// </summary>
-	/// <param name="comparer">
-	/// The comparer passed to the constructor, or the default comparer when that was <see langword="null"/>.
-	/// </param>
-	/// <returns>The new, empty collection.</returns>
-	protected sealed override object ConstructDefault(IEqualityComparer comparer)
-	{
-		return this.ConstructTDefault(comparer);
-	}
-	/// <summary>
-	/// Creates the fallback collection as a <typeparamref name="TDefault"/>.
-	/// </summary>
-	/// <param name="comparer">
-	/// The comparer passed to the constructor, or the default comparer when that was <see langword="null"/>. An
-	/// implementation can ignore it.
-	/// </param>
-	/// <returns>The new, empty collection. This value must not be <see langword="null"/>.</returns>
-	protected abstract TDefault ConstructTDefault(IEqualityComparer comparer);
 }
 

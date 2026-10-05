@@ -259,7 +259,7 @@ public abstract class ScriptBlockInvocationException : RuntimeException
 			return Empty.Dictionary<string, object?>();
 		}
 
-		var dict = new Dictionary<string, object?>(variables.Count, StringComparer.InvariantCultureIgnoreCase);
+		var dict = new Dictionary<string, object?>(variables.Count, StringComparer.OrdinalIgnoreCase);
 		foreach (PSVariable v in variables)
 		{
 			AddToDict(ref dict, v);

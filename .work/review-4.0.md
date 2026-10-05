@@ -20,12 +20,12 @@ Item numbers continue from `bugs.md`, so each number names one item in either fi
 
 **Decisions**
 
-- [ ] 30 — String comparison rules differ between cmdlets and element types
-- [ ] 31 — ConvertTo-Dictionary converts every key and value to the first object's types
-- [ ] 32 — New-Dictionary drops entries whose value is `$null`
+- [x] 30 — String comparison rules differ between cmdlets and element types
+- [x] 31 — ConvertTo-Dictionary converts every key and value to the first object's types
+- [x] 32 — New-Dictionary drops entries whose value is `$null`
 - [ ] 33 — A failing comparison script has a different effect in each collection cmdlet
 - [ ] 34 — Script-block parameters reject bad input in different ways
-- [ ] 35 — The output type depends on the input
+- [x] 35 — The output type depends on the input
 - [ ] 36 — New-HashSet can't combine `-GenericType` with script equality
 - [ ] 37 — Parameter names, aliases, and positions differ between cmdlets
 - [ ] 38 — Each cmdlet handles `$null` input differently
@@ -403,6 +403,19 @@ What changes for users, measured on 2026-10-04 in both editions:
   Today's order also differs between editions: `co-op` sorts before `coop` in PowerShell 7 and after it in Windows PowerShell 5.1. The ordinal order is the same in both.
 - **`OrdinalIgnoreCase` still differs between editions for a few letters outside ASCII.** It treats final sigma `ς` and `Σ`, and `ǅ` and `Ǆ`, as equal in PowerShell 7 and as different in Windows PowerShell 5.1. Case-sensitive `Ordinal` has no such differences. The culture rule differs between editions too: `InvariantCultureIgnoreCase` treats `ß` and `SS` as equal only in 5.1.
 
+**Fixed:** as decided, together with 31, 32, and 35.
+
+- **Engine's default comparer:** `EqualityCollectionCtor.GetDefaultComparer` returns `StringComparer.OrdinalIgnoreCase`, or `Ordinal` with `IsCaseSensitive`, for `[object]` as well as `[string]`. For `[object]`, `GetComparerOrDefault` wraps it in an `EqualityComparerAdapter[object]`. A `StringComparer` compares two strings as strings and any other two values with their own `Equals` and `GetHashCode`, which is the rule that `DictionaryCtor` gave `[object]` keys since `bugs.md` item 20. Since `DictionaryCtor`'s override and the new default were the same, the override is gone, and the method is private and no longer virtual.
+- **New-HashSet `[object]`:** `HashSetCtor` lost `ObjectEqualityComparer` and the fallback set it was created for, so a set of `[object]` is created like a set of any other type, with the adapted comparer.
+- **New-SortedSet `[string]`:** `SortingCollectorCtor.GetComparer` returns `OrdinalIgnoreCase`, or `Ordinal` with `IsCaseSensitive`.
+- **Variable names:** `ScriptBlockInvocationException` and the dead `PSVariableNameEquality` compare them with `OrdinalIgnoreCase`, which is how PowerShell compares variable names.
+- **Results, in both editions:** the repro gives 2 for every line, including `strasse` and `straße` in Windows PowerShell 5.1. `1` with `'1'`, `[long]1`, or `1.0` gives 2 elements, and `'a'` with `'A'` gives 1. The review's list of words sorts in the `OrdinalIgnoreCase` order above, and 25's leftovers, the `[object]` sets of the decomposed and precomposed `é` with `-CaseSensitive`, and of `'ab'` and `$hyphenated`, hold 2 elements each.
+- **Docs:** the XML docs of `EqualityCollectionCtor`, `HashSetCtor`, `DictionaryCtor`, `SortingCollectorCtor.GetComparer`, `NewHashSetCmdlet`, and `NewSortedSetCmdlet`, and in the README, New-HashSet's `[object]` row and New-SortedSet's description, which has a new example of the order. The docs state the rule instead of comparing it to `@{}`: measured on 2026-10-05, PowerShell 7.6's hashtable literals compare string keys with `OrdinalIgnoreCase`, and Windows PowerShell 5.1's with `CurrentCultureIgnoreCase`.
+- **Tests:**
+  - `tests/New-HashSet.Tests.ps1` has a new `Object elements` context, for `1` with `'1'`, `[long]1`, and `1.0`, the soft hyphen pair, `'a'` and `'A'`, and the two `é`s with `-CaseSensitive`. `tests/New-SortedSet.Tests.ps1` has a new `String order` context, for the order of `'b', '_x', 'a', 'é', 'Z'` and for `'a'` and `'A'`.
+  - In Engine, `HashSetCtorTests.Construct_CreatesAnObjectSetThatComparesLikeTheEqOperator` became `Construct_CreatesAnObjectSetThatComparesOnlyStringsAsStrings`. The new `Construct_ComparesStringsInAnObjectSetOrdinally` checks the soft hyphen and `é` pairs with and without `IsCaseSensitive`.
+  - **Pester 6.2's `Should-BeCollection` ignores order.** It passes for `3, 1, 2` against `1, 2, 3` in both editions, and so does `Should-BeEquivalent`. The order test compares the joined elements instead, and it fails against commit `94a9c5b`. The older New-SortedSet tests that expected an order with `Should-BeCollection`, the two `Bug05` tests and the three order tests that 24 added, didn't check it. They compare the joined elements now too. With every expected order reversed, all nine order cases in the file fail in both editions, and the other twelve pass. The `lf-testing` skill describes the trap.
+
 ### 31 — ConvertTo-Dictionary converts every key and value to the first object's types
 
 **Where:** `AddToDictionary` and `InferTypes` in `src/engine/ListFunctions-Next/Cmdlets/Constructs/ConvertToDictionaryCmdlet.cs:384` and `:457`.
@@ -472,6 +485,20 @@ Get-Item "$env:windir", "$env:windir\notepad.exe" | ConvertTo-Dictionary Name
   - **It matches a native loop.** Measured in both editions, `$h.Add($null, $_)` in a `ForEach-Object` loop writes one error for that item and adds the others. For comparison, a hashtable literal or an indexer with a `$null` key ends its statement, and `Group-Object -AsHashTable` writes one non-terminating error that calls the `$null` key a key duplication, and outputs nothing.
 - **A `$null` value** is always stored, because it may be intentional. It goes through `LanguagePrimitives` like every other value (see 27), so it only has to be stored, not kept as `$null`. With `[object]` values, it stays `$null`. With a `-ValueType`, it becomes what that type stores for `$null`, such as `''` for `[string]` and `0` for `[int]`. When `$null` can't be converted to that type, as for `[datetime]` (see 38), it gets the conversion error that any value that can't be converted gets, and `[Nullable[datetime]]` stores it instead.
 
+**Fixed:** as decided, together with 35, which this item needs.
+
+- **Types:** the new `-KeyType` parameter has `[ArgumentToTypeTransform]` and no position, and it and `-ValueType` default to `[object]`. `BeginCore` creates the dictionary through `DictionaryCtor` before any input is read. `InferTypes`, `GetInferredType`, `FindFirstObject`, `CreateDictionary`'s `ListFunctionsException`, and the fields that kept the first object's selector outputs are gone. A dictionary that can't be created, such as one with a pointer type, is a terminating error from `BeginCore`, as in New-Dictionary. With `Concatenate`, the values are still `[object]`, and `BeginCore` writes the warning about `-ValueType`, even when there's no input.
+- **Key comparison:** without `-KeyComparer`, `[object]` keys get `OrdinalIgnoreCase` from `DictionaryCtor` (see 30), so `Ann` and `ann` are still one key. `-KeyComparer` works with any key type, because `EqualityCollectionCtor.AdaptComparer` wraps a comparer that isn't an `IEqualityComparer[TKey]`.
+- **`$null` keys:** an object whose key is `$null`, or converts to `$null` as `[NullString]::Value` does for `[string]`, writes a non-terminating error and is skipped, and its value selector doesn't run. A `$null` key isn't converted first, so `-KeyType ([int])` doesn't turn it into `0`. The error wraps an `ArgumentNullException`, its ID is `System.ArgumentNullException,ListFunctions.Cmdlets.Constructs.ConvertToDictionaryCmdlet`, its category is `InvalidData`, and its target is the input object. The message says where the key came from, such as "Cannot add the object to the dictionary, because it has no 'Nope' property, or the property's value is $null. A dictionary key can't be $null.", so 28's `($people | ConvertTo-Dictionary Nope).Count` is still 0, but with an error for each person. A `$null` input object is still skipped without an error.
+- **An object that is its own value** is unwrapped from its `PSObject`, unless it's a custom object, before it's converted. Measured on 2026-10-05 in both editions, `LanguagePrimitives.ConvertTo` keeps the wrapper of a `DirectoryInfo` for `[object]`, while `$d.Add('k', (Get-Item $env:windir))` stores the `DirectoryInfo`. With the unwrapping, `ConvertTo-Dictionary -InputObject (Get-Item ...) Name` stores `DirectoryInfo` and `FileInfo` objects too.
+- **Results, in both editions:** in the repros, `['b']` is `2.5`, and the keys are `1, 1.6, 2` without an error. `$a` and `$b` each give one entry and two errors, one for the `$null` key and one for the duplicate `'a'`. The skipped `$null` key no longer decides a type, so `['a']` is the `[int]` `1` in a `Dictionary[object, object]`, and the `-KeyComparer` repro works. The `$null` value stays `$null` in either order. The Windows folder and notepad.exe are both stored, without an error. 37's `$people | ConvertTo-Dictionary Id -KeyComparer ([System.StringComparer]::Ordinal)` works too, and so does the same command with `-KeyType ([int])`.
+- **Docs:** the XML docs of the class, `InputObject`, `KeyComparer`, `KeyType`, `ValueType`, `BeginCore`, `CreateDictionary`, `AddToDictionary`, `WriteNullKeyError`, and `EndCore`. In the README, ConvertTo-Dictionary's description, examples, and parameter rows. The examples use the indexer, and the description says that dot notation doesn't read `[object]` keys.
+- **Tests:** in `tests/ConvertTo-Dictionary.Tests.ps1`:
+  - New `Key and value types`, `Key comparison`, and `Null keys` contexts, for the repro's `2.5` without `-KeyType` and `-ValueType`, both parameters, the empty dictionary when there's no input, `Ann` and `ann`, `1` and `'1'`, `-KeyComparer` with `[object]` and `[int]` keys, and the `$null` key error from `-KeyPropertyName` and `-KeySelector`.
+  - The tests that expected inferred types now pass `-KeyType` or `-ValueType`, or no longer check the type. The test of inference past a `$null` first key is gone, because the `Null keys` context covers that key. The `Bug06` test that inferred the key type past a `$null` input object now checks that the object is skipped without an error. The test of `-InputObject` with `Get-Item` passes `-ValueType ([System.IO.DirectoryInfo])`, so that the conversion still has to unwrap.
+  - Against commit `94a9c5b`, 10 cases of the new and changed tests fail in each edition. The others pass, because they check behavior that didn't change, such as `Ann` and `ann`.
+- **Related items:** 37's `-KeyType` is done, and the rest of 37 is open. 38's ConvertTo-Dictionary bullet now holds, but the README doesn't give the reasons that 38 asks for.
+
 ### 32 — New-Dictionary drops entries whose value is `$null`
 
 **Where:** `NewDictionaryCmdlet.Process` calls `AddToCollection` with `addIfNull: false` (`src/engine/ListFunctions-Next/Cmdlets/Constructs/NewDictionaryCmdlet.cs:212`). `AddMethodInvoker.TryInvoke` then skips any call that has a `$null` argument (`src/engine/ListFunctions.Engine/Modern/AddMethodInvoker.cs:83`).
@@ -487,6 +514,15 @@ $h = @{}; $h.Add('x', $null)
 - **The README doesn't mention it:** its `-InputObject` row says nothing about the skip.
 
 **Decided on 2026-10-04:** keep these entries, and convert their `$null` values the way `Add` does. The rule decided for ConvertTo-Dictionary under 31 applies here too: a `$null` value may be intentional, so it's never skipped, and it's converted through `LanguagePrimitives` like every other value. New-Dictionary's value type is always `-ValueType` or `[object]`, so a `$null` for a value type that can't hold one, such as `[datetime]`, would get a conversion error, like an explicit `-ValueType` in ConvertTo-Dictionary (see 38).
+
+**Fixed:** as decided.
+
+- **The conversion:** `NewDictionaryCmdlet.Process` converts a `$null` value to `-ValueType` like any other value. As before, nothing is converted to `[object]`, so a `$null` stays `$null` there.
+- **The skip:** `EqualityConstructingCmdlet.AddToCollection(T, object[], bool)` became `AddToCollection(T, object[])`, which calls `Add` even when an argument is `$null`, through `AddMethodInvoker.TryInvoke` with `addIfNull: true`. Its `addIfNull` parameter, which 47 lists as doing nothing, and its TODO are gone. New-Dictionary is the only caller. A key that converts to `$null`, such as a `[NullString]::Value` key with `[string]` keys, now gets the dictionary's `ArgumentNullException`, "Value cannot be null. (Parameter 'key')", as a non-terminating error instead of a silent skip.
+- **Results, in both editions:** `(@{ a = $null; b = 1 } | New-Dictionary).Count` is 2, and the second repro holds `x = 0`. A `[string]` dictionary stores `''`, and a `[Nullable[int]]` dictionary `$null`. A `[datetime]` dictionary writes an `LFInvalidCastException` error for the entry and skips it.
+- **Docs:** the XML docs of `InputObject`, `Process`, and `AddToCollection`, and the README's `-InputObject` row.
+- **Tests:** `tests/New-Dictionary.Tests.ps1` checks that an entry whose value is `$null` is copied as `$null`, `''`, `0`, and `$null` for `[object]`, `[string]`, `[int]`, and `[Nullable[int]]` values. All four cases fail against commit `94a9c5b`.
+- **Related items:** 38's New-Dictionary bullet now holds.
 
 ### 33 — A failing comparison script has a different effect in each collection cmdlet
 
@@ -612,7 +648,17 @@ $d.Bob = 2    # An error: "The property 'Bob' cannot be found on this object. Ve
 - **What doesn't change:** `$d['missing']` gives `$null` without an error, even under `Set-StrictMode -Version Latest`. Splatting with `@d` works, and `ConvertTo-Json` writes the same properties.
 - **What improves:** the keys enumerate in the order they were added, as long as none is removed. A `Hashtable`'s order comes from the keys' hash codes: in Windows PowerShell 5.1, adding `z`, `y`, `x`, `w`, `v` enumerates them as `v,w,z,x,y`, and in PowerShell 7 the order changes from one process to the next (see 49).
 
-The questions about `Concatenate` and `ObjectList` are still open.
+**Fixed:** as decided, together with 31, which needs this item's change to `DictionaryCtor`.
+
+- **`DictionaryCtor`:** it derives from `EqualityCollectionCtor` instead of `EqualityCollectionCtor<Hashtable>`, and lost `ShouldConstructDefault`, `ConstructTDefault`, and `GetObjectKeyComparer`, so it always creates a `Dictionary[TKey, TValue]`. A comparer passed for `[object]` keys, which the `Hashtable` ignored unless it was an `IEqualityBlock`, is now used.
+- **No more fallback collections:** with `HashSetCtor`'s fallback set gone too (see 30), no `EqualityCollectionCtor` has one. `EqualityCollectionCtor` seals `ShouldConstructDefault` to return `false` and `ConstructDefault` to throw `NotSupportedException`, as `SortingCollectorCtor` does since 24. Its abstract `ConstructDefault(IEqualityComparer)`, its virtual `ShouldConstructDefault(IEqualityComparer, Type[])`, and the `EqualityCollectionCtor<TDefault>` class are gone.
+- **New-Dictionary:** its `[OutputType]` lists only `Dictionary[object, object]`, and `GetGenericTypes` always returns both types, instead of `$null` when both are `[object]`. With no types, the dictionary is a `Dictionary[object, object]`, with or without `-InputObject` and `-CaseSensitive`.
+- **ConvertTo-Dictionary:** see 31. With no input, it writes the empty dictionary that `BeginCore` created.
+- **Results, in both editions:** the first three lines of the repro give ``Dictionary`2``. `TabExpansion2 -inputScript '$l = New-Dictionary; $l.Ad' -cursorColumn 26` completes `Add(`. Measured on 2026-10-05 with `New-Dictionary`, what changes for users happens as described above: `$d.Ann` is `$null`, `$d.Bob = 2` fails, `$d -is [hashtable]` is `$false`, `$d + @{ q = 1 }` is a `Hashtable`, `$d['missing']` is `$null` under `Set-StrictMode -Version Latest`, and `z`, `y`, `x`, `w`, `v` enumerate in that order.
+- **Unchanged:** with `-DuplicateKeyBehavior Concatenate`, a key with one value still holds the value itself, and a key with more holds an `ObjectList`, so the repro's last two lines still give `System.String` and `ListFunctions.Modern.ObjectList`.
+- **Docs:** the XML docs of `DictionaryCtor`, `EqualityCollectionCtor`, and `NewDictionaryCmdlet`, and in the README, the command table and New-Dictionary's section. Its examples use the indexer, and the section says that dot notation doesn't read or set `[object]` keys.
+- **Tests:** `tests/New-Dictionary.Tests.ps1` has a new `Dictionary type` context, which checks the type with no input and with a piped hashtable, and the `Capacity` case for the `Hashtable` is now one for `Dictionary[object, object]`. In Engine, `DictionaryCtorTests.Construct_PassesTheCapacityToTheDictionary` expects a `Dictionary<object, object>`, and the new `Construct_UsesAStringComparerForObjectKeys` checks that `StringComparer.Ordinal` keeps `"a"` and `"A"`, and `1` and `"1"`, apart. Both fail against commit `94a9c5b`.
+- **Left for other items:** `ReflectionResolver.GetAddMethod`, which is public, still handles a `Hashtable`, which no cmdlet creates anymore (see 45). `GenericCollectionCtor` still has the fallback hooks that `EqualityCollectionCtor` and `SortingCollectorCtor` now stub out (see 47).
 
 ### 36 — New-HashSet can't combine `-GenericType` with script equality
 
@@ -898,7 +944,7 @@ Removing a type that only tests use means removing its tests too. Keep `ScriptBl
 - Nothing assigns `PSComparingVariable.InstanceValue` or `EqualityBlock.ObjVariable.Value`.
 - Nothing calls `HashBlock(ScriptBlock, List<PSVariable>?)`, and every call clears the list it's given (`src/engine/ListFunctions.Engine/Modern/HashBlock.cs:46`).
 - The three `EqualityBlock` constructors accept a `$null` `IHashBlock`, which fails later with a NullReferenceException.
-- The `addIfNull` parameter of `AddToCollection` does nothing (`src/engine/ListFunctions-Next/Cmdlets/Constructs/EqualityConstructingCmdlet.cs:311`).
+- The `addIfNull` parameter of `AddToCollection` does nothing (`src/engine/ListFunctions-Next/Cmdlets/Constructs/EqualityConstructingCmdlet.cs:311`). 32's fix removed the parameter and its TODO.
 - `ArraySlice<T>(T[], int, int)` doesn't validate its offset (`src/engine/ListFunctions.Engine/Internal/ArraySlice.cs:228`).
 
 **Extension points nothing uses:**
@@ -908,6 +954,7 @@ Removing a type that only tests use means removing its tests too. Keep `ScriptBl
 - `ListFunctionCmdletBase.GetErrorPreference()`. Nothing calls it.
 - `CmdletRunState.Flags`, `IsStopping`, `HadError`, `BeginFailed`, and `ProcessFailed`. Nothing reads them.
 - `SortingCollectorCtor.IsCaseSensitive`. Nothing sets it, but it stays: 37 decided that New-SortedSet gets a `-CaseSensitive` that sets it.
+- `GenericCollectionCtor.ShouldConstructDefault` and `ConstructDefault`, added on 2026-10-05. Since 30 and 35, no class creates a fallback collection: `EqualityCollectionCtor` and `SortingCollectorCtor` return `false` from the first and throw from the second.
 
 **Members nothing calls:**
 

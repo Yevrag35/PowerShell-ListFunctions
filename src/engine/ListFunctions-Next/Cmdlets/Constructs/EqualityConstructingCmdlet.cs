@@ -121,7 +121,7 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// from <see cref="GetCustomEqualityComparer(Type)"/>, and gets an <see cref="EqualityCollectionCtor"/> from
 	/// <see cref="GetConstructor(IEqualityComparer, Type[])"/>. It passes <see cref="Capacity"/> to that object and
 	/// constructs the collection with it. It also prepares the invoker that
-	/// <see cref="AddToCollection(T, object[], bool)"/> and
+	/// <see cref="AddToCollection(T, object[])"/> and
 	/// <see cref="AddToCollection(T, object, Func{object, Type, object})"/> use to call the collection's
 	/// <c>Add</c> method.
 	/// </remarks>
@@ -300,32 +300,29 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	/// The method does nothing when <paramref name="collection"/> is <see langword="null"/>, or when
-	/// <paramref name="item"/> is <see langword="null"/> and <paramref name="addIfNull"/> is <see langword="false"/>.
-	/// When <c>Add</c> throws, the method writes a non-terminating error for that exception instead of throwing. The
-	/// error's target object is the first argument, such as a dictionary's key.
+	/// Every call reaches <c>Add</c>, even when an argument is <see langword="null"/>, so the collection decides whether
+	/// it accepts <see langword="null"/>. For example, a dictionary stores a <see langword="null"/> value when its value
+	/// type can hold one, and it rejects a <see langword="null"/> key.
 	/// </para>
 	/// <para>
-	/// When any argument is <see langword="null"/>, the call to <c>Add</c> is skipped without an error.
+	/// When <c>Add</c> throws, the method writes a non-terminating error for that exception instead of throwing. The
+	/// error's target object is the first argument, such as a dictionary's key. The method does nothing when
+	/// <paramref name="collection"/> is <see langword="null"/>.
 	/// </para>
-	/// <para>TODO: Because null arguments are always skipped, <paramref name="addIfNull"/> currently has no observable effect.</para>
 	/// </remarks>
 	/// <param name="collection">The collection to add to.</param>
-	/// <param name="item">The arguments for the <c>Add</c> method, in parameter order, or <see langword="null"/>.</param>
-	/// <param name="addIfNull"><see langword="true"/> to substitute a single <see langword="null"/> argument when <paramref name="item"/> is <see langword="null"/>; otherwise, <see langword="false"/>.</param>
-	protected void AddToCollection(T collection, object?[]? item, bool addIfNull)
+	/// <param name="arguments">The arguments for the <c>Add</c> method, in parameter order. This value must not be <see langword="null"/>.</param>
+	protected void AddToCollection(T collection, object?[] arguments)
 	{
-		if (collection is null || (item is null && !addIfNull))
+		if (collection is null)
 		{
 			return;
 		}
 
-		item ??= new object?[] { null };
-
-		if (!_addMethod.TryInvoke(collection, item, false, out Exception? caughtEx))
+		if (!_addMethod.TryInvoke(collection, arguments, addIfNull: true, out Exception? caughtEx))
 		{
 			// The caller can reuse the array for its next entry, so the record keeps the first argument instead.
-			object? target = item.Length > 0 ? item[0] : null;
+			object? target = arguments.Length > 0 ? arguments[0] : null;
 			this.WriteError(caughtEx.ToRecord(ErrorCategory.InvalidOperation, target));
 		}
 	}

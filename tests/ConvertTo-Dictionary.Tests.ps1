@@ -11,19 +11,21 @@ Describe 'ConvertTo-Dictionary' {
 			Should-BeCollection -Expected @('a', 'b') -Actual ([object[]]$dict[2])
 		}
 
-		It 'infers the key type from the first object that isn''t $null when the input is <Label>' -Tag 'Bug06' -ForEach @(
+		# Unlike an object whose key is $null, a $null input object writes no error.
+		It 'skips a $null input object without an error when the input is <Label>' -Tag 'Bug06' -ForEach @(
 			@{ Label = 'piped'; Piped = $true }
 			@{ Label = 'passed to -InputObject'; Piped = $false }
 		) {
 			$items = $null, [pscustomobject]@{ K = 'a' }
 			if ($Piped) {
-				$dict = $items | ConvertTo-Dictionary -KeyPropertyName K
+				$dict = $items | ConvertTo-Dictionary -KeyPropertyName K -ErrorVariable err
 			}
 			else {
-				$dict = ConvertTo-Dictionary -InputObject $items -KeyPropertyName K
+				$dict = ConvertTo-Dictionary -InputObject $items -KeyPropertyName K -ErrorVariable err
 			}
-			Should-HaveType -Expected ([System.Collections.Generic.Dictionary[string, object]]) -Actual $dict
+			$err.Count | Should-Be 0
 			$dict.Count | Should-Be 1
+			$dict['a'].K | Should-Be 'a'
 		}
 	}
 
@@ -70,7 +72,7 @@ Describe 'ConvertTo-Dictionary' {
 			Should-BeCollection -Expected @(10, 20, 30) -Actual ([object[]]$dict.Keys)
 		}
 
-		It 'infers the key type from -KeySelector when the input is <Label>' -Tag 'Bug12' -ForEach @(
+		It 'computes each key with -KeySelector when the input is <Label>' -Tag 'Bug12' -ForEach @(
 			@{ Label = 'piped'; Piped = $true }
 			@{ Label = 'passed to -InputObject'; Piped = $false }
 		) {
@@ -80,7 +82,6 @@ Describe 'ConvertTo-Dictionary' {
 			else {
 				$dict = ConvertTo-Dictionary -InputObject 1, 2, 3 -KeySelector { $_*10 }
 			}
-			Should-HaveType -Expected ([System.Collections.Generic.Dictionary[int, int]]) -Actual $dict
 			Should-BeCollection -Expected @(10, 20, 30) -Actual ([object[]]$dict.Keys)
 		}
 
@@ -91,7 +92,6 @@ Describe 'ConvertTo-Dictionary' {
 			$parameters = @{ KeySelector = { $_ } }
 			$parameters[$Parameter] = { $_*2 }
 			$dict = 1..3 | ConvertTo-Dictionary @parameters
-			Should-HaveType -Expected ([System.Collections.Generic.Dictionary[int, int]]) -Actual $dict
 			Should-BeCollection -Expected @(2, 4, 6) -Actual ([object[]]$dict.Values)
 		}
 
@@ -107,7 +107,7 @@ Describe 'ConvertTo-Dictionary' {
 			$dict['Bob'] | Should-Be 1
 		}
 
-		# The selectors record each object they run for. The first object's outputs also give the key and value types.
+		# The selectors record each object they run for.
 		It 'runs -KeySelector and -ValueSelector once for each input object when the input is <Label>' -ForEach @(
 			@{ Label = 'piped'; Piped = $true }
 			@{ Label = 'passed to -InputObject'; Piped = $false }
@@ -126,17 +126,7 @@ Describe 'ConvertTo-Dictionary' {
 			}
 			Should-BeCollection -Expected @(1, 2, 3) -Actual ([object[]]$keyRuns)
 			Should-BeCollection -Expected @(1, 2, 3) -Actual ([object[]]$valueRuns)
-			Should-HaveType -Expected ([System.Collections.Generic.Dictionary[int, int]]) -Actual $dict
 			Should-BeCollection -Expected @(2, 4, 6) -Actual ([object[]]$dict.Values)
-		}
-
-		# The first object's key is $null, so the key type is [object], and the object is skipped.
-		It 'runs -KeySelector once for each input object when the first key is $null' {
-			$keyRuns = [System.Collections.Generic.List[object]]::new()
-			$dict = 0, 1, 2 | ConvertTo-Dictionary -KeySelector { $keyRuns.Add($_); if ($_) { $_ } }
-			Should-BeCollection -Expected @(0, 1, 2) -Actual ([object[]]$keyRuns)
-			Should-HaveType -Expected ([System.Collections.Generic.Dictionary[object, int]]) -Actual $dict
-			Should-BeCollection -Expected @(1, 2) -Actual ([object[]]$dict.Keys)
 		}
 	}
 
@@ -198,32 +188,109 @@ Describe 'ConvertTo-Dictionary' {
 		}
 	}
 
+	# The types used to come from the first object's key and value, so the order of the input decided them, and later keys
+	# and values were converted to them.
+	Context 'Key and value types' {
+		It 'creates a Dictionary[object, object] without -KeyType and -ValueType, whatever the first object holds' {
+			$items = [pscustomobject]@{ K = 'a'; V = 1 }, [pscustomobject]@{ K = 2; V = 2.5 }
+			$dict = $items | ConvertTo-Dictionary K V
+			Should-HaveType -Expected ([System.Collections.Generic.Dictionary[object, object]]) -Actual $dict
+			$dict['a'] | Should-Be 1
+			$dict[2] | Should-Be 2.5
+		}
+
+		It 'converts each key to -KeyType and each value to -ValueType' {
+			$items = [pscustomobject]@{ K = '1'; V = 1 }, [pscustomobject]@{ K = '2'; V = 2 }
+			$dict = $items | ConvertTo-Dictionary K V -KeyType ([int]) -ValueType ([string])
+			Should-HaveType -Expected ([System.Collections.Generic.Dictionary[int, string]]) -Actual $dict
+			Should-HaveType -Expected ([string]) -Actual $dict[2]
+			$dict[2] | Should-Be '2'
+		}
+
+		It 'writes an empty Dictionary[<Name>] when there is no input' -ForEach @(
+			@{ Name = 'object, object'; Parameters = @{}; Expected = [System.Collections.Generic.Dictionary[object, object]] }
+			@{ Name = 'int, string'; Parameters = @{ KeyType = [int]; ValueType = [string] }; Expected = [System.Collections.Generic.Dictionary[int, string]] }
+		) {
+			$dict = @() | ConvertTo-Dictionary Id @Parameters
+			Should-HaveType -Expected $Expected -Actual $dict
+			$dict.Count | Should-Be 0
+		}
+	}
+
+	# Without -KeyComparer, [object] keys compare the way New-Dictionary's do: two strings ordinally and without regard to
+	# case, and any other two keys with their own Equals method.
+	Context 'Key comparison' {
+		It "treats 'Ann' and 'ann' as the same key" {
+			$items = [pscustomobject]@{ Name = 'Ann' }, [pscustomobject]@{ Name = 'ann' }
+			$dict = $items | ConvertTo-Dictionary Name -ErrorVariable err -ErrorAction SilentlyContinue
+			$dict.Count | Should-Be 1
+			$err.Count | Should-Be 1
+		}
+
+		It "keeps 1 and '1' apart" {
+			$items = [pscustomobject]@{ K = 1 }, [pscustomobject]@{ K = '1' }
+			$dict = $items | ConvertTo-Dictionary K
+			$dict.Count | Should-Be 2
+		}
+
+		It "compares [object] keys with -KeyComparer, so [StringComparer]::Ordinal keeps 'Ann' and 'ann' apart" {
+			$items = [pscustomobject]@{ Name = 'Ann' }, [pscustomobject]@{ Name = 'ann' }
+			$dict = $items | ConvertTo-Dictionary Name -KeyComparer ([System.StringComparer]::Ordinal)
+			$dict.Count | Should-Be 2
+		}
+
+		# A StringComparer is an IEqualityComparer[string], not an IEqualityComparer[int], so the dictionary has to wrap it.
+		It 'accepts a -KeyComparer for another type than -KeyType' {
+			$items = [pscustomobject]@{ Id = 1 }, [pscustomobject]@{ Id = 2 }
+			$dict = $items | ConvertTo-Dictionary Id -KeyType ([int]) -KeyComparer ([System.StringComparer]::Ordinal)
+			Should-HaveType -Expected ([System.Collections.Generic.Dictionary[int, object]]) -Actual $dict
+			$dict.Count | Should-Be 2
+		}
+	}
+
+	# A dictionary can't hold a $null key. The objects whose keys are $null used to be skipped without an error.
+	Context 'Null keys' {
+		It 'writes an error for each object whose key is $null, and adds the others, when the key comes from <Label>' -ForEach @(
+			@{ Label = '-KeyPropertyName'; Parameters = @{ KeyPropertyName = 'K' }; Message = "*no 'K' property*" }
+			@{ Label = '-KeySelector'; Parameters = @{ KeySelector = { $_.K } }; Message = '*-KeySelector returned nothing*' }
+		) {
+			# The third object has no K property.
+			$items = [pscustomobject]@{ K = $null; N = 1 }, [pscustomobject]@{ K = 'a'; N = 2 }, [pscustomobject]@{ N = 3 }
+			$dict = $items | ConvertTo-Dictionary @Parameters -ErrorVariable err -ErrorAction SilentlyContinue
+			$dict.Count | Should-Be 1
+			$dict['a'].N | Should-Be 2
+			$err.Count | Should-Be 2
+			$err[0].FullyQualifiedErrorId | Should-Be 'System.ArgumentNullException,ListFunctions.Cmdlets.Constructs.ConvertToDictionaryCmdlet'
+			$err[0].CategoryInfo.Category | Should-Be ([System.Management.Automation.ErrorCategory]::InvalidData)
+			$err[0].Exception.Message | Should-BeLikeString -Expected $Message
+			$err[0].TargetObject.N | Should-Be 1
+			$err[1].TargetObject.N | Should-Be 3
+		}
+	}
+
 	Context 'Null values' {
 		# Each expected value is what Add($key, $null) stores in a dictionary with the same value type, in both editions.
-		It 'stores <Label> when the value property of a later object is $null and the values are [<TypeName>]' -Tag 'Bug19' -ForEach @(
-			@{ TypeName = 'string'; First = 'x'; Label = "''"; Expected = '' }
-			@{ TypeName = 'int'; First = 1; Label = '0'; Expected = 0 }
-			@{ TypeName = 'version'; First = [version]'1.0'; Label = '$null'; Expected = $null }
+		It 'stores <Label> when the value property of an object is $null and -ValueType is [<TypeName>]' -Tag 'Bug19' -ForEach @(
+			@{ TypeName = 'string'; Type = [string]; First = 'x'; Label = "''"; Expected = '' }
+			@{ TypeName = 'int'; Type = [int]; First = 1; Label = '0'; Expected = 0 }
+			@{ TypeName = 'version'; Type = [version]; First = [version]'1.0'; Label = '$null'; Expected = $null }
 		) {
 			$items = [pscustomobject]@{ K = 'a'; V = $First }, [pscustomobject]@{ K = 'b'; V = $null }
-			$dict = $items | ConvertTo-Dictionary K V
+			$dict = $items | ConvertTo-Dictionary K V -ValueType $Type
 			$dict.Count | Should-Be 2
 			Should-Be -Expected $Expected -Actual $dict['b']
 		}
 
-		It 'stores $null when the value property of the first object is $null' -Tag 'Bug19' {
+		It 'stores $null when the value property of an object is $null and -ValueType is absent' -Tag 'Bug19' {
 			$items = [pscustomobject]@{ K = 'a'; V = $null }, [pscustomobject]@{ K = 'b'; V = 'x' }
 			$dict = $items | ConvertTo-Dictionary K V
-			# The first value is $null, so the value type is [object].
-			Should-HaveType -Expected ([System.Collections.Generic.Dictionary[string, object]]) -Actual $dict
 			$dict.Count | Should-Be 2
 			$dict['a'] | Should-BeNull
 			$dict['b'] | Should-Be 'x'
 		}
 
 		It 'stores the conversion of $null when -ValueSelector outputs nothing' -Tag 'Bug19' {
-			$dict = 'a', 'bb' | ConvertTo-Dictionary -KeySelector { $_ } -ValueSelector { if ($_.Length -eq 1) { 1 } }
-			Should-HaveType -Expected ([System.Collections.Generic.Dictionary[string, int]]) -Actual $dict
+			$dict = 'a', 'bb' | ConvertTo-Dictionary -KeySelector { $_ } -ValueSelector { if ($_.Length -eq 1) { 1 } } -ValueType ([int])
 			$dict.Count | Should-Be 2
 			$dict['bb'] | Should-Be 0
 		}
@@ -237,11 +304,11 @@ Describe 'ConvertTo-Dictionary' {
 
 	Context 'Conversion' {
 		It "writes the error that New-List writes for a <Label> that can't be converted, and skips its object" -ForEach @(
-			@{ Label = 'key'; Items = @([pscustomobject]@{ K = 1; V = 'a' }, [pscustomobject]@{ K = 'x'; V = 'b' }); Key = 1; Expected = 'a' }
-			@{ Label = 'value'; Items = @([pscustomobject]@{ K = 'a'; V = 1 }, [pscustomobject]@{ K = 'b'; V = 'x' }); Key = 'a'; Expected = 1 }
+			@{ Label = 'key'; Items = @([pscustomobject]@{ K = 1; V = 'a' }, [pscustomobject]@{ K = 'x'; V = 'b' }); Parameters = @{ KeyType = [int] }; Key = 1; Expected = 'a' }
+			@{ Label = 'value'; Items = @([pscustomobject]@{ K = 'a'; V = 1 }, [pscustomobject]@{ K = 'b'; V = 'x' }); Parameters = @{ ValueType = [int] }; Key = 'a'; Expected = 1 }
 		) {
-			# The first object sets the key and value types, so 'x' has to be converted to [int].
-			$dict = $Items | ConvertTo-Dictionary K V -ErrorVariable err -ErrorAction SilentlyContinue
+			# 'x' has to be converted to [int].
+			$dict = $Items | ConvertTo-Dictionary K V @Parameters -ErrorVariable err -ErrorAction SilentlyContinue
 			$dict.Count | Should-Be 1
 			$dict[$Key] | Should-Be $Expected
 			$err.Count | Should-Be 1
@@ -254,15 +321,16 @@ Describe 'ConvertTo-Dictionary' {
 		# Each value is what $d.Add($_, $_) stores in a dictionary with the same value type.
 		It 'converts each object to -ValueType when it is its own value' {
 			$dict = 1, 2 | ConvertTo-Dictionary -KeySelector { $_ } -ValueType string
-			Should-HaveType -Expected ([System.Collections.Generic.Dictionary[int, string]]) -Actual $dict
+			Should-HaveType -Expected ([System.Collections.Generic.Dictionary[object, string]]) -Actual $dict
 			$dict[1] | Should-Be '1'
 			$dict[2] | Should-Be '2'
 		}
 
-		# Get-Item wraps each folder in a PSObject, and -InputObject passes the elements of an array as they are.
+		# Get-Item wraps each folder in a PSObject, and -InputObject passes the elements of an array as they are, so the
+		# conversion to [System.IO.DirectoryInfo] has to unwrap them.
 		It 'stores the objects passed to -InputObject when they are their own values' {
 			$null = New-Item -ItemType Directory -Path "$TestDrive/a", "$TestDrive/b"
-			$dict = ConvertTo-Dictionary -InputObject (Get-Item -LiteralPath "$TestDrive/a", "$TestDrive/b") -KeyPropertyName Name -ErrorVariable err -ErrorAction SilentlyContinue
+			$dict = ConvertTo-Dictionary -InputObject (Get-Item -LiteralPath "$TestDrive/a", "$TestDrive/b") -KeyPropertyName Name -ValueType ([System.IO.DirectoryInfo]) -ErrorVariable err -ErrorAction SilentlyContinue
 			$err.Count | Should-Be 0
 			$dict.Count | Should-Be 2
 			$dict['a'].Name | Should-Be 'a'
@@ -270,9 +338,8 @@ Describe 'ConvertTo-Dictionary' {
 	}
 
 	# Errors from -KeySelector and -ValueSelector reach PowerShell unchanged, so each result is what ForEach-Object gives
-	# for the same script block in both editions. The first object's selectors run while ConvertTo-Dictionary infers the
-	# key and value types, and the other objects' selectors run while it adds them, so the tests cover both. The scripts
-	# run in a new runspace, because Pester's try block would catch both kinds of error.
+	# for the same script block in both editions. The scripts run in a new runspace, because Pester's try block would catch
+	# both kinds of error.
 	Context 'Errors in selectors' {
 		It 'ends the script when -<Parameter> throws for the <Label> object' -ForEach @(
 			@{ Parameter = 'KeySelector'; Label = 'first'; Failing = 'a' }

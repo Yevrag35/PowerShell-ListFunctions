@@ -77,7 +77,7 @@ public sealed class DictionaryCtorTests : IClassFixture<RunspaceFixture>
 
 	[Theory]
 	[Trait("Category", "Bug02")]
-	[InlineData(typeof(object), typeof(object), typeof(Hashtable))]
+	[InlineData(typeof(object), typeof(object), typeof(Dictionary<object, object>))]
 	[InlineData(typeof(string), typeof(int), typeof(Dictionary<string, int>))]
 	public void Construct_PassesTheCapacityToTheDictionary(Type keyType, Type valueType, Type expectedType)
 	{
@@ -153,6 +153,21 @@ public sealed class DictionaryCtorTests : IClassFixture<RunspaceFixture>
 		dict["1"] = 2;
 
 		Assert.Equal(2, dict.Count);
+	}
+
+	[Fact]
+	public void Construct_UsesAStringComparerForObjectKeys()
+	{
+		// A StringComparer isn't an IEqualityComparer<object>, so the dictionary gets it wrapped. Ordinal compares two
+		// strings with regard to case, and any other two keys with their own Equals method.
+		var dict = Assert.IsType<Dictionary<object, object>>(new DictionaryCtor(StringComparer.Ordinal, keyType: null, valueType: null).Construct());
+
+		dict["a"] = 1;
+		dict["A"] = 2;
+		dict[1] = 3;
+		dict["1"] = 4;
+
+		Assert.Equal(4, dict.Count);
 	}
 
 	[Fact]

@@ -38,15 +38,37 @@ public sealed class HashSetCtorTests : IClassFixture<RunspaceFixture>
 	}
 
 	[Fact]
-	public void Construct_CreatesAnObjectSetThatComparesLikeTheEqOperator()
+	public void Construct_CreatesAnObjectSetThatComparesOnlyStringsAsStrings()
 	{
 		var ctor = new HashSetCtor(genericType: null, equalityComparer: null);
 		var set = Assert.IsType<HashSet<object>>(ctor.Construct());
 
+		// Elements of different types aren't converted, so none of these equals another.
 		Assert.True(set.Add(1));
-		Assert.False(set.Add("1"));
+		Assert.True(set.Add("1"));
+		Assert.True(set.Add(1L));
+		Assert.True(set.Add(1.0));
 		Assert.True(set.Add("abc"));
 		Assert.False(set.Add("ABC"));
+	}
+
+	[Theory]
+	[InlineData(false)]
+	[InlineData(true)]
+	public void Construct_ComparesStringsInAnObjectSetOrdinally(bool isCaseSensitive)
+	{
+		var ctor = new HashSetCtor(genericType: null, equalityComparer: null)
+		{
+			IsCaseSensitive = isCaseSensitive,
+		};
+		var set = Assert.IsType<HashSet<object>>(ctor.Construct());
+
+		// A culture-sensitive comparison ignores the soft hyphen, and treats the decomposed and the precomposed accented e
+		// as equal.
+		Assert.True(set.Add("ab"));
+		Assert.True(set.Add("a\u00ADb"));
+		Assert.True(set.Add("e\u0301"));
+		Assert.True(set.Add("\u00E9"));
 	}
 
 	[Fact]
@@ -68,7 +90,6 @@ public sealed class HashSetCtorTests : IClassFixture<RunspaceFixture>
 	[InlineData(typeof(string))]
 	public void Construct_PassesTheCapacityToTheSet(Type elementType)
 	{
-		// With no comparer, a set of object comes from ConstructTDefault, and the other sets are created through reflection.
 		var ctor = new HashSetCtor(elementType, equalityComparer: null)
 		{
 			Capacity = 1000,

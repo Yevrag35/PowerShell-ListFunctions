@@ -8,30 +8,28 @@ using ListFunctions.Validation;
 namespace ListFunctions.Cmdlets.Constructs;
 
 /// <summary>
-/// Creates a new <see cref="Dictionary{TKey, TValue}"/>, or a <see cref="Hashtable"/>, and optionally copies entries
-/// into it from a hashtable.
+/// Creates a new <see cref="Dictionary{TKey, TValue}"/> and optionally copies entries into it from a hashtable.
 /// </summary>
 /// <remarks>
 /// <para>
-/// When both <see cref="KeyType"/> and <see cref="ValueType"/> are <see cref="object"/> and no custom equality
-/// script blocks are supplied, the cmdlet writes a <see cref="Hashtable"/>. Its keys compare case-insensitively
-/// unless <c>-CaseSensitive</c> is set. Otherwise, it writes a <see cref="Dictionary{TKey, TValue}"/> closed over
-/// the key and value types.
+/// The cmdlet always writes a <see cref="Dictionary{TKey, TValue}"/> closed over <see cref="KeyType"/> and
+/// <see cref="ValueType"/>, which are both <see cref="object"/> by default.
 /// </para>
 /// <para>
 /// When <see cref="KeyType"/> is <see cref="string"/>, keys compare with
 /// <see cref="StringComparer.OrdinalIgnoreCase"/>, or with <see cref="StringComparer.Ordinal"/> when
-/// <c>-CaseSensitive</c> is set. <see cref="object"/> keys compare the way the <see cref="Hashtable"/>'s keys do,
-/// whatever <see cref="ValueType"/> is: string keys the same way as <see cref="string"/> keys, and other keys with their
-/// own <see cref="object.Equals(object)"/> method. <see cref="EqualityScript"/> and <see cref="HashCodeScript"/>
-/// replace the default key comparison with PowerShell script blocks.
+/// <c>-CaseSensitive</c> is set. <see cref="object"/> keys compare with the same comparer, whatever
+/// <see cref="ValueType"/> is: two strings the same way as <see cref="string"/> keys, and any other two keys with their
+/// own <see cref="object.Equals(object)"/> method, so <c>1</c> and <c>"1"</c> are different keys.
+/// <see cref="EqualityScript"/> and <see cref="HashCodeScript"/> replace the default key comparison with PowerShell
+/// script blocks.
 /// </para>
 /// <para>
 /// The dictionary is written as a single object and is not enumerated into the pipeline.
 /// </para>
 /// </remarks>
 [Cmdlet(VerbsCommon.New, "Dictionary", DefaultParameterSetName = "None")]
-[OutputType(typeof(Dictionary<object,object>), typeof(Hashtable))]
+[OutputType(typeof(Dictionary<object, object>))]
 public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary>, IDynamicParameters
 {
 	private const string CLONE_VALUES = "CloneValues";
@@ -55,8 +53,7 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// Gets or sets the initial capacity requested for the dictionary.
 	/// </summary>
 	/// <remarks>
-	/// The dictionary, or the <see cref="Hashtable"/>, is created with room for this many entries, so it doesn't have to
-	/// grow until it holds more.
+	/// The dictionary is created with room for this many entries, so it doesn't have to grow until it holds more.
 	/// </remarks>
 	/// <value>The requested initial capacity, from 0 through <see cref="int.MaxValue"/>. Defaults to 0.</value>
 	[Parameter, Alias("Size")]
@@ -113,9 +110,11 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// pipeline.
 	/// </summary>
 	/// <remarks>
-	/// Each key is converted to <see cref="KeyType"/>, and each value to <see cref="ValueType"/>. Entries whose value is
-	/// <see langword="null"/> are skipped. An entry whose key or value can't be converted, or that can't be added, such
-	/// as a duplicate key, produces a non-terminating error.
+	/// Each key is converted to <see cref="KeyType"/>, and each value to <see cref="ValueType"/>. A
+	/// <see langword="null"/> value is converted too, so it's stored as what the dictionary's <c>Add</c> method stores
+	/// for it when PowerShell calls the method: <see langword="null"/> for <see cref="object"/>, an empty string for
+	/// <see cref="string"/>, and 0 for <see cref="int"/>. An entry whose key or value can't be converted, or that can't
+	/// be added, such as a duplicate key, produces a non-terminating error.
 	/// </remarks>
 	/// <value>The source <see cref="Hashtable"/>.</value>
 	[Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = JUST_COPY)]
@@ -172,14 +171,16 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// <remarks>
 	/// <para>
 	/// Each key is converted to <see cref="KeyType"/>. Each value is cloned when <see cref="CloneValues"/> is set, and
-	/// is then converted to <see cref="ValueType"/> unless that type is <see cref="object"/>.
+	/// is then converted to <see cref="ValueType"/> unless that type is <see cref="object"/>. A <see langword="null"/>
+	/// value is converted like any other value, so <see cref="string"/> values store an empty string for it, and
+	/// <see cref="int"/> values store 0.
 	/// </para>
 	/// <para>
-	/// A key or value that can't be converted produces a non-terminating error, and its entry is skipped. An entry that
-	/// can't be added, such as one whose converted key is already in the dictionary, produces a non-terminating error
-	/// for the exception that the dictionary threw, with the converted key as its target. Either way, the remaining
-	/// entries are still copied. A <see langword="null"/> value isn't converted, and its entry is skipped without an
-	/// error.
+	/// A key or value that can't be converted produces a non-terminating error, and its entry is skipped. That includes a
+	/// <see langword="null"/> value when <see cref="ValueType"/> is a value type that can't hold
+	/// <see langword="null"/>, such as <see cref="DateTime"/>. An entry that can't be added, such as one whose converted
+	/// key is already in the dictionary, produces a non-terminating error for the exception that the dictionary threw,
+	/// with the converted key as its target. Either way, the remaining entries are still copied.
 	/// </para>
 	/// </remarks>
 	/// <param name="collection">The dictionary to copy entries into.</param>
@@ -202,14 +203,14 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 				}
 
 				object? value = CloneValue(de.Value, this.CloneValues);
-				if (convertValues && value is not null && !this.TryConvertItem(value, valueType, out value))
+				if (convertValues && !this.TryConvertItem(value, valueType, out value))
 				{
 					continue;
 				}
 
 				args[0] = key;
 				args[1] = value;
-				this.AddToCollection(collection, args, false);
+				this.AddToCollection(collection, args);
 			}
 		}
 
@@ -323,16 +324,13 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// <summary>
 	/// Returns the key and value types, setting each to <see cref="object"/> when it is <see langword="null"/>.
 	/// </summary>
-	/// <returns>An array that contains <see cref="KeyType"/> and <see cref="ValueType"/>, or <see langword="null"/> when both are <see cref="object"/>.</returns>
+	/// <returns>An array that contains <see cref="KeyType"/> and <see cref="ValueType"/>.</returns>
 	protected override Type[]? GetGenericTypes()
 	{
-		Type objType = typeof(object);
-		this.KeyType ??= objType;
-		this.ValueType ??= objType;
+		this.KeyType ??= typeof(object);
+		this.ValueType ??= typeof(object);
 
-		return !objType.Equals(this.KeyType) || !objType.Equals(this.ValueType)
-			? new Type[] { this.KeyType, this.ValueType }
-			: null;
+		return [this.KeyType, this.ValueType];
 	}
 	/// <summary>
 	/// Gets the <see cref="MethodInfo"/> of the <see cref="Hashtable"/> method called in the specified expression.

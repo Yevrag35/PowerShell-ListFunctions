@@ -5,7 +5,7 @@ namespace ListFunctions.Internal;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Names are compared with <see cref="StringComparer.InvariantCultureIgnoreCase"/>, which matches how PowerShell treats
+/// Names are compared with <see cref="StringComparer.OrdinalIgnoreCase"/>, which matches how PowerShell treats
 /// variable names. The variables' values, options, and other members are not compared.
 /// </para>
 /// <para>
@@ -30,7 +30,7 @@ internal sealed class PSVariableNameEquality : IEqualityComparer<PSVariable>
 			return true;
 		}
 
-		return StringComparer.InvariantCultureIgnoreCase.Equals(x?.Name, y?.Name);
+		return StringComparer.OrdinalIgnoreCase.Equals(x?.Name, y?.Name);
 	}
 
 	/// <summary>
@@ -42,6 +42,6 @@ internal sealed class PSVariableNameEquality : IEqualityComparer<PSVariable>
 	public int GetHashCode(PSVariable obj)
 	{
 		Guard.NotNull(obj, nameof(obj));
-		return StringComparer.InvariantCultureIgnoreCase.GetHashCode(obj.Name);
+		return StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Name);
 	}
 }

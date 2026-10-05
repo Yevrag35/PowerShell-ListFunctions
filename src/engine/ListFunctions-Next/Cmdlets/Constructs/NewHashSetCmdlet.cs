@@ -13,14 +13,12 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// </summary>
 /// <remarks>
 /// <para>
-/// When <see cref="GenericType"/> is <see cref="object"/> and no custom equality script blocks are supplied, elements
-/// compare by using PowerShell's equality rules, so <c>"1"</c> and <c>1</c> are equal. Strings compare
-/// case-insensitively unless <c>-CaseSensitive</c> is set.
-/// </para>
-/// <para>
 /// When <see cref="GenericType"/> is <see cref="string"/>, elements compare with
 /// <see cref="StringComparer.OrdinalIgnoreCase"/>, or with <see cref="StringComparer.Ordinal"/> when
-/// <c>-CaseSensitive</c> is set. Other element types use <see cref="EqualityComparer{T}.Default"/>.
+/// <c>-CaseSensitive</c> is set. When it's <see cref="object"/>, elements compare with the same comparer: two strings
+/// the same way as <see cref="string"/> elements, and any other two elements with their own
+/// <see cref="object.Equals(object)"/> and <see cref="object.GetHashCode"/> methods, so <c>"1"</c> and <c>1</c> are
+/// different elements. Other element types use <see cref="EqualityComparer{T}.Default"/>.
 /// <see cref="EqualityScript"/> and <see cref="HashCodeScript"/> replace the default comparison with PowerShell
 /// script blocks.
 /// </para>

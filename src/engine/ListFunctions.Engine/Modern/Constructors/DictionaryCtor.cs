@@ -6,18 +6,23 @@ namespace ListFunctions.Modern.Constructors;
 /// </summary>
 /// <remarks>
 /// <para>
-/// When both the key and value types are <see cref="object"/> and the comparer isn't an
-/// <see cref="IEqualityBlock"/>, <see cref="GenericCollectionCtor.Construct"/> creates a <see cref="Hashtable"/>
-/// instead, like PowerShell's <c>@{}</c> literal. In that case, any other comparer passed to the constructor is
-/// ignored.
+/// The object always creates a <see cref="Dictionary{TKey, TValue}"/>, even when both types are <see cref="object"/>.
 /// </para>
 /// <para>
-/// Without a comparer, <see cref="object"/> keys compare the same way whatever the value type is: string keys without
-/// regard to case unless <see cref="EqualityCollectionCtor.IsCaseSensitive"/> is <see langword="true"/>, and other keys
-/// with their own <see cref="object.Equals(object)"/> method.
+/// Without a comparer, <see cref="string"/> keys compare with <see cref="StringComparer.OrdinalIgnoreCase"/>, or with
+/// <see cref="StringComparer.Ordinal"/> when <see cref="EqualityCollectionCtor.IsCaseSensitive"/> is
+/// <see langword="true"/>. <see cref="object"/> keys compare with the same comparer whatever the value type is: two
+/// strings the same way as <see cref="string"/> keys, and any other two keys with their own
+/// <see cref="object.Equals(object)"/> method, so <c>1</c> and <c>"1"</c> are different keys. Keys of any other type
+/// compare with <see cref="EqualityComparer{T}.Default"/>.
+/// </para>
+/// <para>
+/// A comparer that is passed to the constructor works with any key type. One that isn't an
+/// <see cref="IEqualityComparer{T}"/> of the key type, such as a <see cref="StringComparer"/> for <see cref="object"/>
+/// keys, is wrapped in an <see cref="EqualityComparerAdapter{T}"/>.
 /// </para>
 /// </remarks>
-public sealed class DictionaryCtor : EqualityCollectionCtor<Hashtable>
+public sealed class DictionaryCtor : EqualityCollectionCtor
 {
 	/// <summary>
 	/// The generic type definition of the dictionary, <see cref="Dictionary{TKey, TValue}"/>.
@@ -43,66 +48,12 @@ public sealed class DictionaryCtor : EqualityCollectionCtor<Hashtable>
 	/// </param>
 	/// <param name="keyType">The key type of the dictionary, or <see langword="null"/> for <see cref="object"/>.</param>
 	/// <param name="valueType">The value type of the dictionary, or <see langword="null"/> for <see cref="object"/>.</param>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="keyType"/> or <paramref name="valueType"/> can't be a type argument of <see cref="Dictionary{TKey, TValue}"/>, such as a pointer type.</exception>
 	public DictionaryCtor(IEqualityComparer? comparer, Type? keyType, Type? valueType)
 		: base(TypeDefinition, comparer, [SetTypeOrObject(ref keyType), SetTypeOrObject(ref valueType)], null)
 	{
 		this.KeyType = keyType;
 		this.ValueType = valueType;
-	}
-
-	/// <summary>
-	/// Creates a <see cref="Hashtable"/> whose string keys compare without regard to case unless
-	/// <see cref="EqualityCollectionCtor.IsCaseSensitive"/> is <see langword="true"/>.
-	/// </summary>
-	/// <remarks>
-	/// String keys compare with <see cref="StringComparer.OrdinalIgnoreCase"/>, or with
-	/// <see cref="StringComparer.Ordinal"/> when <see cref="EqualityCollectionCtor.IsCaseSensitive"/> is
-	/// <see langword="true"/>. The table has room for <see cref="EqualityCollectionCtor.Capacity"/> entries.
-	/// </remarks>
-	/// <param name="comparer">The comparer that the base class chose. This implementation uses a string comparer instead.</param>
-	/// <returns>The new, empty table.</returns>
-	protected override Hashtable ConstructTDefault(IEqualityComparer comparer)
-	{
-		return new Hashtable(this.Capacity, this.GetObjectKeyComparer());
-	}
-	/// <summary>
-	/// Returns the comparer for the keys when no comparer is passed to the constructor.
-	/// </summary>
-	/// <remarks>
-	/// Whatever the value type is, <see cref="object"/> keys compare the way the keys of the <see cref="Hashtable"/> do,
-	/// which <see cref="GenericCollectionCtor.Construct"/> creates when both types are <see cref="object"/>: strings with
-	/// <see cref="StringComparer.OrdinalIgnoreCase"/>, or with <see cref="StringComparer.Ordinal"/> when
-	/// <see cref="EqualityCollectionCtor.IsCaseSensitive"/> is <see langword="true"/>, and other keys with their own
-	/// <see cref="object.Equals(object)"/> method. Other key types use the base implementation.
-	/// </remarks>
-	/// <param name="equalityType">The key type.</param>
-	/// <returns>
-	/// The string comparer for <see cref="object"/> keys; otherwise, the comparer from the base implementation, or
-	/// <see langword="null"/>.
-	/// </returns>
-	protected override IEqualityComparer? GetDefaultComparer(Type equalityType)
-	{
-		return typeof(object).Equals(equalityType)
-			? this.GetObjectKeyComparer()
-			: base.GetDefaultComparer(equalityType);
-	}
-	/// <summary>
-	/// Returns the string comparer that <see cref="object"/> keys compare with when no comparer is passed to the
-	/// constructor.
-	/// </summary>
-	/// <remarks>
-	/// The comparer compares two strings as strings and any other two keys with <see cref="object.Equals(object)"/>, so
-	/// <c>1</c> and <c>"1"</c> are different keys.
-	/// </remarks>
-	/// <returns>
-	/// <see cref="StringComparer.Ordinal"/> when <see cref="EqualityCollectionCtor.IsCaseSensitive"/> is
-	/// <see langword="true"/>; otherwise, <see cref="StringComparer.OrdinalIgnoreCase"/>.
-	/// </returns>
-	private StringComparer GetObjectKeyComparer()
-	{
-		return this.IsCaseSensitive
-			? StringComparer.Ordinal
-			: StringComparer.OrdinalIgnoreCase;
 	}
 
 	/// <summary>
@@ -125,26 +76,4 @@ public sealed class DictionaryCtor : EqualityCollectionCtor<Hashtable>
 		type ??= typeof(object);
 		return type;
 	}
-	/// <summary>
-	/// Determines whether <see cref="GenericCollectionCtor.Construct"/> creates a <see cref="Hashtable"/> instead of a
-	/// <see cref="Dictionary{TKey, TValue}"/>.
-	/// </summary>
-	/// <param name="comparer">The comparer passed to the constructor, or <see langword="null"/> if none was passed.</param>
-	/// <param name="genericTypes">The key and value types of the dictionary.</param>
-	/// <returns>
-	/// <see langword="true"/> when every type in <paramref name="genericTypes"/> is <see cref="object"/> and
-	/// <paramref name="comparer"/> isn't an <see cref="IEqualityBlock"/>, or when the base class returns
-	/// <see langword="true"/>; otherwise, <see langword="false"/>.
-	/// </returns>
-	protected override bool ShouldConstructDefault(IEqualityComparer? comparer, Type[] genericTypes)
-	{
-		return base.ShouldConstructDefault(comparer, genericTypes)
-			   ||
-			   (
-					comparer is not IEqualityBlock
-					&&
-					genericTypes.All(x => typeof(object).Equals(x))
-			   );
-	}
 }
-

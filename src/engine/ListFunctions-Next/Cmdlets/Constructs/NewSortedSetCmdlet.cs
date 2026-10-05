@@ -15,7 +15,7 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// <remarks>
 /// <para>
 /// Without <see cref="ComparingScript"/>, the element type defaults to <see cref="string"/>, and its elements compare
-/// with <see cref="StringComparer.InvariantCultureIgnoreCase"/>. Other element types use
+/// with <see cref="StringComparer.OrdinalIgnoreCase"/>. Other element types use
 /// <see cref="Comparer{T}.Default"/>, so they must have a consistent default order: they must implement
 /// <see cref="IComparable{T}"/> of themselves, be enums, or be <see cref="Nullable{T}"/> of such a type. Any other
 /// element type, <see cref="object"/> and <see cref="PSObject"/> included, is a terminating error before the cmdlet

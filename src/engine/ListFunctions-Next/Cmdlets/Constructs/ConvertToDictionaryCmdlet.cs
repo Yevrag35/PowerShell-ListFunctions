@@ -1,7 +1,7 @@
 using ListFunctions.Components;
-using ListFunctions.Exceptions;
 using ListFunctions.Extensions;
 using ListFunctions.Modern;
+using ListFunctions.Modern.Constructors;
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
 using ZLinq;
@@ -20,21 +20,27 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// <see cref="KeySelector"/>, and one of the two is required. Its value comes from the property named by
 /// <see cref="ValuePropertyName"/>, from the output of <see cref="ValueSelector"/>, or, when neither is supplied, from
 /// the object itself. A property name or script block in <see cref="ValuePropertyName"/> can't be combined with
-/// <see cref="ValueSelector"/>. A property or selector that gives <see langword="null"/> stores <see langword="null"/>
-/// converted to the value type. <see cref="KeySelector"/> and <see cref="ValueSelector"/> run at most once for each
+/// <see cref="ValueSelector"/>. <see cref="KeySelector"/> and <see cref="ValueSelector"/> run at most once for each
 /// input object.
 /// </para>
 /// <para>
-/// The key type is inferred from the key of the first input object that isn't <see langword="null"/>. The value type
-/// is <see cref="ValueType"/>, or is inferred from the value of that object. When an inferred type is a PowerShell
-/// custom object, or the first key or value is <see langword="null"/>, <see cref="object"/> is used. Every key and value
-/// is converted to these types the way PowerShell converts the arguments of the dictionary's <c>Add</c> method,
-/// including an input object that is its own value.
+/// The key type is <see cref="KeyType"/>, and the value type is <see cref="ValueType"/>. Each is <see cref="object"/>
+/// when it isn't supplied, whatever the input objects are. Every key and value is converted to its type the way
+/// PowerShell converts the arguments of the dictionary's <c>Add</c> method, including an input object that is its own
+/// value. A key or value that can't be converted produces the non-terminating error that <c>New-List</c> writes, and its
+/// object is skipped.
 /// </para>
 /// <para>
-/// <see cref="DuplicateKeyBehavior"/> controls what happens when a key repeats. <see cref="string"/> keys compare
-/// with <see cref="StringComparer.OrdinalIgnoreCase"/> unless <see cref="KeyComparer"/> is supplied. A key or value
-/// that can't be converted produces the non-terminating error that <c>New-List</c> writes, and its object is skipped.
+/// Without <see cref="KeyComparer"/>, <see cref="string"/> keys compare with
+/// <see cref="StringComparer.OrdinalIgnoreCase"/>, and <see cref="object"/> keys compare with the same comparer: two
+/// strings the same way as <see cref="string"/> keys, and any other two keys with their own
+/// <see cref="object.Equals(object)"/> method, so <c>1</c> and <c>"1"</c> are different keys.
+/// <see cref="DuplicateKeyBehavior"/> controls what happens when a key repeats.
+/// </para>
+/// <para>
+/// A <see langword="null"/> input object is skipped. An object whose key is <see langword="null"/> produces a
+/// non-terminating error and is skipped. A <see langword="null"/> value is stored, converted to the value type like any
+/// other value.
 /// </para>
 /// <para>
 /// <see cref="KeySelector"/> and <see cref="ValueSelector"/> run under the caller's <c>$ErrorActionPreference</c>, and
@@ -42,8 +48,8 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// <c>throw</c> ends the whole script, and <c>break</c> leaves the loop around the cmdlet.
 /// </para>
 /// <para>
-/// The dictionary is written as a single object and is not enumerated into the pipeline. When no input objects are
-/// received, the cmdlet writes an empty, case-insensitive <see cref="Hashtable"/>.
+/// The cmdlet creates the dictionary before it reads any input, and writes it as a single object that is not enumerated
+/// into the pipeline. When no input objects are received, the dictionary is empty.
 /// </para>
 /// </remarks>
 [OutputType(typeof(Dictionary<object, object>))]
@@ -68,8 +74,8 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// Each pipeline object is one input object, even when it's an array. An array passed to the parameter supplies its
-	/// elements, and <see langword="null"/> supplies none. <see langword="null"/> elements are skipped, as are elements
-	/// whose key is <see langword="null"/>.
+	/// elements, and <see langword="null"/> supplies none. <see langword="null"/> elements are skipped. An element whose
+	/// key is <see langword="null"/> produces a non-terminating error and is skipped.
 	/// </remarks>
 	/// <value>The current pipeline object, or the argument of the parameter. The value can be <see langword="null"/>.</value>
 	[Parameter(Mandatory = true, ValueFromPipeline = true)]
@@ -97,9 +103,15 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// <summary>
 	/// Gets or sets the equality comparer used to compare keys.
 	/// </summary>
+	/// <remarks>
+	/// The comparer works with any key type. When it isn't an <see cref="IEqualityComparer{T}"/> of the key type, such as
+	/// a <see cref="StringComparer"/> for <see cref="object"/> keys, the dictionary compares its keys through the
+	/// comparer's <see cref="IEqualityComparer"/> methods. A <see cref="StringComparer"/> compares two strings as
+	/// strings, and any other two keys with their own <see cref="object.Equals(object)"/> method.
+	/// </remarks>
 	/// <value>
-	/// The key equality comparer. When not specified, <see cref="string"/> keys use
-	/// <see cref="StringComparer.OrdinalIgnoreCase"/> and other key types use their default equality comparer.
+	/// The key equality comparer. When not specified, <see cref="string"/> and <see cref="object"/> keys use
+	/// <see cref="StringComparer.OrdinalIgnoreCase"/>, and other key types use their default equality comparer.
 	/// </value>
 	[Parameter]
 	public IEqualityComparer? KeyComparer { get; set; }
@@ -129,6 +141,19 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	[Parameter(Mandatory = true, Position = 0, ParameterSetName = KEY_SCRIPT)]
 	[ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.PSItem, PSThisVariable.This, PSThisVariable.FirstArg)]
 	public ScriptBlock KeySelector { get; set; } = null!;
+
+	/// <summary>
+	/// Gets or sets the type of the dictionary's keys.
+	/// </summary>
+	/// <remarks>
+	/// The parameter accepts a <see cref="Type"/>, a type name, or a script block that contains a type literal such
+	/// as <c>{ [int] }</c>. Every key is converted to this type.
+	/// </remarks>
+	/// <value>The key type, or <see langword="null"/> for <see cref="object"/>.</value>
+	[Parameter]
+	[ArgumentToTypeTransform]
+	[PSDefaultValue(Value = typeof(object))]
+	public Type? KeyType { get; set; }
 
 	/// <summary>
 	/// Gets or sets the name of the property whose value becomes each object's value, or a script block that computes
@@ -181,35 +206,33 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// <remarks>
 	/// The parameter accepts a <see cref="Type"/>, a type name, or a script block that contains a type literal such
 	/// as <c>{ [int] }</c>. Every value is converted to this type, including an input object that is its own value. The
-	/// value is ignored when <see cref="DuplicateKeyBehavior"/> is <see cref="DuplicateKeyBehavior.Concatenate"/>.
+	/// parameter is ignored when <see cref="DuplicateKeyBehavior"/> is <see cref="DuplicateKeyBehavior.Concatenate"/>,
+	/// because the value type is then always <see cref="object"/>.
 	/// </remarks>
-	/// <value>The value type, or <see langword="null"/> to infer it from the first input object.</value>
+	/// <value>The value type, or <see langword="null"/> for <see cref="object"/>.</value>
 	[Parameter]
 	[ArgumentToTypeTransform]
+	[PSDefaultValue(Value = typeof(object))]
 	public Type? ValueType { get; set; }
 
 	private IDictionary _dictionary = null!;
 	private Type _keyType = null!;
+	private Type _valueType = null!;
 	private nint _addToDictionaryPtr;
 	private readonly PSThisVariable _current = new();
 	private readonly List<PSVariable> _variables = [];
 
-	// The outputs of the selectors that InferTypes ran for the first input object. AddToDictionary uses them when it
-	// adds that object, instead of running the selectors again.
-	private bool _hasFirstOutputs;
-	private object? _firstKey;
-	private bool _hasFirstValue;
-	private object? _firstValue;
-
 	/// <summary>
-	/// Prepares the key and value selectors.
+	/// Prepares the key and value selectors, and creates the dictionary.
 	/// </summary>
 	/// <remarks>
 	/// Property names are turned into selector script blocks, and a script block passed to
 	/// <see cref="ValuePropertyName"/> becomes the value selector. The method also chooses the function that adds
-	/// entries according to <see cref="DuplicateKeyBehavior"/>.
+	/// entries according to <see cref="DuplicateKeyBehavior"/>, and creates the empty dictionary before any input
+	/// arrives.
 	/// </remarks>
-	/// <exception cref="ArgumentException">Thrown when <see cref="ValuePropertyName"/> is a property name or a script block, and <see cref="ValueSelector"/> is supplied too.</exception>
+	/// <exception cref="ArgumentException">Thrown when <see cref="ValuePropertyName"/> is a property name or a script block, and <see cref="ValueSelector"/> is supplied too; or when the key type or the value type can't be a type argument of <see cref="Dictionary{TKey, TValue}"/>.</exception>
+	/// <exception cref="ListFunctions.Modern.Exceptions.ActivatorCtorException">Thrown when the dictionary's constructor fails.</exception>
 	protected override void BeginCore()
 	{
 		_addToDictionaryPtr = StoreAddToDictionaryFunction(this.DuplicateKeyBehavior);
@@ -217,7 +240,6 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 		if (this.ParameterSetName.StartsWith(KEY_PROPERTY, StringComparison.Ordinal))
 		{
 			this.KeySelector = CreatePropertySelector(this.KeyPropertyName);
-			this.KeyPropertyName = string.Empty;
 		}
 
 		// The transformation attribute on ValuePropertyName leaves only null, a string, or a script block.
@@ -228,19 +250,19 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 			_ => null,
 		};
 
-		if (selectorFromName is null)
+		if (selectorFromName is not null)
 		{
-			return;
+			if (this.ValueSelector is not null)
+			{
+				throw new ArgumentException(
+					"Cannot use -ValuePropertyName and -ValueSelector together, because both select each object's value. Use "
+					+ "only one of them. A second positional argument binds to -ValuePropertyName.");
+			}
+
+			this.ValueSelector = selectorFromName;
 		}
 
-		if (this.ValueSelector is not null)
-		{
-			throw new ArgumentException(
-				"Cannot use -ValuePropertyName and -ValueSelector together, because both select each object's value. Use "
-				+ "only one of them. A second positional argument binds to -ValuePropertyName.");
-		}
-
-		this.ValueSelector = selectorFromName;
+		_dictionary = this.CreateDictionary();
 	}
 
 	/// <summary>
@@ -256,6 +278,43 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	private static ScriptBlock CreatePropertySelector(string propertyName)
 	{
 		return ScriptBlock.Create(string.Concat("$args[0].'", CodeGeneration.EscapeSingleQuotedStringContent(propertyName), "'"));
+	}
+
+	/// <summary>
+	/// Creates the empty dictionary for the key and value types.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// The key type is <see cref="KeyType"/>, and the value type is <see cref="ValueType"/>. Each is
+	/// <see cref="object"/> when it isn't supplied. When <see cref="DuplicateKeyBehavior"/> is
+	/// <see cref="DuplicateKeyBehavior.Concatenate"/>, the value type is always <see cref="object"/>, and the method
+	/// writes a warning if <see cref="ValueType"/> is another type.
+	/// </para>
+	/// <para>
+	/// The dictionary compares its keys with <see cref="KeyComparer"/>, which is wrapped in an adapter when it isn't an
+	/// <see cref="IEqualityComparer{T}"/> of the key type, or with the default comparer for the key type.
+	/// </para>
+	/// </remarks>
+	/// <returns>The new, empty dictionary.</returns>
+	/// <exception cref="ArgumentException">Thrown when the key type or the value type can't be a type argument of <see cref="Dictionary{TKey, TValue}"/>, such as a pointer type.</exception>
+	/// <exception cref="ListFunctions.Modern.Exceptions.ActivatorCtorException">Thrown when the dictionary's constructor fails.</exception>
+	private IDictionary CreateDictionary()
+	{
+		_keyType = this.KeyType ?? typeof(object);
+		_valueType = this.ValueType ?? typeof(object);
+
+		if (this.DuplicateKeyBehavior == DuplicateKeyBehavior.Concatenate)
+		{
+			if (!typeof(object).Equals(_valueType))
+			{
+				this.WriteWarning("ValueType is ignored when 'DuplicateKeyBehavior::Concatenate' is used as the values can either be objects or lists of objects.");
+			}
+
+			_valueType = typeof(object);
+		}
+
+		var ctor = new DictionaryCtor(this.KeyComparer, _keyType, _valueType);
+		return (IDictionary)ctor.Construct();
 	}
 
 	/// <summary>
@@ -291,22 +350,10 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// <summary>
 	/// Adds an entry to the dictionary for each object in the current <see cref="InputObject"/>.
 	/// </summary>
-	/// <remarks>The dictionary is created when the first input object that isn't <see langword="null"/> arrives.</remarks>
 	/// <returns><see langword="true"/> to continue processing pipeline input; otherwise, <see langword="false"/>.</returns>
 	protected override bool ProcessCore()
 	{
 		object?[] inputObjects = this.GetInputElements(this.InputObject);
-		if (_dictionary is null)
-		{
-			if (FindFirstObject(inputObjects) is not { } firstObject)
-			{
-				return true;
-			}
-
-			// The first object that AddToDictionary adds is firstObject, so it can use the outputs of the selectors that
-			// ran for firstObject while CreateDictionary inferred the key and value types.
-			_dictionary = this.CreateDictionary(inputObjects, firstObject);
-		}
 
 		unsafe
 		{
@@ -315,90 +362,22 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	}
 
 	/// <summary>
-	/// Returns the first of the specified input objects that isn't <see langword="null"/>.
-	/// </summary>
-	/// <param name="inputObjects">The input objects to search.</param>
-	/// <returns>The first input object that isn't <see langword="null"/>, or <see langword="null"/> when there's none.</returns>
-	private static object? FindFirstObject(object?[] inputObjects)
-	{
-		foreach (object? item in inputObjects)
-		{
-			if (item is not null)
-			{
-				return item;
-			}
-		}
-
-		return null;
-	}
-
-	/// <summary>
-	/// Creates the dictionary for the key and value types that the method infers from the first input object.
-	/// </summary>
-	/// <remarks>
-	/// The method infers the types with <see cref="InferTypes(object)"/>. When <see cref="KeyComparer"/> is
-	/// <see langword="null"/> and the key type is <see cref="string"/>, the method sets it to
-	/// <see cref="StringComparer.OrdinalIgnoreCase"/>.
-	/// </remarks>
-	/// <param name="inputObjects">The input objects that hold <paramref name="firstObject"/>. The method adds them to the error that it writes when the dictionary can't be constructed.</param>
-	/// <param name="firstObject">The first input object that isn't <see langword="null"/>.</param>
-	/// <returns>The new, empty dictionary.</returns>
-	/// <exception cref="RuntimeException">Thrown when a selector fails. The exception reaches PowerShell unchanged.</exception>
-	/// <exception cref="PipelineStoppedException">Thrown after a terminating error is written because the dictionary cannot be constructed.</exception>
-	[SuppressMessage("Style", "IDE0009", Justification = "Used in nameof()")]
-	private IDictionary CreateDictionary(object?[] inputObjects, object firstObject)
-	{
-		this.InferTypes(firstObject);
-
-		if (this.KeyComparer is null && _keyType.Equals(typeof(string)))
-		{
-			this.KeyComparer = StringComparer.OrdinalIgnoreCase;
-		}
-
-		object[] args = this.KeyComparer is null
-			? Array.Empty<object>()
-			: [this.KeyComparer];
-
-		Type? dictType = null;
-		try
-		{
-			dictType = typeof(Dictionary<,>).MakeGenericType(_keyType, this.ValueType);
-			return Activator.CreateInstance(dictType, args) as IDictionary
-				?? throw new InvalidOperationException("Somehow, Dictionary is not an IDictionary?");
-		}
-		catch (Exception e)
-		{
-			ListFunctionsException ex = new($"Failed to instantiate dictionary with the arguments supplied - {e.Message}", e);
-			IDictionary data = ex.Data;
-			data["KeyType"] = _keyType.FullName ?? _keyType.Name;
-			data[nameof(InputObject)] = ObjectCloningExtensions.Clone(inputObjects);
-			data[nameof(ValueType)] = this.ValueType.FullName ?? this.ValueType.Name;
-			data["DictionaryType"] = dictType?.FullName ?? dictType?.Name;
-
-			var rec = ex.ToRecord(ErrorCategory.InvalidOperation, targetObj: null);
-
-			this.ThrowTerminatingError(rec);
-			throw;
-		}
-	}
-
-	/// <summary>
 	/// Selects a key and value from each input object and adds them to the dictionary.
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	/// <see langword="null"/> objects and objects whose key is <see langword="null"/> are skipped. Each value is
-	/// converted to the value type: the value selector's output, even when it's <see langword="null"/>, or, without a
-	/// value selector, the object itself. A key or value that cannot be converted to the dictionary's type produces the
+	/// <see langword="null"/> objects are skipped. An object whose key is <see langword="null"/>, or converts to
+	/// <see langword="null"/>, produces a non-terminating error and is skipped, and its value selector doesn't run.
+	/// </para>
+	/// <para>
+	/// Each key is converted to the key type, and each value to the value type: the value selector's output, even when
+	/// it's <see langword="null"/>, or, without a value selector, the object itself, unwrapped from its
+	/// <see cref="PSObject"/> unless it's a custom object. A key or value that cannot be converted produces the
 	/// non-terminating error that <c>New-List</c> writes, and the object is skipped.
 	/// </para>
 	/// <para>
 	/// An error from a selector script block reaches PowerShell unchanged, the way an error from a <c>ForEach-Object</c>
 	/// script block does. Any other exception becomes a terminating error.
-	/// </para>
-	/// <para>
-	/// For the first input object, the method uses the outputs of the selectors that <see cref="InferTypes(object)"/>
-	/// ran for it, so each selector runs at most once for each input object.
 	/// </para>
 	/// </remarks>
 	/// <param name="inputObjects">The input objects to add.</param>
@@ -412,41 +391,34 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 
 			try
 			{
-				object? key;
-				bool hasSelectedValue = false;
-				object? selectedValue = null;
-				if (_hasFirstOutputs)
-				{
-					_hasFirstOutputs = false;
-					key = _firstKey;
-					hasSelectedValue = _hasFirstValue;
-					selectedValue = _firstValue;
-				}
-				else
-				{
-					key = this.Select(this.KeySelector, item);
-				}
-
+				object? key = this.Select(this.KeySelector, item);
 				if (key is null)
+				{
+					this.WriteNullKeyError(item, afterConversion: false);
 					continue;
+				}
 
-				// A key that converts to null, as [NullString]::Value does for [string], is skipped like a null key.
-				if (!this.TryConvertItem(key, _keyType, out key) || key is null)
+				if (!this.TryConvertItem(key, _keyType, out key))
 				{
 					continue;
 				}
 
-				if (!hasSelectedValue && this.ValueSelector is not null)
+				// A key can convert to null, as [NullString]::Value does for [string].
+				if (key is null)
 				{
-					selectedValue = this.Select(this.ValueSelector, item);
+					this.WriteNullKeyError(item, afterConversion: true);
+					continue;
 				}
 
 				// Each value converts the way PowerShell converts the arguments of Add, whether the value selector gives it
 				// or the object is its own value. A selected null converts to an empty string for [string], to 0 for
-				// [int], and to null for [object] and most other reference types. InferTypes sets ValueType before the
-				// first object is added.
-				object? value = this.ValueSelector is null ? item : selectedValue;
-				if (!this.TryConvertItem(value, this.ValueType!, out value))
+				// [int], and to null for [object] and most other reference types. PowerShell also unwraps an argument from
+				// its PSObject, which the conversion to [object] doesn't do, so the object is unwrapped first.
+				object? value = this.ValueSelector is null
+					? item.GetBaseObject()
+					: this.Select(this.ValueSelector, item);
+
+				if (!this.TryConvertItem(value, _valueType, out value))
 				{
 					continue;
 				}
@@ -465,89 +437,50 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	}
 
 	/// <summary>
+	/// Writes a non-terminating error for an input object whose key is <see langword="null"/>.
+	/// </summary>
+	/// <remarks>
+	/// A dictionary can't hold a <see langword="null"/> key, so the caller skips the object. The error wraps an
+	/// <see cref="System.ArgumentNullException"/> whose message says where the key came from: the property that
+	/// <see cref="KeyPropertyName"/> names, <see cref="KeySelector"/>, or the conversion to the key type. The error's
+	/// category is <see cref="ErrorCategory.InvalidData"/>, and its target object is <paramref name="item"/>.
+	/// </remarks>
+	/// <param name="item">The input object whose key is <see langword="null"/>.</param>
+	/// <param name="afterConversion">
+	/// <see langword="true"/> when the key became <see langword="null"/> in the conversion to the key type;
+	/// <see langword="false"/> when the property or the selector gave <see langword="null"/>.
+	/// </param>
+	private void WriteNullKeyError(object item, bool afterConversion)
+	{
+		string reason;
+		if (afterConversion)
+		{
+			reason = $"its key converts to $null as a [{_keyType.GetTypeName()}]";
+		}
+		else if (string.IsNullOrEmpty(this.KeyPropertyName))
+		{
+			reason = "-KeySelector returned nothing, or $null, for it";
+		}
+		else
+		{
+			reason = $"it has no '{this.KeyPropertyName}' property, or the property's value is $null";
+		}
+
+		var exception = new ArgumentNullException(paramName: null, $"Cannot add the object to the dictionary, because {reason}. A dictionary key can't be $null.");
+		this.WriteError(exception.ToRecord(ErrorCategory.InvalidData, item));
+	}
+
+	/// <summary>
 	/// Writes the dictionary to the pipeline as a single object.
 	/// </summary>
-	/// <remarks>When no input objects were received, the method writes an empty, case-insensitive <see cref="Hashtable"/>.</remarks>
+	/// <remarks>When no input objects were received, the dictionary is empty.</remarks>
 	/// <param name="state">The run state of the cmdlet. When <see cref="CmdletRunState.FoundMatch"/> is <see langword="true"/>, nothing is written.</param>
 	protected override void EndCore(CmdletRunState state)
 	{
 		if (state.FoundMatch)
 			return;
 
-		if (_dictionary is null)
-		{
-			this.WriteObject(new Hashtable(StringComparer.OrdinalIgnoreCase));
-			return;
-		}
-
 		this.WriteObject(_dictionary, enumerateCollection: false);
-	}
-
-	/// <summary>
-	/// Infers the dictionary's key and value types from the first input object, and keeps the outputs of the selectors
-	/// that run for it.
-	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// The key type comes from the key selector's output. The value type is <see cref="ValueType"/> when it's supplied.
-	/// Otherwise, it comes from the value selector's output, or from <paramref name="firstObject"/> itself when there's
-	/// no value selector. When <see cref="DuplicateKeyBehavior"/> is <see cref="DuplicateKeyBehavior.Concatenate"/>, the
-	/// value type is always <see cref="object"/>, and the method writes a warning if <see cref="ValueType"/> is another
-	/// type.
-	/// </para>
-	/// <para>
-	/// The method runs the value selector only when it needs the output for the value type. It keeps the outputs of the
-	/// selectors that it runs, so that <see cref="AddToDictionary"/> doesn't run them for
-	/// <paramref name="firstObject"/> again.
-	/// </para>
-	/// </remarks>
-	/// <param name="firstObject">The first input object that isn't <see langword="null"/>.</param>
-	/// <exception cref="RuntimeException">Thrown when a selector throws a terminating error.</exception>
-	[MemberNotNull(nameof(ValueType))]
-	private void InferTypes(object firstObject)
-	{
-		_firstKey = this.Select(this.KeySelector, firstObject);
-		_keyType = GetInferredType(_firstKey);
-
-		if (this.DuplicateKeyBehavior == DuplicateKeyBehavior.Concatenate)
-		{
-			if (this.ValueType is not null && !typeof(object).Equals(this.ValueType))
-			{
-				this.WriteWarning("ValueType is ignored when 'DuplicateKeyBehavior::Concatenate' is used as the values can either be objects or lists of objects.");
-			}
-
-			this.ValueType = typeof(object);
-		}
-		else if (this.ValueType is null && this.ValueSelector is not null)
-		{
-			_firstValue = this.Select(this.ValueSelector, firstObject);
-			_hasFirstValue = true;
-			this.ValueType = GetInferredType(_firstValue);
-		}
-		else
-		{
-			this.ValueType ??= GetInferredType(firstObject.GetBaseObject());
-		}
-
-		_hasFirstOutputs = true;
-	}
-	/// <summary>
-	/// Returns the type that the dictionary uses for a key or value like the specified one.
-	/// </summary>
-	/// <param name="value">The key or value, unwrapped from its <see cref="PSObject"/>, or <see langword="null"/>.</param>
-	/// <returns>
-	/// The runtime type of <paramref name="value"/>, or <see cref="object"/> when <paramref name="value"/> is
-	/// <see langword="null"/>, a <see cref="PSObject"/>, or a <see cref="PSCustomObject"/>.
-	/// </returns>
-	private static Type GetInferredType(object? value)
-	{
-		Type? type = value?.GetType();
-		if (type is null || typeof(PSObject).IsAssignableFrom(type) || typeof(PSCustomObject).IsAssignableFrom(type))
-		{
-			return typeof(object);
-		}
-
-		return type;
 	}
 
 	/// <summary>

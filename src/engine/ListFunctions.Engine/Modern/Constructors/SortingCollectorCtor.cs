@@ -65,10 +65,17 @@ public sealed class SortingCollectorCtor : GenericCollectionCtor
 	/// Returns the comparer for the set.
 	/// </summary>
 	/// <remarks>
+	/// <para>
 	/// When no comparer was passed to the constructor, the method chooses one by element type. For
-	/// <see cref="string"/>, it returns <see cref="StringComparer.InvariantCultureIgnoreCase"/>, or
-	/// <see cref="StringComparer.InvariantCulture"/> when <see cref="IsCaseSensitive"/> is <see langword="true"/>, and
-	/// caches it. For any other type, it returns <see cref="Comparer{T}.Default"/> without caching it.
+	/// <see cref="string"/>, it returns <see cref="StringComparer.OrdinalIgnoreCase"/>, or
+	/// <see cref="StringComparer.Ordinal"/> when <see cref="IsCaseSensitive"/> is <see langword="true"/>, and caches it.
+	/// For any other type, it returns <see cref="Comparer{T}.Default"/> without caching it.
+	/// </para>
+	/// <para>
+	/// <see cref="StringComparer.OrdinalIgnoreCase"/> orders strings as if they were uppercase, by the numeric values of
+	/// their characters, so the order is the same in every culture. For example, <c>_</c> and letters outside ASCII,
+	/// such as an accented <c>e</c>, sort after <c>Z</c>.
+	/// </para>
 	/// </remarks>
 	/// <returns>The comparer passed to the constructor, or a default comparer for the element type.</returns>
 	/// <exception cref="InvalidOperationException">
@@ -83,8 +90,8 @@ public sealed class SortingCollectorCtor : GenericCollectionCtor
 		else if (typeof(string).Equals(_sortedType))
 		{
 			_comparer = this.IsCaseSensitive
-				? StringComparer.InvariantCulture
-				: StringComparer.InvariantCultureIgnoreCase;
+				? StringComparer.Ordinal
+				: StringComparer.OrdinalIgnoreCase;
 
 			return _comparer;
 		}

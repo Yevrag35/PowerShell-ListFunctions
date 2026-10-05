@@ -91,6 +91,31 @@ Describe 'New-HashSet' {
 		}
 	}
 
+	# [object] elements compare the way New-Dictionary's [object] keys do: two strings ordinally and without regard to
+	# case, and any other two elements with their own Equals method, without a conversion. They used to compare like the
+	# -eq operator, which converts the second value to the first one's type, and which compares strings by culture.
+	Context 'Object elements' {
+		It 'keeps <Label> apart' -ForEach @(
+			@{ Label = "1 and '1'"; Elements = @(1, '1') }
+			@{ Label = '[int] 1 and [long] 1'; Elements = @(1, [long]1) }
+			@{ Label = '1 and 1.0'; Elements = @(1, 1.0) }
+			@{ Label = 'two strings that differ only by a soft hyphen'; Elements = @('ab', ('a' + [char]0xAD + 'b')) }
+		) {
+			$set = $Elements | New-HashSet
+			$set.Count | Should-Be 2
+		}
+
+		It "treats 'a' and 'A' as the same element" {
+			$set = 'a', 'A' | New-HashSet
+			$set.Count | Should-Be 1
+		}
+
+		It 'keeps a decomposed and a precomposed accented e apart with -CaseSensitive' {
+			$set = ('e' + [char]0x301), [string][char]0xE9 | New-HashSet -CaseSensitive
+			$set.Count | Should-Be 2
+		}
+	}
+
 	Context 'CaseSensitive' {
 		It 'accepts -CaseSensitive with a [string] element type' -Tag 'Bug03' {
 			$set = New-HashSet [string] -CaseSensitive

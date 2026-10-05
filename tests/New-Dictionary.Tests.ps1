@@ -130,6 +130,19 @@ Describe 'New-Dictionary' {
 			$err[0].Exception.GetType().FullName | Should-Be 'System.ArgumentException'
 		}
 
+		# Each expected value is what Add($key, $null) stores in a dictionary with the same value type, in both editions.
+		# These entries used to be skipped.
+		It 'copies an entry whose value is $null as <Label> when -ValueType is [<TypeName>]' -ForEach @(
+			@{ TypeName = 'object'; Type = [object]; Label = '$null'; Expected = $null }
+			@{ TypeName = 'string'; Type = [string]; Label = "''"; Expected = '' }
+			@{ TypeName = 'int'; Type = [int]; Label = '0'; Expected = 0 }
+			@{ TypeName = 'Nullable[int]'; Type = [Nullable[int]]; Label = '$null'; Expected = $null }
+		) {
+			$dict = @{ a = $null; b = 1 } | New-Dictionary ([string]) $Type
+			$dict.Count | Should-Be 2
+			Should-Be -Expected $Expected -Actual $dict['a']
+		}
+
 		It 'clones values with -CloneValues before it converts them' -Tag 'Bug08' {
 			$source = @{ Items = [System.Collections.ArrayList]@(1, 2) }
 			$dict = $source | New-Dictionary [string] ([System.Collections.ArrayList]) -CloneValues
@@ -172,8 +185,24 @@ Describe 'New-Dictionary' {
 		}
 	}
 
-	# [object] keys compare the way the Hashtable that New-Dictionary creates for [object] values compares them: strings
-	# without regard to case unless -CaseSensitive is set, and other keys with their own Equals method.
+	# New-Dictionary used to create a Hashtable when both types were [object].
+	Context 'Dictionary type' {
+		It 'creates a Dictionary[object, object] by default when <Label>' -ForEach @(
+			@{ Label = 'there is no input'; Piped = $false }
+			@{ Label = 'it copies a piped hashtable'; Piped = $true }
+		) {
+			if ($Piped) {
+				$dict = @{ a = 1 } | New-Dictionary
+			}
+			else {
+				$dict = New-Dictionary
+			}
+			Should-HaveType -Expected ([System.Collections.Generic.Dictionary[object, object]]) -Actual $dict
+		}
+	}
+
+	# [object] keys compare the same way whatever the value type is: two strings ordinally and without regard to case
+	# unless -CaseSensitive is set, and any other two keys with their own Equals method.
 	Context 'Object keys' {
 		It 'compares string keys without regard to case when -ValueType is [<Name>]' -Tag 'Bug20' -ForEach @(
 			@{ Name = 'object'; ValueType = [object] }
@@ -209,7 +238,7 @@ Describe 'New-Dictionary' {
 
 	Context 'Capacity' {
 		It 'passes -Capacity to a <Description>' -Tag 'Bug02' -ForEach @(
-			@{ Description = 'Hashtable'; Parameters = @{} }
+			@{ Description = 'Dictionary[object, object]'; Parameters = @{} }
 			@{ Description = 'Dictionary[string, int]'; Parameters = @{ KeyType = '[string]'; ValueType = '[int]' } }
 			@{ Description = 'dictionary with script block key equality'; Parameters = @{ EqualityScript = { $x -eq $y }; HashCodeScript = { $_.GetHashCode() } } }
 		) {
