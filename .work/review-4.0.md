@@ -10,7 +10,7 @@ Item numbers continue from `bugs.md`, so each number names one item in either fi
 
 **Wrong results**
 
-- [ ] 23 — Collections with script comparers break in other runspaces
+- [x] 23 — Collections with script comparers break in other runspaces
 - [ ] 24 — An `[object]` sorted set has no consistent order when its elements' types differ
 - [ ] 25 — `-CaseSensitive` switches to a culture-sensitive comparison
 - [ ] 26 — ConvertTo-Dictionary throws a NullReferenceException when no key is given
@@ -84,7 +84,7 @@ Don't follow the test-first approach of `bugs.md`. Fix an item without writing a
 
 Write a test only when it has merit:
 
-- **Has merit:** it pins down behavior that users rely on and that a later change could plausibly break, such as the comparison rule chosen for 30 or the error that 23 adds. A test also has merit when it records a decision that the code doesn't make obvious.
+- **Has merit:** it pins down behavior that users rely on and that a later change could plausibly break, such as the comparison rule chosen for 30. A test also has merit when it records a decision that the code doesn't make obvious.
 - **Has no merit:** it only restates the fix, or it covers something that can't regress in a way users would notice.
 - **Usually needs no new test:** removing dead code, making types internal, renaming, and fixing documentation. Run the existing suites instead.
 
@@ -136,7 +136,9 @@ The README doesn't mention threads or runspaces.
 - Remove the shared mutable state, so concurrent calls can't corrupt each other.
 - Document in the README that these collections work only in the runspace that created them.
 
-**Decision needed:** whether to support use from other runspaces at all. Supporting it means paying the cost of running each call's script block back in the runspace that created it, or running it in the caller's runspace.
+**Decided on 2026-10-04:** this isn't a problem, and nothing changes. The collections themselves were never meant to be thread-safe, so the script comparers don't need to be either. Use from another runspace or thread isn't supported, and the fix idea is dropped: no runspace check, no change to the shared state, and no README note. The XML docs of `EqualityBlock`, `HashBlock`, and `PSThisVariable` already say that their instances aren't thread-safe.
+
+The decision covers read-only use too. A plain `HashSet[string]` gives right answers when several runspaces only read it, as the control above showed, but a set with script comparers doesn't, because the comparer runs on every read.
 
 ### 24 — An `[object]` sorted set has no consistent order when its elements' types differ
 
@@ -460,12 +462,45 @@ $sorted -join ','   # 1,5: one error, and the set without 3
 - **The README disagrees with all three:** it says that with the default `-ScriptBlockErrorAction Stop`, errors in these script blocks "are terminating errors" (`README.md:436`).
 - **The condition cmdlets differ:** for them, `-ScriptBlockErrorAction Stop` does end the script.
 
-**Decision needed:** what `Stop` means for the collection cmdlets:
+**Decided on 2026-10-04:** `Stop` ends the script, as it does for the condition cmdlets. New-HashSet, New-SortedSet, and New-Dictionary let errors from `-EqualityScript`, `-HashCodeScript`, and `-ComparingScript` reach PowerShell unchanged through `PassesThrough`, the rule that the condition cmdlets and ConvertTo-Dictionary's selectors have followed since `bugs.md` item 21. When one of these errors reaches PowerShell, the cmdlet writes no collection.
 
-- **End the script,** as it does for the condition cmdlets.
-- **Write a non-terminating error** for each element that fails, and still write the rest of the collection.
+- **With the default `-ScriptBlockErrorAction Stop`:** an error that the script block writes ends the whole script, a failed method call ends only the statement, and `break` leaves the enclosing loop. A `throw` ends the whole script unless `-ScriptBlockErrorAction` is `SilentlyContinue`. Under `Continue`, an error that the script block writes doesn't stop it, and the comparison uses its output.
+- **Output that a comparer can't use,** such as no output, `$null`, or a value that can't be converted to `[int]` from `-HashCodeScript` or `-ComparingScript`, ends the statement, as a failed method call does. The `HashCodeScriptException` and `ComparingScriptException` that report it are `RuntimeException`s, so `PassesThrough` passes them on too. Today New-SortedSet and New-Dictionary write an error for each element instead (`bugs.md` items 01 and 10).
+- **Other failures in `Add`,** which don't come from a script block, such as a duplicate key in New-Dictionary or an element type whose own `GetHashCode` throws, still write a non-terminating error for their element. New-HashSet writes them that way too, instead of stopping and writing no set, so the three cmdlets match.
 
-Either way, New-HashSet has to match the other two, and the README has to match the code.
+Where it changes the code:
+
+- **`HashBlock`:** `GetHashObject` runs the script block through `TryInvokeWithContext`, which catches every exception, the `BreakException` from `break` included, and then wraps it in a `HashCodeScriptException` (`src/engine/ListFunctions.Engine/Modern/HashBlock.cs:109`). Passing that wrapper on isn't enough. Measured on 2026-10-04 in both editions, with a test cmdlet that runs a script block under `Stop` and rethrows its exception, either as it is or wrapped by `HashCodeScriptException.FromBlockException`:
+  - **A `throw`** ends the script either way, because the wrapper copies `WasThrownFromThrowStatement`.
+  - **An error that the script block writes** ends the script when it's rethrown as it is, but only the statement when it's wrapped. PowerShell ends the whole script for an `ActionPreferenceStopException`, not for an exception that wraps one.
+  - **A failed method call** ends only the statement either way.
+
+  A wrapped `BreakException` isn't a `FlowControlException` anymore, so it can't leave the loop either. Instead, `HashBlock` lets the script block's exceptions through unwrapped, as `EqualityBlock` and `ComparingBlock<T>` already do, and throws `HashCodeScriptException` only for output it can't use. That changes the `throw` case of Engine's `HashBlockTests.GetHashCode_ThrowsWhenTheScriptDoesNotReturnAHashCode`, and the XML docs of `IHashBlock.GetHashCode`, `HashBlock.GetHashCode`, and `EqualityBlock.GetHashCode`, which say that a failing script block becomes a `HashCodeScriptException`.
+- **Adding elements:** `AddMethodInvoker.TryInvoke` catches every exception and returns it, and its callers write it as a non-terminating error: both `EqualityConstructingCmdlet.AddToCollection` overloads (`src/engine/ListFunctions-Next/Cmdlets/Constructs/EqualityConstructingCmdlet.cs:280` and `:316`) and `NewSortedSetCmdlet.ProcessCore` (`src/engine/ListFunctions-Next/Cmdlets/Constructs/NewSortedSetCmdlet.cs:136`). They rethrow an exception that `PassesThrough` accepts, with `ExceptionDispatchInfo` so it keeps its stack trace, and `ListFunctionCmdletBase.ProcessRecord` passes it on. After 36, a typed New-HashSet with script equality adds through `AddToCollection` too.
+- **New-HashSet:** the two `catch` blocks in `Process` (`src/engine/ListFunctions-Next/Cmdlets/Constructs/NewHashSetCmdlet.cs:168` and `:191`) let those exceptions through as well, and `Process` stops returning `false`. Nothing else returns `false` from `Process`, so the `wantsToStop` parameter of `End` becomes unused (see 47).
+- **XML docs:** the remarks of `NewHashSetCmdlet.Process`, `NewSortedSetCmdlet.ProcessCore` and `ComparingScript`, `NewDictionaryCmdlet.Process`, and both `AddToCollection` overloads describe today's non-terminating errors, and New-HashSet's also describe the stop.
+- **README:** the `Stop` row of the table at `README.md:436` says that errors in these script blocks "are terminating errors". The paragraphs from `README.md:450` describe what reaches PowerShell only for `-Condition`, and can describe every script block instead.
+
+What changes for users. The results for today were measured on 2026-10-04 in both editions, with each command followed by `'still running'` and run in a new runspace. The results after the change are what the condition cmdlets and the test cmdlet give for the same errors.
+
+```powershell
+$hash = { $_.ToUpperInvariant().GetHashCode() }
+'a', 'A', 'b' | New-HashSet -EqualityScript { if ($x -or $y) { Write-Error 'oops' }; $x -eq $y } -HashCodeScript $hash
+# Today: one error from New-HashSet, no set, and the script goes on. After: Write-Error's error ends the script.
+@{ a = 1; b = 2 } | New-Dictionary -EqualityScript { $x -eq $y } -HashCodeScript { if ($_) { Write-Error 'oops' }; 1 }
+# Today: two HashCodeScriptException errors, an empty dictionary, and the script goes on. After: the first error ends
+# the script.
+foreach ($i in 1..2) { 5, 3 | New-SortedSet [int] -ComparingScript { if ($x -or $y) { break }; $x.CompareTo($y) } }
+# Today: a BreakException error and a set that holds 5, in each pass. After: break leaves the loop.
+5, 3, 1 | New-SortedSet [int] -ComparingScript { $null = $x, $y }
+# Today: two ComparingScriptException errors, a set that holds 5, and the script goes on. After: one error that ends
+# the statement, and no set.
+```
+
+- **Today, no failure ends the script or leaves a loop.** New-HashSet writes one error and no set. New-SortedSet and New-Dictionary write an error for each element that fails, and the collection without those elements. A `throw`, an error written under `Stop`, a failed method call, `break`, and output that a comparer can't use all behave that way. After the change, this item's repro ends at New-HashSet's `throw`, and `$null -eq $set` never runs.
+- **The errors keep their own records.** Today the cmdlet writes each error itself, with the exception's type as the error ID, such as `System.Management.Automation.ActionPreferenceStopException,ListFunctions.Cmdlets.Constructs.NewHashSetCmdlet`, and every error from `-HashCodeScript` is a `HashCodeScriptException`. After the change, they're the errors that the conditions give: `Microsoft.PowerShell.Commands.WriteErrorException` for `Write-Error`, `boom` for `throw 'boom'`, and `InvokeMethodOnNull` with the cmdlet's class for `$null.Foo()`.
+- **`-ErrorAction` doesn't reach them anymore.** Today they're non-terminating errors, which `-ErrorAction SilentlyContinue` hides and `-ErrorAction Stop` makes end the script. After the change, they end the statement or the script whatever `-ErrorAction` says, and a `try` block handles them, as it does for conditions.
+- **Tests:** two tests collect these errors with `-ErrorAction SilentlyContinue`, and both change. They're `tests/New-HashSet.Tests.ps1:211`, whose `ThrowingHashCode` case then gets an error for each element and an empty set, and New-SortedSet's `Bug10` test (`tests/New-SortedSet.Tests.ps1:48`). Tests in the shape of the conditions' `Bug21` tests have merit for each cmdlet, and one for an error written in `-HashCodeScript` catches a wrapper that comes back.
 
 ### 34 — Script-block parameters reject bad input in different ways
 
@@ -499,11 +534,6 @@ $d['IT'].GetType().FullName                             # ListFunctions.Modern.O
 ```
 
 The README documents New-Dictionary's Hashtable. It doesn't document ConvertTo-Dictionary's empty Hashtable: its command table lists only `Dictionary[TKey, TValue]`.
-
-**Decision needed:**
-
-- Should `Concatenate` store a list for every key, so that code reading the values doesn't have to check their type?
-- Should `ObjectList` stay a public type that users test for?
 
 **Decided on 2026-10-04:** ConvertTo-Dictionary and New-Dictionary always write a `Dictionary[TKey, TValue]`, whatever their input. Neither cmdlet writes a `Hashtable`.
 
@@ -567,9 +597,29 @@ The README says that the element type is always `[object]` in this mode. New-Dic
 - **ConvertTo-Dictionary has no `-KeyType`.** A `-KeyComparer` that doesn't fit the inferred key type fails. `$people | ConvertTo-Dictionary Id -KeyComparer ([System.StringComparer]::Ordinal)` gives "Failed to instantiate dictionary with the arguments supplied - Constructor on type 'System.Collections.Generic.Dictionary`2[[System.Int32, ...],[System.Object, ...]]' not found."
 - **New-SortedSet's parameter set name:** the set for `-ComparingScript` is named `WithCustomEquality`.
 
-**Decision needed:** which of these to align. Adding an alias or a parameter later isn't a breaking change. Removing one, or changing a position or a default, is.
+**Decided on 2026-10-04:** ConvertTo-Dictionary gets `-KeyType`, and stops inferring its key and value types (see 31). For the rest, New-List's `-Capacity` loses its position and its default of 4, the missing aliases and New-SortedSet's `-CaseSensitive` are added, and nothing is removed. Checked against the `v3.1.0` tag, everything this item lists shipped in 3.1.0, except the `ScriptErrorAction` alias on Assert-AllObject and Find-LastIndexOf. So the `-Capacity` change breaks 3.1.0 scripts, not only unreleased code.
 
-**Decided on 2026-10-04:** ConvertTo-Dictionary gets `-KeyType`, and stops inferring its key and value types (see 31). The rest of this item is still open.
+- **`-Capacity`:** New-List's is named-only and defaults to 0, as on New-HashSet and New-Dictionary.
+  - **What goes:** `Position = 1`, `PSDefaultValue(Value = 4)`, and the rule in `BeginCore` that turns 0 into 4 (`src/engine/ListFunctions-Next/Cmdlets/Constructs/NewListCmdlet.cs:101`). `ListWrapper.CreateTyped` already leaves the capacity at 0 when it's given 0.
+  - **What users see:** `New-List [int] 5`, which sets the capacity in 3.1.0, fails with a binding error, because no parameter takes a second positional argument. So does `New-List [int] 1, 2, 3`. A new list's `Capacity` is 0 instead of 4, as it is for `[System.Collections.Generic.List[int]]::new()`.
+  - **No positional `-InputObject` yet:** position 1 stays free, so one can be added later without a break. Adding it now would make 3.1.0's `New-List [int] 5` build a list that holds 5, with no error.
+- **Aliases:** the missing ones are added where they fit, and none is removed.
+  - `FilterScript` on the `-Condition` of Find-IndexOf and Find-LastIndexOf, as on Assert-AnyObject and Assert-AllObject.
+  - `ScriptErrorAction` on the `-ScriptBlockErrorAction` of New-HashSet, New-SortedSet, and New-Dictionary, as on the four condition cmdlets.
+  - `Size` on New-HashSet's `-Capacity`, as on New-List and New-Dictionary.
+  - `List` and `CopyFrom` stay on their own cmdlets, because each names what that cmdlet's `-InputObject` is: the list that Find-IndexOf and Find-LastIndexOf search, and the hashtable that New-Dictionary copies.
+- **New-SortedSet's parameter set:** the set of `-ComparingScript` is renamed `WithComparingScript`, because it has nothing to do with equality. The other cmdlets keep `WITH_CUSTOM_EQUALITY` (`src/engine/ListFunctions-Next/Cmdlets/ListFunctionCmdletBase.cs:35`). No parameter, alias, or position changes.
+- **ConvertTo-Dictionary's selectors:** the cmdlet doesn't get `-ScriptBlockErrorAction`. `-KeySelector` and `-ValueSelector` keep running under the caller's `$ErrorActionPreference`, as `ForEach-Object`'s script blocks do, and the README already says so (`README.md:457`). The parameter can be added later without a break, as long as leaving it out still means the caller's preference.
+- **String comparison:** New-SortedSet gets `-CaseSensitive`, and no cmdlet gets any other comparison parameter.
+  - **What it does:** it sets `SortingCollectorCtor.IsCaseSensitive`, so `[string]` elements sort with `StringComparer.Ordinal` instead of `OrdinalIgnoreCase` (see 30). `'b', 'a', 'B', 'A' | New-SortedSet -CaseSensitive` holds all four, in the order `A, B, a, b`, which the README's example gets from `-ComparingScript { [string]::CompareOrdinal($x, $y) }` today (`README.md:291`).
+  - **When it's available:** it's a dynamic parameter like New-HashSet's. It appears only for `[string]` elements, which after 24 include the default, and never with `-ComparingScript`. New-SortedSet doesn't derive from `EqualityConstructingCmdlet<T>`, whose `TryGetDynamicCaseParam` is private, so it can't reuse that method as it is.
+  - **Item 47:** `SortingCollectorCtor.IsCaseSensitive` stays.
+  - **Comparer objects** stay ConvertTo-Dictionary's alone. It doesn't get `-CaseSensitive`, because `-KeyComparer ([StringComparer]::Ordinal)` does the same. A comparer parameter on New-HashSet, New-SortedSet, or New-Dictionary can be added later without a break.
+- **README:**
+  - New-List's `-Capacity` row (`README.md:190`) says "Position 1" and "Default: `4`".
+  - The new aliases go in the `-Condition` row of Find-IndexOf (`README.md:147`), which Find-LastIndexOf shares, the `-Capacity` row of New-HashSet (`README.md:264`), and the `-ScriptBlockErrorAction` rows of New-HashSet (`README.md:269`), New-SortedSet (`README.md:310`), and New-Dictionary (`README.md:359`).
+  - New-SortedSet's table (`README.md:305`) needs a `-CaseSensitive` row, and its description (`README.md:275`) says that a `[string]` set holds only one of `'a'` and `'A'`.
+- **Tests:** New-SortedSet's `-CaseSensitive` has merit for a test, because nothing else pins down that `'a'` and `'A'` stay apart, or their ordinal order. The aliases, the set name, and `-Capacity` need none. No test passes New-List's `-Capacity` by position.
 
 ### 38 — Each cmdlet handles `$null` input differently
 
@@ -809,7 +859,7 @@ Removing a type that only tests use means removing its tests too. Keep `ScriptBl
 - `EqualityConstructingCmdlet<T>.Begin` and `TryGetDynamicParameters`. No class overrides either one.
 - `ListFunctionCmdletBase.GetErrorPreference()`. Nothing calls it.
 - `CmdletRunState.Flags`, `IsStopping`, `HadError`, `BeginFailed`, and `ProcessFailed`. Nothing reads them.
-- `SortingCollectorCtor.IsCaseSensitive`. Nothing sets it (see 37).
+- `SortingCollectorCtor.IsCaseSensitive`. Nothing sets it, but it stays: 37 decided that New-SortedSet gets a `-CaseSensitive` that sets it.
 
 **Members nothing calls:**
 
@@ -884,7 +934,7 @@ Fixing these after 4.0.0 doesn't break anyone.
 
 `Remove-All` and `Remove-At` exist only in the legacy scripts. The manifest's `Tags` still include `Remove` and `Modify`, which `bugs.md` item 15 covers.
 
-**Decision needed:** whether to port `Remove-All` and `Remove-At` to cmdlets or drop them. Then delete the legacy files.
+**Decision made** `Remove-All` and `Remove-At` will be removed.
 
 ## Outside this list
 

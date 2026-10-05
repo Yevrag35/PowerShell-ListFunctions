@@ -169,21 +169,21 @@ public static class PSObjectExtensions
 		/// <summary>
 		/// The <see cref="PSObject"/>'s non-public <c>immediateBaseObject</c> field.
 		/// </summary>
-		private static readonly FieldInfo _immediateBaseObjectField;
+		private static readonly FieldInfo s_immediateBaseObjectField;
 		/// <summary>
 		/// The <see cref="PSObject"/>'s non-public <c>immediateBaseObjectIsEmpty</c> field.
 		/// </summary>
-		private static readonly FieldInfo _immediateBaseObjectIsEmptyField;
+		private static readonly FieldInfo s_immediateBaseObjectIsEmptyField;
 		/// <summary>
 		/// Initializes the <see cref="Marshal"/> class by looking up the <see cref="PSObject"/> fields it reads.
 		/// </summary>
 		/// <exception cref="InvalidOperationException">Thrown when either field doesn't exist on PSObject. The runtime wraps it in a TypeInitializationException.</exception>
 		static Marshal()
 		{
-			_immediateBaseObjectIsEmptyField = typeof(PSObject).GetField("immediateBaseObjectIsEmpty", BindingFlags.NonPublic | BindingFlags.Instance)
+			s_immediateBaseObjectIsEmptyField = typeof(PSObject).GetField("immediateBaseObjectIsEmpty", BindingFlags.NonPublic | BindingFlags.Instance)
 				?? throw new InvalidOperationException("Could not find field 'immediateBaseObjectIsEmpty' on type 'PSObject'.");
 
-			_immediateBaseObjectField = typeof(PSObject).GetField("immediateBaseObject", BindingFlags.NonPublic | BindingFlags.Instance)
+			s_immediateBaseObjectField = typeof(PSObject).GetField("immediateBaseObject", BindingFlags.NonPublic | BindingFlags.Instance)
 				?? throw new InvalidOperationException("Could not find field 'immediateBaseObject' on type 'PSObject'.");
 		}
 
@@ -195,7 +195,7 @@ public static class PSObjectExtensions
 		/// <exception cref="TypeInitializationException">Thrown when the class's static constructor can't find the PSObject fields it reads.</exception>
 		internal static object? GetRawImmediateBaseObject(PSObject psObject)
 		{
-			return _immediateBaseObjectField.GetValue(psObject);
+			return s_immediateBaseObjectField.GetValue(psObject);
 		}
 
 		/// <summary>
@@ -209,7 +209,7 @@ public static class PSObjectExtensions
 		/// <exception cref="TypeInitializationException">Thrown when the class's static constructor can't find the PSObject fields it reads.</exception>
 		internal static bool IsImmediateBaseObjectIsEmpty(PSObject psObject)
 		{
-			return _immediateBaseObjectIsEmptyField.GetValue(psObject) as bool? ?? false;
+			return s_immediateBaseObjectIsEmptyField.GetValue(psObject) as bool? ?? false;
 		}
 #endif
 	}
