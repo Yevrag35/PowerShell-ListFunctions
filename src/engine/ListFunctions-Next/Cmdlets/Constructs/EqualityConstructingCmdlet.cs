@@ -334,9 +334,10 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// Returns the equality comparer to construct the collection with.
 	/// </summary>
 	/// <remarks>
-	/// For <see cref="string"/> elements, the base implementation returns <see cref="StringComparer.CurrentCulture"/>
-	/// when <c>-CaseSensitive</c> is set and <see cref="StringComparer.OrdinalIgnoreCase"/> otherwise. For any other
-	/// type it returns <see langword="null"/>, and the collection constructor chooses its default comparer.
+	/// For <see cref="string"/> elements, the base implementation returns <see cref="StringComparer.Ordinal"/> when
+	/// <c>-CaseSensitive</c> is set and <see cref="StringComparer.OrdinalIgnoreCase"/> otherwise. Both comparisons are
+	/// ordinal, so <c>-CaseSensitive</c> changes only whether case matters. For any other type the method returns
+	/// <see langword="null"/>, and the collection constructor chooses its default comparer.
 	/// </remarks>
 	/// <param name="genericType">The type used for equality.</param>
 	/// <returns>The equality comparer to use, or <see langword="null"/> to use the constructor's default.</returns>
@@ -346,7 +347,7 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 			return null;
 
 		return IsParameterValueCaseSensitive(_caseSensitive)
-			? StringComparer.CurrentCulture
+			? StringComparer.Ordinal
 			: StringComparer.OrdinalIgnoreCase;
 	}
 	/// <summary>

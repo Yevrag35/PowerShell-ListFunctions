@@ -20,7 +20,7 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// </para>
 /// <para>
 /// When <see cref="KeyType"/> is <see cref="string"/>, keys compare with
-/// <see cref="StringComparer.OrdinalIgnoreCase"/>, or with <see cref="StringComparer.CurrentCulture"/> when
+/// <see cref="StringComparer.OrdinalIgnoreCase"/>, or with <see cref="StringComparer.Ordinal"/> when
 /// <c>-CaseSensitive</c> is set. <see cref="object"/> keys compare the way the <see cref="Hashtable"/>'s keys do,
 /// whatever <see cref="ValueType"/> is: string keys the same way as <see cref="string"/> keys, and other keys with their
 /// own <see cref="object.Equals(object)"/> method. <see cref="EqualityScript"/> and <see cref="HashCodeScript"/>

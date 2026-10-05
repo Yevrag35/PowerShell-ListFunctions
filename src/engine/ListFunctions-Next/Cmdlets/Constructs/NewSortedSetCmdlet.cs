@@ -14,9 +14,16 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Without <see cref="ComparingScript"/>, a set of <see cref="object"/> orders its elements by using PowerShell's
-/// comparison rules, and a set of <see cref="string"/> uses <see cref="StringComparer.InvariantCultureIgnoreCase"/>.
-/// In both cases, strings compare case-insensitively. Other element types use <see cref="Comparer{T}.Default"/>.
+/// Without <see cref="ComparingScript"/>, the element type defaults to <see cref="string"/>, and its elements compare
+/// with <see cref="StringComparer.InvariantCultureIgnoreCase"/>. Other element types use
+/// <see cref="Comparer{T}.Default"/>, so they must have a consistent default order: they must implement
+/// <see cref="IComparable{T}"/> of themselves, be enums, or be <see cref="Nullable{T}"/> of such a type. Any other
+/// element type, <see cref="object"/> and <see cref="PSObject"/> included, is a terminating error before the cmdlet
+/// reads any input.
+/// </para>
+/// <para>
+/// With <see cref="ComparingScript"/>, the script block compares the elements, so any element type is accepted, and the
+/// element type defaults to <see cref="object"/>.
 /// </para>
 /// <para>
 /// Elements that compare as equal are stored once. The set is written as a single object and is not enumerated into
@@ -36,15 +43,24 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 	/// Gets or sets the element type of the set.
 	/// </summary>
 	/// <remarks>
+	/// <para>
 	/// The parameter accepts a <see cref="Type"/>, a type name, or a script block that contains a type literal such
 	/// as <c>{ [int] }</c>.
+	/// </para>
+	/// <para>
+	/// Without <see cref="ComparingScript"/>, the type must implement <see cref="IComparable{T}"/> of itself, be an
+	/// enum, or be a <see cref="Nullable{T}"/> of such a type. With <see cref="ComparingScript"/>, any type is accepted.
+	/// </para>
 	/// </remarks>
-	/// <value>The element type. Defaults to <see cref="object"/>.</value>
+	/// <value>
+	/// The element type. Defaults to <see cref="string"/>, or to <see cref="object"/> when <see cref="ComparingScript"/>
+	/// is supplied.
+	/// </value>
 	[Parameter(Mandatory = false, Position = 0)]
 	[ArgumentToTypeTransform]
-	[PSDefaultValue(Value = typeof(object))]
+	[PSDefaultValue(Help = "[string], or [object] with -ComparingScript")]
 	[Alias("Type")]
-	public Type GenericType { get => field ??= typeof(object); set; }
+	public Type GenericType { get; set; } = null!;
 
 	/// <summary>
 	/// Gets or sets the script block that compares two elements to determine their sort order.
@@ -93,15 +109,40 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 	public ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.Stop;
 
 	/// <summary>
-	/// Creates the sorted set with the configured element type and comparer.
+	/// Resolves the element type and creates the sorted set with it.
 	/// </summary>
+	/// <remarks>
+	/// With <see cref="ComparingScript"/>, the element type defaults to <see cref="object"/>, and the set compares its
+	/// elements with the script block. Without it, the element type defaults to <see cref="string"/>, and the set uses
+	/// the element type's default order, which the method checks for before it creates the set.
+	/// </remarks>
+	/// <exception cref="ArgumentException">
+	/// Thrown when <see cref="ComparingScript"/> isn't supplied and <see cref="GenericType"/> has no consistent default
+	/// order.
+	/// </exception>
 	protected override void BeginCore()
 	{
-		IComparer? comparer = this.GetCustomComparer(this.GenericType);
+		IComparer? comparer = null;
+		if (this.MyInvocation.BoundParameters.ContainsKey(nameof(this.ComparingScript)))
+		{
+			this.GenericType ??= typeof(object);
+			comparer = ComparingBlock.Create(this.ComparingScript, this.GenericType, this.GetAction());
+		}
+		else
+		{
+			this.GenericType ??= typeof(string);
+			if (!HasDefaultOrder(this.GenericType))
+			{
+				throw new ArgumentException(
+					$"Cannot sort elements of type \"{this.GenericType.GetTypeName()}\" without -ComparingScript, because "
+					+ "the type has no default sort order. Use -ComparingScript, or an element type that has a default sort "
+					+ "order, such as [string], [int], [datetime], or an enum.",
+					nameof(this.GenericType));
+			}
+		}
 
 		_ctor = new SortingCollectorCtor(this.GenericType, comparer);
 		_set = _ctor.Construct();
-
 	}
 	/// <summary>
 	/// Converts the elements of the current <see cref="InputObject"/> and adds them to the set.
@@ -162,15 +203,35 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 		yield return new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction);
 	}
 	/// <summary>
-	/// Builds a comparer from <see cref="ComparingScript"/> when that parameter is bound.
+	/// Determines whether the specified element type has a consistent default sort order.
 	/// </summary>
-	/// <param name="genericType">The element type of the set.</param>
-	/// <returns>A script-based comparer for <paramref name="genericType"/>, or <see langword="null"/> when <see cref="ComparingScript"/> is not bound.</returns>
-	private IComparer? GetCustomComparer(Type genericType)
+	/// <remarks>
+	/// A type has one when it implements <see cref="IComparable{T}"/> of itself, is an enum, or is a
+	/// <see cref="Nullable{T}"/> of a type that has one. <see cref="Comparer{T}.Default"/> orders these types by value.
+	/// For any other type, it calls <see cref="IComparable.CompareTo(object)"/>, which isn't a consistent order when the
+	/// elements' types differ, as they can in a set of <see cref="object"/> or <see cref="PSObject"/>.
+	/// </remarks>
+	/// <param name="type">The element type to check. This value must not be <see langword="null"/>.</param>
+	/// <returns>
+	/// <see langword="true"/> if <paramref name="type"/> has a consistent default sort order; otherwise,
+	/// <see langword="false"/>.
+	/// </returns>
+	/// <exception cref="ArgumentException">
+	/// Thrown when <paramref name="type"/> can't be a generic type argument, such as a pointer type.
+	/// </exception>
+	private static bool HasDefaultOrder(Type type)
 	{
-		return this.MyInvocation.BoundParameters.ContainsKey(nameof(this.ComparingScript))
-			? ComparingBlock.Create(this.ComparingScript, genericType, this.GetAction())
-			: null;
+		if (type.IsEnum)
+		{
+			return true;
+		}
+
+		if (Nullable.GetUnderlyingType(type) is Type underlyingType)
+		{
+			return HasDefaultOrder(underlyingType);
+		}
+
+		return typeof(IComparable<>).MakeGenericType(type).IsAssignableFrom(type);
 	}
 }
 

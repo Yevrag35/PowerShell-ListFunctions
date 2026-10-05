@@ -19,7 +19,7 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// </para>
 /// <para>
 /// When <see cref="GenericType"/> is <see cref="string"/>, elements compare with
-/// <see cref="StringComparer.OrdinalIgnoreCase"/>, or with <see cref="StringComparer.CurrentCulture"/> when
+/// <see cref="StringComparer.OrdinalIgnoreCase"/>, or with <see cref="StringComparer.Ordinal"/> when
 /// <c>-CaseSensitive</c> is set. Other element types use <see cref="EqualityComparer{T}.Default"/>.
 /// <see cref="EqualityScript"/> and <see cref="HashCodeScript"/> replace the default comparison with PowerShell
 /// script blocks.

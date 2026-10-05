@@ -11,9 +11,9 @@ Item numbers continue from `bugs.md`, so each number names one item in either fi
 **Wrong results**
 
 - [x] 23 — Collections with script comparers break in other runspaces
-- [ ] 24 — An `[object]` sorted set has no consistent order when its elements' types differ
-- [ ] 25 — `-CaseSensitive` switches to a culture-sensitive comparison
-- [ ] 26 — ConvertTo-Dictionary throws a NullReferenceException when no key is given
+- [x] 24 — An `[object]` sorted set has no consistent order when its elements' types differ
+- [x] 25 — `-CaseSensitive` switches to a culture-sensitive comparison
+- [x] 26 — ConvertTo-Dictionary throws a NullReferenceException when no key is given
 - [ ] 27 — ConvertTo-Dictionary's `-ValueType` doesn't work without a value selector
 - [ ] 28 — ConvertTo-Dictionary silently ignores some arguments
 - [ ] 29 — Open generic `[OutputType]` types break member completion
@@ -191,6 +191,15 @@ $people | New-SortedSet     # As [string]: '@{Id=1; Name=Ann}' and '@{Id=2; Name
   Both can still use `-ComparingScript`.
 - **`$null` elements are still skipped.** The cmdlet skips them before it converts anything (`NewSortedSetCmdlet.cs:130`), so the `[string]` default doesn't turn `$null` into `''`, and 38's `($null | New-SortedSet).Count` stays 0.
 
+**Fixed:** as decided.
+
+- **The check and the default:** `NewSortedSetCmdlet.BeginCore` resolves `GenericType`. With `-ComparingScript`, it defaults to `[object]`. Without it, it defaults to `[string]`, and the new `HasDefaultOrder` rejects a type that doesn't implement `IComparable[T]` of itself and isn't an enum or a `Nullable[U]` of such a type. The rejection is an `ArgumentException`, which the base class turns into a terminating error with the ID `System.ArgumentException,ListFunctions.Cmdlets.Constructs.NewSortedSetCmdlet` before any input is read. `GenericType` lost its `field ??= typeof(object)` getter, and its `[PSDefaultValue]` gives a `Help` text instead of a value.
+- **Dead code:** `SortingCollectorCtor` lost `ObjectComparer` and the `[object]` branch of `GetComparer`. `ShouldConstructDefault` always returns `false`, and `ConstructDefault`, which `GenericCollectionCtor` requires, throws `NotSupportedException`.
+- **README:** New-SortedSet's description, its script block section, and its `-GenericType` row.
+- **Results, in both editions:** the repro gives `1,10,2,9` and `Contains('10') = True` for all three orders. The changes for users happen as measured above: `5, 3, 10 | New-SortedSet` gives `10, 3, 5`, and `$people | New-SortedSet` holds both people's string forms, without an error.
+- **Left for other items:** `[string]` elements still sort with `InvariantCultureIgnoreCase` until 30, and New-SortedSet's open `[OutputType]` waits for 29.
+- **Tests:** a new `Element type` context in `tests/New-SortedSet.Tests.ps1` covers the `[string]` default with the repro's three orders, the rejection of `[object]`, `[psobject]`, and `[Tuple[int, string]]` before any input is read, `[ConsoleColor]` and `[Nullable[int]]`, which pass the check without implementing `IComparable[T]` of themselves, and the `[object]` default with `-ComparingScript`.
+
 ### 25 — `-CaseSensitive` switches to a culture-sensitive comparison
 
 **Where:** `GetCustomEqualityComparer` in `src/engine/ListFunctions-Next/Cmdlets/Constructs/EqualityConstructingCmdlet.cs:349`, and `GetObjectKeyComparer` in `src/engine/ListFunctions.Engine/Modern/Constructors/DictionaryCtor.cs:104`. Without the switch, strings compare with `StringComparer.OrdinalIgnoreCase`. With it, they compare with `StringComparer.CurrentCulture`.
@@ -216,6 +225,11 @@ The README describes `[string]` comparison as "Ordinal, without regard to case",
 
 **Decided on 2026-10-04:** as the fix idea says, following 30's ordinal rule.
 
+**Fixed:** `EqualityConstructingCmdlet.GetCustomEqualityComparer` and `DictionaryCtor.GetObjectKeyComparer` return `StringComparer.Ordinal` for `-CaseSensitive`, so the switch now changes only whether case matters. The XML docs that named `CurrentCulture`, in those two files and in `NewHashSetCmdlet` and `NewDictionaryCmdlet`, name `Ordinal`. Every repro gives 2 in both editions, and so do a `Hashtable` and a `Dictionary[object, int]` from New-Dictionary with `-CaseSensitive`. The README already calls `[string]` comparison ordinal, so it doesn't change.
+
+- **Left for 30:** an `[object]` set with `-CaseSensitive` still compares with `LanguagePrimitives.Equals` and hashes with `InvariantCulture`. `(New-HashSet -InputObject $decomposed, $precomposed -CaseSensitive).Count` is still 1 in both editions, and so is the same set of `'ab'` and `$hyphenated`.
+- **Tests:** `tests/New-HashSet.Tests.ps1` checks that a `[string]` set with `-CaseSensitive` keeps both of the repro's pairs apart. `DictionaryCtorTests.Construct_ComparesObjectKeysOrdinallyWhenCaseSensitive` checks the decomposed and precomposed `é` as `[object]` keys, with `[object]` and `[int]` values. New-Dictionary's `[string]` keys get their comparer from the same base method as New-HashSet's `[string]` elements, so they have no test of their own.
+
 ### 26 — ConvertTo-Dictionary throws a NullReferenceException when no key is given
 
 **Where:** `src/engine/ListFunctions-Next/Cmdlets/Constructs/ConvertToDictionaryCmdlet.cs:46`. The default parameter set, `None`, contains neither `-KeyPropertyName` nor `-KeySelector`, so `InferTypes` runs a `$null` key selector.
@@ -228,6 +242,13 @@ $people | ConvertTo-Dictionary -ValuePropertyName Name    # The same error
 ```
 
 **Fix idea:** Remove the `None` set, or make a key parameter set the default, so that the binder asks for the key.
+
+**Fixed:** the `None` set is gone, and `KeyProperty` is the default parameter set. New `KEY_PROPERTY` and `KEY_SCRIPT` constants name the two sets in the `[Cmdlet]` and `[Parameter]` attributes and in `BeginCore`, and `Get-Command -Syntax` lists only those two. Measured in both editions:
+
+- **Without a key:** both repros prompt for `-KeyPropertyName` in a console. In a runspace without a host, they end the statement with a `MissingMandatoryParameter` error whose message names `KeyPropertyName`.
+- **Positional binding doesn't change:** `ConvertTo-Dictionary Id Name` still binds `-KeyPropertyName`, and `ConvertTo-Dictionary { $_.Id }` still binds `-KeySelector`.
+- **Docs:** the class's XML docs and the README's `-KeyPropertyName` row say that a key parameter is required.
+- **Tests:** a new `Key parameters` context in `tests/ConvertTo-Dictionary.Tests.ps1` runs both repros through `Invoke-InNewRunspace`, whose runspace can't prompt. They have merit because 28 may split the value parameters into more parameter sets, and a set without a key could come back.
 
 ### 27 — ConvertTo-Dictionary's `-ValueType` doesn't work without a value selector
 

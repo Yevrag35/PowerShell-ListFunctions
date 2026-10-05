@@ -124,6 +124,24 @@ public sealed class DictionaryCtorTests : IClassFixture<RunspaceFixture>
 	}
 
 	[Theory]
+	[InlineData(typeof(object))]
+	[InlineData(typeof(int))]
+	public void Construct_ComparesObjectKeysOrdinallyWhenCaseSensitive(Type valueType)
+	{
+		var ctor = new DictionaryCtor(comparer: null, keyType: null, valueType)
+		{
+			IsCaseSensitive = true,
+		};
+		var dict = Assert.IsAssignableFrom<IDictionary>(ctor.Construct());
+
+		// A culture-sensitive comparison treats the decomposed and the precomposed accented e as the same key.
+		dict["é"] = 1;
+		dict["é"] = 2;
+
+		Assert.Equal(2, dict.Count);
+	}
+
+	[Theory]
 	[Trait("Category", "Bug20")]
 	[InlineData(typeof(object))]
 	[InlineData(typeof(int))]

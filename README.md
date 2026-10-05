@@ -272,16 +272,22 @@ $set.Count              # 2
 
 Creates a `System.Collections.Generic.SortedSet[T]`, which holds each distinct element once and keeps the elements in sorted order. Input elements are converted to `T` as they're added. An element that can't be converted writes a non-terminating error and isn't added.
 
-Unless you supply a script block sort order, an `[object]` set compares elements the way PowerShell's `-lt` and `-gt` operators do, a `[string]` set compares strings without regard to case, and a set of any other type uses the type's default order. Elements that compare as equal are duplicates, so a `[string]` set holds only one of `'a'` and `'A'`.
+Unless you supply a script block sort order, the set uses the default order of `T`, which is `[string]` unless you pass `-GenericType`. A `[string]` set compares strings without regard to case. Elements that compare as equal are duplicates, so a `[string]` set holds only one of `'a'` and `'A'`.
+
+`T` needs a default order: it has to implement `IComparable[T]`, as `[int]` implements `IComparable[int]`, or be an enum, or be a `Nullable[U]` whose `U` qualifies. `[string]`, `[int]`, `[datetime]`, and `[version]` all qualify. Any other type, such as `[object]` or `[psobject]`, is an error before the command reads any input. To sort elements of those types, pass `-ComparingScript`.
 
 ```powershell
 $set = 5, 3, 1, 3 | New-SortedSet [int]
 $set                    # 1, 3, 5
+
+# Without a type, the elements are strings, so numbers sort as text.
+$set = 5, 3, 10 | New-SortedSet
+$set                    # 10, 3, 5
 ```
 
 #### Script block sort order
 
-To define the order yourself, pass `-ComparingScript`. It receives two elements, as `$x` or `$left` and `$y` or `$right`, and returns an `[int]`: less than zero if the first element sorts before the second, zero if they're equal, and greater than zero if the first element sorts after the second.
+To define the order yourself, pass `-ComparingScript`. It receives two elements, as `$x` or `$left` and `$y` or `$right`, and returns an `[int]`: less than zero if the first element sorts before the second, zero if they're equal, and greater than zero if the first element sorts after the second. With `-ComparingScript`, `T` can be any type, and it's `[object]` unless you pass `-GenericType`.
 
 ```powershell
 # Descending order.
@@ -304,7 +310,7 @@ $set.Name               # Bob, Ann
 
 | Parameter | Description |
 | --- | --- |
-| `-GenericType` | Position 0. Alias: `Type`. The element type, `T`. Default: `[object]`. |
+| `-GenericType` | Position 0. Alias: `Type`. The element type, `T`. Default: `[string]`, or `[object]` with `-ComparingScript`. |
 | `-InputObject` | The elements to add. Accepts pipeline input. |
 | `-ComparingScript` | A script block that returns the sort order of two elements. |
 | `-ScriptBlockErrorAction` | The `$ErrorActionPreference` inside `-ComparingScript`. Default: `Stop`. |
@@ -404,7 +410,7 @@ $byDept['HR']           # Jane
 | Parameter | Description |
 | --- | --- |
 | `-InputObject` | The objects to index. Accepts pipeline input. |
-| `-KeyPropertyName` | Position 0. Aliases: `KeyName`, `Key`. The name of the property that holds each object's key. |
+| `-KeyPropertyName` | Position 0. Aliases: `KeyName`, `Key`. Required unless you pass `-KeySelector`. The name of the property that holds each object's key. |
 | `-KeySelector` | Position 0. A script block that returns each object's key. Use it instead of `-KeyPropertyName`. |
 | `-ValuePropertyName` | Position 1. Aliases: `ValueName`, `Value`. The name of the property that holds each object's value, or a script block that returns the value. |
 | `-ValueSelector` | A script block that returns each object's value. |

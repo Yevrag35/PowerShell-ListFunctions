@@ -1,4 +1,4 @@
- using ListFunctions.Components;
+using ListFunctions.Components;
 using ListFunctions.Exceptions;
 using ListFunctions.Extensions;
 using ListFunctions.Modern;
@@ -17,10 +17,10 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// <remarks>
 /// <para>
 /// Each object's key comes from the property named by <see cref="KeyPropertyName"/> or from the output of
-/// <see cref="KeySelector"/>. Its value comes from the property named by <see cref="ValuePropertyName"/>, from the
-/// output of <see cref="ValueSelector"/>, or, when neither is supplied, from the object itself. A property or selector
-/// that gives <see langword="null"/> stores <see langword="null"/> converted to the value type.
-/// <see cref="KeySelector"/> and <see cref="ValueSelector"/> run at most once for each input object.
+/// <see cref="KeySelector"/>, and one of the two is required. Its value comes from the property named by
+/// <see cref="ValuePropertyName"/>, from the output of <see cref="ValueSelector"/>, or, when neither is supplied, from
+/// the object itself. A property or selector that gives <see langword="null"/> stores <see langword="null"/> converted
+/// to the value type. <see cref="KeySelector"/> and <see cref="ValueSelector"/> run at most once for each input object.
 /// </para>
 /// <para>
 /// The key type is inferred from the key of the first input object that isn't <see langword="null"/>. The value type
@@ -43,9 +43,22 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// received, the cmdlet writes an empty, case-insensitive <see cref="Hashtable"/>.
 /// </para>
 /// </remarks>
-[Cmdlet(VerbsData.ConvertTo, "Dictionary", DefaultParameterSetName = "None")]
+[Cmdlet(VerbsData.ConvertTo, "Dictionary", DefaultParameterSetName = KEY_PROPERTY)]
 public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 {
+	/// <summary>
+	/// The name of the parameter set in which <see cref="KeyPropertyName"/> selects each key.
+	/// </summary>
+	/// <remarks>
+	/// It's the default parameter set, so when neither <see cref="KeyPropertyName"/> nor <see cref="KeySelector"/> is
+	/// given, PowerShell asks for <see cref="KeyPropertyName"/>, or reports it as missing when it can't prompt.
+	/// </remarks>
+	private const string KEY_PROPERTY = "KeyProperty";
+	/// <summary>
+	/// The name of the parameter set in which <see cref="KeySelector"/> computes each key.
+	/// </summary>
+	private const string KEY_SCRIPT = "KeyScript";
+
 	/// <summary>
 	/// Gets or sets the objects to convert. The value is accepted from the pipeline.
 	/// </summary>
@@ -91,7 +104,7 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// Gets or sets the name of the property whose value becomes each object's key.
 	/// </summary>
 	/// <value>The key property name.</value>
-	[Parameter(Mandatory = true, Position = 0, ParameterSetName = "KeyProperty"), Alias("KeyName", "Key")]
+	[Parameter(Mandatory = true, Position = 0, ParameterSetName = KEY_PROPERTY), Alias("KeyName", "Key")]
 	[ValidateNotNullOrWhiteSpace]
 	public string KeyPropertyName { get; set; } = string.Empty;
 
@@ -103,7 +116,7 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// and must reference at least one of them. The first object it outputs becomes the key.
 	/// </remarks>
 	/// <value>The key selector <see cref="ScriptBlock"/>.</value>
-	[Parameter(Mandatory = true, Position = 0, ParameterSetName = "KeyScript")]
+	[Parameter(Mandatory = true, Position = 0, ParameterSetName = KEY_SCRIPT)]
 	[ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.PSItem, PSThisVariable.This, PSThisVariable.FirstArg)]
 	public ScriptBlock KeySelector { get; set; } = null!;
 
@@ -177,7 +190,7 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	{
 		_addToDictionaryPtr = StoreAddToDictionaryFunction(this.DuplicateKeyBehavior);
 
-		if (this.ParameterSetName.StartsWith("KeyProperty", StringComparison.Ordinal))
+		if (this.ParameterSetName.StartsWith(KEY_PROPERTY, StringComparison.Ordinal))
 		{
 			this.KeySelector = CreatePropertySelector(this.KeyPropertyName);
 			this.KeyPropertyName = string.Empty;

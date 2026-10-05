@@ -56,7 +56,7 @@ public sealed class DictionaryCtor : EqualityCollectionCtor<Hashtable>
 	/// </summary>
 	/// <remarks>
 	/// String keys compare with <see cref="StringComparer.OrdinalIgnoreCase"/>, or with
-	/// <see cref="StringComparer.CurrentCulture"/> when <see cref="EqualityCollectionCtor.IsCaseSensitive"/> is
+	/// <see cref="StringComparer.Ordinal"/> when <see cref="EqualityCollectionCtor.IsCaseSensitive"/> is
 	/// <see langword="true"/>. The table has room for <see cref="EqualityCollectionCtor.Capacity"/> entries.
 	/// </remarks>
 	/// <param name="comparer">The comparer that the base class chose. This implementation uses a string comparer instead.</param>
@@ -71,7 +71,7 @@ public sealed class DictionaryCtor : EqualityCollectionCtor<Hashtable>
 	/// <remarks>
 	/// Whatever the value type is, <see cref="object"/> keys compare the way the keys of the <see cref="Hashtable"/> do,
 	/// which <see cref="GenericCollectionCtor.Construct"/> creates when both types are <see cref="object"/>: strings with
-	/// <see cref="StringComparer.OrdinalIgnoreCase"/>, or with <see cref="StringComparer.CurrentCulture"/> when
+	/// <see cref="StringComparer.OrdinalIgnoreCase"/>, or with <see cref="StringComparer.Ordinal"/> when
 	/// <see cref="EqualityCollectionCtor.IsCaseSensitive"/> is <see langword="true"/>, and other keys with their own
 	/// <see cref="object.Equals(object)"/> method. Other key types use the base implementation.
 	/// </remarks>
@@ -95,13 +95,13 @@ public sealed class DictionaryCtor : EqualityCollectionCtor<Hashtable>
 	/// <c>1</c> and <c>"1"</c> are different keys.
 	/// </remarks>
 	/// <returns>
-	/// <see cref="StringComparer.CurrentCulture"/> when <see cref="EqualityCollectionCtor.IsCaseSensitive"/> is
+	/// <see cref="StringComparer.Ordinal"/> when <see cref="EqualityCollectionCtor.IsCaseSensitive"/> is
 	/// <see langword="true"/>; otherwise, <see cref="StringComparer.OrdinalIgnoreCase"/>.
 	/// </returns>
 	private StringComparer GetObjectKeyComparer()
 	{
 		return this.IsCaseSensitive
-			? StringComparer.CurrentCulture
+			? StringComparer.Ordinal
 			: StringComparer.OrdinalIgnoreCase;
 	}
 

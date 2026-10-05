@@ -116,6 +116,16 @@ Describe 'New-HashSet' {
 			$set.Count | Should-Be 1
 		}
 
+		# -CaseSensitive compares ordinally, as the comparison without it does. A culture-sensitive comparison treats each
+		# of these pairs as equal.
+		It 'keeps <Label> apart in a [string] set with -CaseSensitive' -ForEach @(
+			@{ Label = 'a decomposed and a precomposed accented e'; Elements = @(('e' + [char]0x301), [string][char]0xE9) }
+			@{ Label = 'two strings that differ only by a soft hyphen'; Elements = @('ab', ('a' + [char]0xAD + 'b')) }
+		) {
+			$set = $Elements | New-HashSet [string] -CaseSensitive
+			$set.Count | Should-Be 2
+		}
+
 		It "doesn't offer -CaseSensitive for other element types" -Tag 'Bug03' {
 			{ New-HashSet [int] -CaseSensitive } | Should-Throw -FullyQualifiedErrorId 'NamedParameterNotFound,*'
 		}

@@ -19,6 +19,49 @@ Describe 'New-SortedSet' {
 		Should-BeCollection -Expected @(3) -Actual ([object[]]$set)
 	}
 
+	Context 'Element type' {
+		# Elements of different types used to sort in a different order for each input order, and the set sometimes
+		# couldn't find its own elements.
+		It 'converts the elements to [string] when no type is given, so <Order> gives the same set' -ForEach @(
+			@{ Order = "1, '10', 9, '2'"; Elements = @(1, '10', 9, '2') }
+			@{ Order = "'10', 9, '2', 1"; Elements = @('10', 9, '2', 1) }
+			@{ Order = "9, '2', 1, '10'"; Elements = @(9, '2', 1, '10') }
+		) {
+			$set = $Elements | New-SortedSet
+			Should-HaveType -Expected ([System.Collections.Generic.SortedSet[string]]) -Actual $set
+			Should-BeCollection -Expected @('1', '10', '2', '9') -Actual ([object[]]$set)
+			$set.Contains('10') | Should-BeTrue
+		}
+
+		It 'rejects [<Name>] elements without -ComparingScript, before it reads any input' -ForEach @(
+			@{ Name = 'object'; Type = [object] }
+			@{ Name = 'psobject'; Type = [psobject] }
+			# Tuple implements only the non-generic IComparable.
+			@{ Name = 'Tuple[int, string]'; Type = [Tuple[int, string]] }
+		) {
+			$read = [System.Collections.Generic.List[object]]::new()
+			{ 1, 2 | ForEach-Object { $read.Add($_); $_ } | New-SortedSet $Type } | Should-Throw -FullyQualifiedErrorId 'System.ArgumentException,*' -ExceptionMessage '*-ComparingScript*'
+			$read.Count | Should-Be 0
+		}
+
+		# Comparer[T].Default sorts these types by value, although they don't implement IComparable[T] of themselves.
+		It 'sorts [<Name>] elements without -ComparingScript' -ForEach @(
+			@{ Name = 'ConsoleColor'; Type = [ConsoleColor]; Elements = @('Red', 'Black', 'Blue'); Expected = @([ConsoleColor]::Black, [ConsoleColor]::Blue, [ConsoleColor]::Red) }
+			@{ Name = 'Nullable[int]'; Type = [Nullable[int]]; Elements = @(3, 1, 2); Expected = @(1, 2, 3) }
+		) {
+			$set = $Elements | New-SortedSet $Type
+			Should-BeCollection -Expected $Expected -Actual ([object[]]$set)
+		}
+
+		It 'keeps the elements as they are with -ComparingScript and no type' {
+			# As strings, both people would have no Id, and the set would keep only one of them.
+			$people = [pscustomobject]@{ Id = 2; Name = 'Bob' }, [pscustomobject]@{ Id = 1; Name = 'Ann' }
+			$set = $people | New-SortedSet -ComparingScript { $x.Id - $y.Id }
+			Should-HaveType -Expected ([System.Collections.Generic.SortedSet[object]]) -Actual $set
+			Should-BeCollection -Expected @('Ann', 'Bob') -Actual ([object[]]$set.Name)
+		}
+	}
+
 	Context 'Conversion' {
 		It "writes an error for an element that can't be converted, and adds the others, when the input is <Label>" -Tag 'Bug17' -ForEach @(
 			@{ Label = 'piped'; Piped = $true }

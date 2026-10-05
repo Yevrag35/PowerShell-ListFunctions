@@ -27,6 +27,20 @@ Describe 'ConvertTo-Dictionary' {
 		}
 	}
 
+	# A console would prompt for the missing parameter. The new runspace has no host to prompt with, so PowerShell writes
+	# an error that names the parameter instead.
+	Context 'Key parameters' {
+		It 'reports -KeyPropertyName as missing when <Label>' -ForEach @(
+			@{ Label = 'no other parameter is given'; Parameters = '' }
+			@{ Label = 'only -ValuePropertyName is given'; Parameters = ' -ValuePropertyName Id' }
+		) {
+			$result = Invoke-InNewRunspace "[pscustomobject]@{ Id = 1 } | ConvertTo-Dictionary$Parameters"
+			$result.Errors.Count | Should-Be 1
+			$result.Errors[0].FullyQualifiedErrorId | Should-Be 'MissingMandatoryParameter,ListFunctions.Cmdlets.Constructs.ConvertToDictionaryCmdlet'
+			$result.Errors[0].Exception.Message | Should-BeLikeString -Expected '*KeyPropertyName*'
+		}
+	}
+
 	Context 'KeySelector and ValueSelector' {
 		It 'gives -KeySelector the input object as <Name> when an operator follows it' -Tag 'Bug12' -ForEach @(
 			@{ Name = '$_'; Selector = { $_*10 } }
