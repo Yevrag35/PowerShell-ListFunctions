@@ -27,9 +27,9 @@ Describe 'ConvertTo-Dictionary' {
 		}
 	}
 
-	# A console would prompt for the missing parameter. The new runspace has no host to prompt with, so PowerShell writes
-	# an error that names the parameter instead.
 	Context 'Key parameters' {
+		# A console would prompt for the missing parameter. The new runspace has no host to prompt with, so PowerShell
+		# writes an error that names the parameter instead.
 		It 'reports -KeyPropertyName as missing when <Label>' -ForEach @(
 			@{ Label = 'no other parameter is given'; Parameters = '' }
 			@{ Label = 'only -ValuePropertyName is given'; Parameters = ' -ValuePropertyName Id' }
@@ -38,6 +38,24 @@ Describe 'ConvertTo-Dictionary' {
 			$result.Errors.Count | Should-Be 1
 			$result.Errors[0].FullyQualifiedErrorId | Should-Be 'MissingMandatoryParameter,ListFunctions.Cmdlets.Constructs.ConvertToDictionaryCmdlet'
 			$result.Errors[0].Exception.Message | Should-BeLikeString -Expected '*KeyPropertyName*'
+		}
+
+		# -KeyPropertyName rejects a script block with an error that PowerShell treats as a failed conversion. PowerShell
+		# ignores those while it looks for a parameter that takes an argument by position, so the script block still
+		# reaches -KeySelector. Any other error would end the binding at -KeyPropertyName.
+		It 'binds a script block passed by position to -KeySelector' {
+			$items = [pscustomobject]@{ Id = 1; Name = 'Ann' }, [pscustomobject]@{ Id = 2; Name = 'Bob' }
+			$dict = $items | ConvertTo-Dictionary { $_.Id * 10 } Name
+			Should-BeCollection -Expected @(10, 20) -Actual ([object[]]$dict.Keys)
+			$dict[10] | Should-Be 'Ann'
+		}
+
+		It 'rejects a script block passed to -<Parameter> by name' -ForEach @(
+			@{ Parameter = 'KeyPropertyName' }
+			@{ Parameter = 'Key' }
+		) {
+			$parameters = @{ $Parameter = { $_.Id } }
+			{ [pscustomobject]@{ Id = 1 } | ConvertTo-Dictionary @parameters } | Should-Throw -FullyQualifiedErrorId 'ParameterArgumentTransformationError,ListFunctions.Cmdlets.Constructs.ConvertToDictionaryCmdlet' -ExceptionMessage '*-KeySelector*'
 		}
 	}
 
@@ -135,6 +153,49 @@ Describe 'ConvertTo-Dictionary' {
 			$dict.Count | Should-Be 1
 			$dict['k'] | Should-Be 'v'
 		}
+
+		# Get-Content delivers each line wrapped in a PSObject, and a variable keeps the wrapper.
+		It 'selects each value with a <Label> wrapped in a PSObject' -ForEach @(
+			@{ Label = 'property name'; Value = 'Name' }
+			@{ Label = 'script block'; Value = { $_.Name } }
+		) {
+			$items = [pscustomobject]@{ Id = 1; Name = 'Ann' }, [pscustomobject]@{ Id = 2; Name = 'Bob' }
+			$wrapped = [psobject]$Value
+			$dict = $items | ConvertTo-Dictionary Id $wrapped
+			$dict[1] | Should-Be 'Ann'
+			$dict[2] | Should-Be 'Bob'
+		}
+
+		It 'rejects a -ValuePropertyName that is <Label>' -ForEach @(
+			@{ Label = 'a number'; Value = 5 }
+			@{ Label = 'an array of names'; Value = @('Name', 'Id') }
+		) {
+			{ [pscustomobject]@{ Id = 1; Name = 'Ann' } | ConvertTo-Dictionary Id $Value } | Should-Throw -FullyQualifiedErrorId 'ParameterArgumentTransformationError,ListFunctions.Cmdlets.Constructs.ConvertToDictionaryCmdlet' -ExceptionMessage '*string or a script block*'
+		}
+	}
+
+	Context 'ValuePropertyName with ValueSelector' {
+		It 'rejects -ValueSelector with a <Label> in -ValuePropertyName before it reads any input' -ForEach @(
+			@{ Label = 'property name'; Value = 'Name' }
+			@{ Label = 'script block'; Value = { $_.Name } }
+		) {
+			$items = [pscustomobject]@{ Id = 1; Name = 'Ann' }, [pscustomobject]@{ Id = 2; Name = 'Bob' }
+			$read = [System.Collections.Generic.List[object]]::new()
+			{ $items | ForEach-Object { $read.Add($_); $_ } | ConvertTo-Dictionary Id $Value -ValueSelector { $_.Id } } | Should-Throw -FullyQualifiedErrorId 'System.ArgumentException,ListFunctions.Cmdlets.Constructs.ConvertToDictionaryCmdlet' -ExceptionMessage '*-ValueSelector*'
+			$read.Count | Should-Be 0
+		}
+
+		# A function that passes its own parameters on can pass $null or an empty string for a value property that it
+		# wasn't given.
+		It 'uses -ValueSelector when -ValuePropertyName is <Label>' -ForEach @(
+			@{ Label = '$null'; Value = $null }
+			@{ Label = 'an empty string'; Value = '' }
+		) {
+			$items = [pscustomobject]@{ Id = 1; Name = 'Ann' }, [pscustomobject]@{ Id = 2; Name = 'Bob' }
+			$dict = $items | ConvertTo-Dictionary Id $Value -ValueSelector { $_.Id * 10 }
+			$dict[1] | Should-Be 10
+			$dict[2] | Should-Be 20
+		}
 	}
 
 	Context 'Null values' {
@@ -188,6 +249,23 @@ Describe 'ConvertTo-Dictionary' {
 			$err[0].Exception.GetType().FullName | Should-Be 'ListFunctions.Exceptions.LFInvalidCastException'
 			$err[0].CategoryInfo.Category | Should-Be ([System.Management.Automation.ErrorCategory]::InvalidType)
 			$err[0].TargetObject | Should-Be 'x'
+		}
+
+		# Each value is what $d.Add($_, $_) stores in a dictionary with the same value type.
+		It 'converts each object to -ValueType when it is its own value' {
+			$dict = 1, 2 | ConvertTo-Dictionary -KeySelector { $_ } -ValueType string
+			Should-HaveType -Expected ([System.Collections.Generic.Dictionary[int, string]]) -Actual $dict
+			$dict[1] | Should-Be '1'
+			$dict[2] | Should-Be '2'
+		}
+
+		# Get-Item wraps each folder in a PSObject, and -InputObject passes the elements of an array as they are.
+		It 'stores the objects passed to -InputObject when they are their own values' {
+			$null = New-Item -ItemType Directory -Path "$TestDrive/a", "$TestDrive/b"
+			$dict = ConvertTo-Dictionary -InputObject (Get-Item -LiteralPath "$TestDrive/a", "$TestDrive/b") -KeyPropertyName Name -ErrorVariable err -ErrorAction SilentlyContinue
+			$err.Count | Should-Be 0
+			$dict.Count | Should-Be 2
+			$dict['a'].Name | Should-Be 'a'
 		}
 	}
 

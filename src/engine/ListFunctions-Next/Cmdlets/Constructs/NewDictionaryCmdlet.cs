@@ -31,7 +31,7 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// </para>
 /// </remarks>
 [Cmdlet(VerbsCommon.New, "Dictionary", DefaultParameterSetName = "None")]
-[OutputType(typeof(Dictionary<,>), typeof(Hashtable))]
+[OutputType(typeof(Dictionary<object,object>), typeof(Hashtable))]
 public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary>, IDynamicParameters
 {
 	private const string CLONE_VALUES = "CloneValues";

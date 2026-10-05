@@ -29,7 +29,7 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// </para>
 /// </remarks>
 [Cmdlet(VerbsCommon.New, "HashSet", DefaultParameterSetName = SPECIFIED_TYPE)]
-[OutputType(typeof(HashSet<>))]
+[OutputType(typeof(HashSet<object>))]
 public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDynamicParameters
 {
 	private const string DYN_PSET_NAME = "StringSet";

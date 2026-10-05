@@ -19,14 +19,17 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// Each object's key comes from the property named by <see cref="KeyPropertyName"/> or from the output of
 /// <see cref="KeySelector"/>, and one of the two is required. Its value comes from the property named by
 /// <see cref="ValuePropertyName"/>, from the output of <see cref="ValueSelector"/>, or, when neither is supplied, from
-/// the object itself. A property or selector that gives <see langword="null"/> stores <see langword="null"/> converted
-/// to the value type. <see cref="KeySelector"/> and <see cref="ValueSelector"/> run at most once for each input object.
+/// the object itself. A property name or script block in <see cref="ValuePropertyName"/> can't be combined with
+/// <see cref="ValueSelector"/>. A property or selector that gives <see langword="null"/> stores <see langword="null"/>
+/// converted to the value type. <see cref="KeySelector"/> and <see cref="ValueSelector"/> run at most once for each
+/// input object.
 /// </para>
 /// <para>
 /// The key type is inferred from the key of the first input object that isn't <see langword="null"/>. The value type
 /// is <see cref="ValueType"/>, or is inferred from the value of that object. When an inferred type is a PowerShell
-/// custom object, or the first key or value is <see langword="null"/>, <see cref="object"/> is used. Later keys and
-/// values are converted to these types.
+/// custom object, or the first key or value is <see langword="null"/>, <see cref="object"/> is used. Every key and value
+/// is converted to these types the way PowerShell converts the arguments of the dictionary's <c>Add</c> method,
+/// including an input object that is its own value.
 /// </para>
 /// <para>
 /// <see cref="DuplicateKeyBehavior"/> controls what happens when a key repeats. <see cref="string"/> keys compare
@@ -43,6 +46,7 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// received, the cmdlet writes an empty, case-insensitive <see cref="Hashtable"/>.
 /// </para>
 /// </remarks>
+[OutputType(typeof(Dictionary<object, object>))]
 [Cmdlet(VerbsData.ConvertTo, "Dictionary", DefaultParameterSetName = KEY_PROPERTY)]
 public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 {
@@ -103,8 +107,14 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// <summary>
 	/// Gets or sets the name of the property whose value becomes each object's key.
 	/// </summary>
+	/// <remarks>
+	/// The parameter rejects a script block passed to it by name when it binds, because PowerShell would otherwise
+	/// convert the script block to a property name made of the script's text. A script block passed by position binds to
+	/// <see cref="KeySelector"/>.
+	/// </remarks>
 	/// <value>The key property name.</value>
 	[Parameter(Mandatory = true, Position = 0, ParameterSetName = KEY_PROPERTY), Alias("KeyName", "Key")]
+	[RejectScriptBlock(nameof(KeySelector))]
 	[ValidateNotNullOrWhiteSpace]
 	public string KeyPropertyName { get; set; } = string.Empty;
 
@@ -125,13 +135,25 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// the value.
 	/// </summary>
 	/// <remarks>
-	/// A non-empty string selects a property by name. A <see cref="ScriptBlock"/> is used like
-	/// <see cref="ValueSelector"/> when <see cref="ValueSelector"/> is not supplied. A property name takes precedence
-	/// over <see cref="ValueSelector"/>. A property whose value is <see langword="null"/> gives <see langword="null"/>
-	/// converted to the value type, as <see cref="ValueSelector"/> describes.
+	/// <para>
+	/// A string selects a property by name, and a <see cref="ScriptBlock"/> computes the value the way
+	/// <see cref="ValueSelector"/> does. Either one can arrive wrapped in a <see cref="PSObject"/>, as a line that
+	/// <c>Get-Content</c> reads does. <see langword="null"/>, an empty string, and a string of white space select nothing,
+	/// so each object is its own value. The parameter rejects any other argument, such as a number or an array of
+	/// names, when it binds.
+	/// </para>
+	/// <para>
+	/// A property name or script block can't be combined with <see cref="ValueSelector"/>. A property whose value is
+	/// <see langword="null"/> gives <see langword="null"/> converted to the value type, as <see cref="ValueSelector"/>
+	/// describes.
+	/// </para>
 	/// </remarks>
-	/// <value>A property name, a <see cref="ScriptBlock"/>, or <see langword="null"/> to use each object as its own value.</value>
+	/// <value>
+	/// A property name, a <see cref="ScriptBlock"/>, or <see langword="null"/> to use each object as its own value. The
+	/// value is unwrapped from its <see cref="PSObject"/> when the parameter binds.
+	/// </value>
 	[Parameter(Mandatory = false, Position = 1), Alias("ValueName", "Value")]
+	[StringOrScriptBlockTransform]
 	[AllowEmptyString, PSAllowNull]
 	public object? ValuePropertyName { get; set; }
 
@@ -144,7 +166,8 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// type. When it outputs nothing or <see langword="null"/>, the value is <see langword="null"/> converted to the
 	/// value type, the way PowerShell converts it when it calls the dictionary's <c>Add</c> method: an empty string for
 	/// <see cref="string"/>, 0 for <see cref="int"/>, and <see langword="null"/> for <see cref="object"/> and most other
-	/// reference types.
+	/// reference types. The parameter can't be combined with a property name or script block in
+	/// <see cref="ValuePropertyName"/>.
 	/// </remarks>
 	/// <value>The value selector <see cref="ScriptBlock"/>, or <see langword="null"/>.</value>
 	[Parameter]
@@ -157,8 +180,8 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// The parameter accepts a <see cref="Type"/>, a type name, or a script block that contains a type literal such
-	/// as <c>{ [int] }</c>. Selected values are converted to this type. The value is ignored when
-	/// <see cref="DuplicateKeyBehavior"/> is <see cref="DuplicateKeyBehavior.Concatenate"/>.
+	/// as <c>{ [int] }</c>. Every value is converted to this type, including an input object that is its own value. The
+	/// value is ignored when <see cref="DuplicateKeyBehavior"/> is <see cref="DuplicateKeyBehavior.Concatenate"/>.
 	/// </remarks>
 	/// <value>The value type, or <see langword="null"/> to infer it from the first input object.</value>
 	[Parameter]
@@ -183,9 +206,10 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// Property names are turned into selector script blocks, and a script block passed to
-	/// <see cref="ValuePropertyName"/> becomes the value selector when <see cref="ValueSelector"/> isn't supplied. The
-	/// method also chooses the function that adds entries according to <see cref="DuplicateKeyBehavior"/>.
+	/// <see cref="ValuePropertyName"/> becomes the value selector. The method also chooses the function that adds
+	/// entries according to <see cref="DuplicateKeyBehavior"/>.
 	/// </remarks>
+	/// <exception cref="ArgumentException">Thrown when <see cref="ValuePropertyName"/> is a property name or a script block, and <see cref="ValueSelector"/> is supplied too.</exception>
 	protected override void BeginCore()
 	{
 		_addToDictionaryPtr = StoreAddToDictionaryFunction(this.DuplicateKeyBehavior);
@@ -196,15 +220,27 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 			this.KeyPropertyName = string.Empty;
 		}
 
-		if (this.ValuePropertyName is string s && !string.IsNullOrWhiteSpace(s))
+		// The transformation attribute on ValuePropertyName leaves only null, a string, or a script block.
+		ScriptBlock? selectorFromName = this.ValuePropertyName switch
 		{
-			this.ValueSelector = CreatePropertySelector(s);
-			this.ValuePropertyName = string.Empty;
-		}
-		else
+			string name when !string.IsNullOrWhiteSpace(name) => CreatePropertySelector(name),
+			ScriptBlock block => block,
+			_ => null,
+		};
+
+		if (selectorFromName is null)
 		{
-			this.ValueSelector ??= this.ValuePropertyName as ScriptBlock;
+			return;
 		}
+
+		if (this.ValueSelector is not null)
+		{
+			throw new ArgumentException(
+				"Cannot use -ValuePropertyName and -ValueSelector together, because both select each object's value. Use "
+				+ "only one of them. A second positional argument binds to -ValuePropertyName.");
+		}
+
+		this.ValueSelector = selectorFromName;
 	}
 
 	/// <summary>
@@ -351,9 +387,9 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	/// <see langword="null"/> objects and objects whose key is <see langword="null"/> are skipped. Without a value
-	/// selector, each object is its own value. Otherwise, the selector's output is converted to the value type, even when
-	/// it's <see langword="null"/>. A key or value that cannot be converted to the dictionary's type produces the
+	/// <see langword="null"/> objects and objects whose key is <see langword="null"/> are skipped. Each value is
+	/// converted to the value type: the value selector's output, even when it's <see langword="null"/>, or, without a
+	/// value selector, the object itself. A key or value that cannot be converted to the dictionary's type produces the
 	/// non-terminating error that <c>New-List</c> writes, and the object is skipped.
 	/// </para>
 	/// <para>
@@ -405,11 +441,12 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 					selectedValue = this.Select(this.ValueSelector, item);
 				}
 
-				// A selected null converts the way PowerShell converts null when it calls Add: to an empty string for
-				// [string], to 0 for [int], and to null for [object] and most other reference types. InferTypes sets
-				// ValueType before the first object is added.
-				object? value = item;
-				if (this.ValueSelector is not null && !this.TryConvertItem(selectedValue, this.ValueType!, out value))
+				// Each value converts the way PowerShell converts the arguments of Add, whether the value selector gives it
+				// or the object is its own value. A selected null converts to an empty string for [string], to 0 for
+				// [int], and to null for [object] and most other reference types. InferTypes sets ValueType before the
+				// first object is added.
+				object? value = this.ValueSelector is null ? item : selectedValue;
+				if (!this.TryConvertItem(value, this.ValueType!, out value))
 				{
 					continue;
 				}

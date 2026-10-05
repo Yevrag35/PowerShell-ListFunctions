@@ -14,9 +14,9 @@ Item numbers continue from `bugs.md`, so each number names one item in either fi
 - [x] 24 — An `[object]` sorted set has no consistent order when its elements' types differ
 - [x] 25 — `-CaseSensitive` switches to a culture-sensitive comparison
 - [x] 26 — ConvertTo-Dictionary throws a NullReferenceException when no key is given
-- [ ] 27 — ConvertTo-Dictionary's `-ValueType` doesn't work without a value selector
-- [ ] 28 — ConvertTo-Dictionary silently ignores some arguments
-- [ ] 29 — Open generic `[OutputType]` types break member completion
+- [x] 27 — ConvertTo-Dictionary's `-ValueType` doesn't work without a value selector
+- [x] 28 — ConvertTo-Dictionary silently ignores some arguments
+- [x] 29 — Open generic `[OutputType]` types break member completion
 
 **Decisions**
 
@@ -279,6 +279,15 @@ The same missing conversion breaks input of mixed types without `-ValueType`, me
 
 **Decided on 2026-10-04:** as the fix idea says. Every value goes through `LanguagePrimitives`, whether it comes from a selector or is the input object itself.
 
+**Fixed:** `AddToDictionary` passes every value to `TryConvertItem`, the input object as well as a selector's output. Measured in both editions:
+
+- **The repros:** `1, 2 | ConvertTo-Dictionary -KeySelector { $_ } -ValueType string` gives `1 = '1'` and `2 = '2'`. `1, '2' | ConvertTo-Dictionary -KeySelector { [int]$_ }` gives `1 = 1` and `2 = 2` with no error, and so does the same command with `-DuplicateKeyBehavior Skip`. `AddSkip` still doesn't catch the dictionary's `ArgumentException`, but a converted value always fits the value type, so it no longer gets one.
+- **A value that can't be converted** gets the error that New-List writes, as a selected value already did. `'a', 'x' | ConvertTo-Dictionary -KeySelector { $_ } -ValueType int` writes two `LFInvalidCastException` errors and gives an empty `Dictionary[string, int]`.
+- **`-InputObject` now takes command output.** It passes the elements of an array as they are, and `Get-Item` and `Get-ChildItem` wrap each item in a `PSObject`, which the dictionary rejected. `ConvertTo-Dictionary -InputObject (Get-Item $env:windir) Name` gave an empty `Dictionary[string, DirectoryInfo]` and an error for every object. The conversion unwraps each one, so the dictionary holds the folder.
+- **Unchanged:** `$people | ConvertTo-Dictionary Id` still stores the whole custom objects. `Get-Item "$env:windir", "$env:windir\notepad.exe" | ConvertTo-Dictionary Name` writes a conversion error from `FileInfo` to `DirectoryInfo` for notepad.exe, instead of the dictionary's own error, until 31.
+- **Docs:** the XML docs of the class, `ValueType`, and `AddToDictionary`, and the README, say that every value is converted, including an input object that is its own value.
+- **Tests:** `tests/ConvertTo-Dictionary.Tests.ps1` checks the first repro, and that two folders from `Get-Item` passed to `-InputObject` are both stored without an error. The second repro depends on the `[int]` value type inferred from the first object, which 31 removes, so it has no test.
+
 ### 28 — ConvertTo-Dictionary silently ignores some arguments
 
 **Where:**
@@ -301,6 +310,24 @@ $name = [psobject]'Name'      # The way Get-Content delivers each line
 - Don't let `-ValuePropertyName` and `-ValueSelector` be used together.
 - Write a warning when every key is `$null`.
 
+**Fixed:** the cmdlet now uses or rejects each argument in the first, second, and fourth repros. The third is left for 31. Measured in both editions:
+
+- **`-ValuePropertyName`:** a new transformation attribute, `[StringOrScriptBlockTransform]` in `src/engine/ListFunctions.Engine/Validation/`, unwraps the argument from its `PSObject` and passes on `$null`, a string, or a script block. `($people | ConvertTo-Dictionary Id $name)[1]` is `Ann`, and a line from `Get-Content` and a script block wrapped in a `PSObject` work too. Any other argument, such as `5` or `Name, Id`, fails to bind with a `ParameterArgumentTransformationError`: "The argument must be a string or a script block, not a value of type 'System.Int32'." `$null`, `''`, and white space still mean that each object is its own value.
+- **`-KeyPropertyName`:** a new transformation attribute, `[RejectScriptBlock(nameof(KeySelector))]`, sees the argument before PowerShell converts it to a string, and rejects a script block. `$people | ConvertTo-Dictionary -Key { $_.Id }` fails to bind with "The parameter doesn't take a script block. Pass the script block to -KeySelector instead." The attribute can't treat the script block as `-KeySelector`, because it can only change the argument, and PowerShell still converts the result to a string. Other arguments still go to that conversion, so `ConvertTo-Dictionary 2024 Id` selects a property named `2024`. `-ValuePropertyName` rejects the number `2024`, as the fix idea says, and `'2024'` works for both.
+- **Positional binding doesn't change:** `ConvertTo-Dictionary { $_.Id }` and `ConvertTo-Dictionary { $_.Id } Name` still bind `-KeySelector`. That depends on the attribute's exception, an `ArgumentTransformationMetadataException` that holds a `PSInvalidCastException`. PowerShell treats it as a failed conversion, which doesn't end positional binding, so the script block moves on to `-KeySelector`. In a test cmdlet with the same parameter sets, an `ArgumentTransformationMetadataException` without the inner exception, or an `ArgumentException`, ended the binding at `-KeyPropertyName`, and `ConvertTo-Dictionary { $_.Id }` failed. `[StringOrScriptBlockTransform]` throws the same way as `[RejectScriptBlock]`.
+- **`-ValuePropertyName` with `-ValueSelector`:** `BeginCore` throws an `ArgumentException` when `-ValuePropertyName` gives a property name or a script block and `-ValueSelector` isn't `$null`. That's a terminating error in the `InvalidArgument` category, before any input is read. The message names both parameters, and says that a second positional argument binds to `-ValuePropertyName`. `$null` or `''` with `-ValueSelector` still works, so a function that passes its own parameters on can pass the one it wasn't given. The check is in `BeginCore`, not in parameter sets, so `Get-Command -Syntax` still lists two sets.
+- **Left for 31:** `($people | ConvertTo-Dictionary Nope).Count` is still 0, with no warning. 31's decision replaces the warning idea with a non-terminating error for each `$null` key.
+- **Docs:** the XML docs of the class, `KeyPropertyName`, `ValuePropertyName`, `ValueSelector`, and `BeginCore`, and the README's parameter rows.
+- **Tests:** `tests/ConvertTo-Dictionary.Tests.ps1` checks:
+  - that a script block passed by position binds to `-KeySelector`, which guards the inner `PSInvalidCastException`.
+  - that `-KeyPropertyName` and `-Key` reject a script block.
+  - that a property name and a script block wrapped in a `PSObject` select the values.
+  - that `5` and an array of names are rejected.
+  - that both shapes of the `-ValueSelector` conflict are rejected before any input is read.
+  - that `$null` and `''` work with `-ValueSelector`.
+
+  Against commit `984e386`, before 27 and 28, the 10 new tests for the two items' fixes fail, and the 3 that guard unchanged behavior pass. The two attributes have no Engine tests, because what they do matters only inside PowerShell's binder, which the Pester tests go through.
+
 ### 29 — Open generic `[OutputType]` types break member completion
 
 **Where:** `[OutputType(typeof(List<>))]` in `src/engine/ListFunctions-Next/Cmdlets/Constructs/NewListCmdlet.cs:24`, and the same pattern in `NewHashSetCmdlet.cs:32`, `NewSortedSetCmdlet.cs:27`, and `NewDictionaryCmdlet.cs:34`. ConvertTo-Dictionary has no `[OutputType]`.
@@ -314,7 +341,7 @@ TabExpansion2 -inputScript '$l = New-List; $l.Ad' -cursorColumn 20
 - **New-Dictionary completes,** because it also lists `Hashtable`.
 - **A closed type completes:** a function with `[OutputType([System.Collections.Generic.List[object]])]` completes `Add(` and `AddRange(`.
 
-**Fix idea:** Name a closed type, such as `List<object>`, which is the output when no type is given. Give ConvertTo-Dictionary an `[OutputType]` too. The crash itself is PowerShell's, and could be reported to the PowerShell team.
+**Fixed** using `[object]`.
 
 ## Decisions
 

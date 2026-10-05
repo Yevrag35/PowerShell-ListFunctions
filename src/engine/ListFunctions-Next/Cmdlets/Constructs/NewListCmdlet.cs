@@ -21,7 +21,7 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// </para>
 /// </remarks>
 [Cmdlet(VerbsCommon.New, "List", DefaultParameterSetName = "None")]
-[OutputType(typeof(List<>))]
+[OutputType(typeof(List<object>))]
 public sealed class NewListCmdlet : ListFunctionCmdletBase
 {
 	private ListWrapper? _list;

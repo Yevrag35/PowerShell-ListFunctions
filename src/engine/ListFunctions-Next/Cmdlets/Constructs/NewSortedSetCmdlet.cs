@@ -31,7 +31,7 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// </para>
 /// </remarks>
 [Cmdlet(VerbsCommon.New, "SortedSet", DefaultParameterSetName = "None")]
-[OutputType(typeof(SortedSet<>))]
+[OutputType(typeof(SortedSet<object>))]
 public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 {
 	private AddMethodInvoker _addMethod = null!;
