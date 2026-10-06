@@ -225,7 +225,7 @@ $set.Count              # 3
 
 #### Script block equality
 
-To decide for yourself which elements are equal, pass `-EqualityScript` and `-HashCodeScript` together. You don't need a compiled `IEqualityComparer[T]` class. In this mode, the element type is always `[object]`.
+To decide for yourself which elements are equal, pass `-EqualityScript` and `-HashCodeScript` together. You don't need a compiled `IEqualityComparer[T]` class, and `T` can be any type.
 
 - `-EqualityScript` receives two elements, as `$x` or `$left` and `$y` or `$right`, and returns `$true` if they're equal.
 - `-HashCodeScript` receives one element, as `$_`, `$this`, or `$PSItem`, and returns its `[int]` hash code. Elements that are equal must return the same hash code.
@@ -262,9 +262,17 @@ $set = $csv | New-HashSet -EqualityScript $equality -HashCodeScript $hashCode
 $set.Count              # 2
 ```
 
+With `-GenericType`, the script blocks compare elements of that type:
+
+```powershell
+# Numbers that end in the same digit are equal, so 11 and 21 are duplicates of 1.
+$set = 1, 2, 11, 21 | New-HashSet [int] -EqualityScript { $x % 10 -eq $y % 10 } -HashCodeScript { $_ % 10 }
+$set.Count              # 2
+```
+
 | Parameter | Description |
 | --- | --- |
-| `-GenericType` | Position 0. Alias: `Type`. The element type, `T`. Default: `[object]`. Can't be used with `-EqualityScript` and `-HashCodeScript`. |
+| `-GenericType` | Position 0. Alias: `Type`. The element type, `T`. Default: `[object]`. |
 | `-Capacity` | The initial capacity, which is how many elements the set can hold before it has to grow. Default: `0`. |
 | `-InputObject` | The elements to add. Accepts pipeline input. |
 | `-CaseSensitive` | Compares strings with regard to case. Available when the element type is `[object]` or `[string]`. |

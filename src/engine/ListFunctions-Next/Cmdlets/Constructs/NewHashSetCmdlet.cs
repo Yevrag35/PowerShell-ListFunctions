@@ -64,13 +64,14 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	/// </para>
 	/// <para>
 	/// The parameter also belongs to the parameter set of <c>-CaseSensitive</c>, so the two can be combined when the
-	/// element type is <see cref="object"/> or <see cref="string"/>. It can't be combined with
-	/// <see cref="EqualityScript"/> and <see cref="HashCodeScript"/>.
+	/// element type is <see cref="object"/> or <see cref="string"/>. It can be combined with <see cref="EqualityScript"/>
+	/// and <see cref="HashCodeScript"/> too, for any element type, and the script blocks then receive values of that type.
 	/// </para>
 	/// </remarks>
 	/// <value>The element type. Defaults to <see cref="object"/>.</value>
 	[Parameter(Mandatory = false, Position = 0, ParameterSetName = SPECIFIED_TYPE)]
 	[Parameter(Mandatory = false, Position = 0, ParameterSetName = DYN_PSET_NAME)]
+	[Parameter(Mandatory = false, Position = 0, ParameterSetName = WITH_CUSTOM_EQUALITY)]
 	[ArgumentToTypeTransform, Alias("Type")]
 	[PSDefaultValue(Value = typeof(object))]
 	public Type GenericType { get; set; } = null!;

@@ -26,7 +26,7 @@ Item numbers continue from `bugs.md`, so each number names one item in either fi
 - [x] 33 — A failing comparison script has a different effect in each collection cmdlet
 - [x] 34 — Script-block parameters reject bad input in different ways
 - [x] 35 — The output type depends on the input
-- [ ] 36 — New-HashSet can't combine `-GenericType` with script equality
+- [x] 36 — New-HashSet can't combine `-GenericType` with script equality
 - [ ] 37 — Parameter names, aliases, and positions differ between cmdlets
 - [ ] 38 — Each cmdlet handles `$null` input differently
 - [ ] 39 — `-InputObject` gives wrong answers in two cases
@@ -724,6 +724,16 @@ New-Dictionary [int] -EqualityScript { $x -eq $y } -HashCodeScript { $_ }
 The README says that the element type is always `[object]` in this mode. New-Dictionary and New-SortedSet accept a type with their script blocks, though, and 3.1.0's syntax listed `-GenericType` with them too.
 
 **Fix idea:** Add `GenericType` to the `WithCustomEquality` set. `EqualityComparerAdapter<T>`, which the fix for `bugs.md` item 09 added, already handles value types.
+
+**Fixed:** as the fix idea says. `GenericType` has a third `[Parameter]`, at position 0 in `WithCustomEquality`. The fix for `bugs.md` item 03 kept it out of that set before 09 added `EqualityComparerAdapter<T>`, which a set of a value type needs to use an `EqualityBlock`.
+
+- **Results, in both editions:** measured on 2026-10-05 against the Debug build.
+  - The repro's first line gives a `HashSet[int]` whose comparer is an `EqualityComparerAdapter[int]` around the `EqualityBlock`, as New-Dictionary's `Dictionary[int, object]` has. `-GenericType` by name, and the `-Type` alias with `[Nullable[int]]`, work too. A `[string]` set gets the `EqualityBlock` itself.
+  - The cmdlet converts each element to the element type before it adds it, so the script blocks receive values of that type. `1, 11, 2, '21' | New-HashSet -GenericType ([int]) -EqualityScript { $x % 10 -eq $y % 10 } -HashCodeScript { $_ % 10 }` holds 1 and 2.
+  - `Get-Command New-HashSet -Syntax` lists `[[-GenericType] <type>]` in the syntax with the script blocks, as 3.1.0's did.
+- **Unchanged:** `New-HashSet [int]` without script blocks still gets the `SpecifiedType` set and `EqualityComparer<int>.Default`. `-CaseSensitive` still can't be combined with the script blocks: `New-HashSet [string] -CaseSensitive -EqualityScript { $x -eq $y } -HashCodeScript { $_.GetHashCode() }` gives "Parameter 'CaseSensitive' cannot be specified in parameter set 'WithCustomEquality'."
+- **Docs:** the XML docs of `GenericType`. In the README, New-HashSet's script block section says that `T` can be any type and has an `[int]` example, and the `-GenericType` row no longer says that the parameter can't be used with the script blocks.
+- **Tests:** two new tests in the `Script block equality` context of `tests/New-HashSet.Tests.ps1` pipe elements into sets of `[int]` and `[Nullable[int]]`, and of `[string]`, which is also offered `-CaseSensitive`. All 3 cases fail against commit `df27654` in both editions, with the repro's binding error. They have merit because the decision reverses 03's, and a later change to the parameter sets, such as 37's, could undo it. Engine gets no test: `HashSetCtor` adapts a comparer with the code it shares with `DictionaryCtor`, which the `Bug09` tests in `DictionaryCtorTests` cover.
 
 ### 37 — Parameter names, aliases, and positions differ between cmdlets
 

@@ -53,6 +53,26 @@ Describe 'New-HashSet' {
 			$set.Comparer.GetHashCode('abcd') | Should-Be 4
 		}
 
+		# -GenericType used to be left out of the parameter set of -EqualityScript and -HashCodeScript, so a set that used
+		# them always held [object] elements. New-Dictionary's -KeyType could already be combined with them.
+		It 'uses -EqualityScript and -HashCodeScript with [<Name>] elements' -ForEach @(
+			@{ Name = 'int'; GenericType = [int]; Expected = [System.Collections.Generic.HashSet[int]] }
+			@{ Name = 'Nullable[int]'; GenericType = [Nullable[int]]; Expected = [System.Collections.Generic.HashSet[Nullable[int]]] }
+		) {
+			# Elements that end in the same digit are equal, so 11 and 21 are duplicates of 1.
+			$set = 1, 11, 2, 21 | New-HashSet $GenericType -EqualityScript { $x % 10 -eq $y % 10 } -HashCodeScript { $_ % 10 }
+			Should-HaveType -Expected $Expected -Actual $set
+			Should-BeCollection -Expected @(1, 2) -Actual ([object[]]$set)
+		}
+
+		# A [string] set is also offered -CaseSensitive, which isn't in the parameter set of the script blocks.
+		It 'uses -EqualityScript and -HashCodeScript with [string] elements' {
+			# Strings of the same length are equal, which the default comparison of [string] elements doesn't do.
+			$set = 'ab', 'xyz', 'cd' | New-HashSet [string] -EqualityScript { $x.Length -eq $y.Length } -HashCodeScript { $_.Length }
+			Should-HaveType -Expected ([System.Collections.Generic.HashSet[string]]) -Actual $set
+			Should-BeCollection -Expected @('ab', 'xyz') -Actual ([object[]]$set)
+		}
+
 		# ScriptBlock.InvokeWithContext, which runs the script blocks, runs the process block when there is one. It refuses
 		# a script block that has a begin block, or both a process block and an end block.
 		It 'accepts a <Parameter> that has only a process block' -ForEach @(
