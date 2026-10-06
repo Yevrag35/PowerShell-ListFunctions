@@ -25,6 +25,14 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// script blocks.
 /// </para>
 /// <para>
+/// Errors from <see cref="EqualityScript"/> and <see cref="HashCodeScript"/> reach PowerShell unchanged, the way they do
+/// from a <c>ForEach-Object</c> script block, and the cmdlet then writes no dictionary. When
+/// <see cref="ScriptBlockErrorAction"/> is <see cref="ActionPreference.Stop"/>, the default, an error that a script
+/// block writes ends the script that runs the cmdlet, as <c>-ErrorAction Stop</c> does. A <c>throw</c> does too unless
+/// the errors are suppressed. A failed method call, and output of <see cref="HashCodeScript"/> that isn't a hash code,
+/// end only the statement, and <c>break</c> leaves the loop around the cmdlet.
+/// </para>
+/// <para>
 /// The dictionary is written as a single object and is not enumerated into the pipeline.
 /// </para>
 /// </remarks>
@@ -120,19 +128,21 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	[Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = JUST_COPY)]
 	[Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = AND_COPY)]
 	[Alias("CopyFrom")]
-	public Hashtable InputObject { get; set; } = null!;
+	public IDictionary InputObject { get; set; } = null!;
 
 	/// <summary>
 	/// Gets or sets the script block that determines whether two keys are equal.
 	/// </summary>
 	/// <remarks>
 	/// The script block receives the two keys as <c>$x</c> and <c>$y</c>, as <c>$left</c> and <c>$right</c>, or as
-	/// <c>$args[0]</c> and <c>$args[1]</c>. It must reference one variable for each key. Its output is converted to a
-	/// <see cref="bool"/> by using PowerShell's truthiness rules.
+	/// <c>$args[0]</c> and <c>$args[1]</c>. It must reference one variable for each key. Parameter validation also
+	/// rejects a script block that the cmdlet can't run, such as one that has a <c>begin</c> block. Its output is
+	/// converted to a <see cref="bool"/> by using PowerShell's truthiness rules.
 	/// </remarks>
 	/// <value>The key equality <see cref="ScriptBlock"/>.</value>
 	[Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
 	[Parameter(Mandatory = true, ParameterSetName = AND_COPY)]
+	[IsScriptBlock]
 	[ValidateScriptVariable(PSComparingVariable.X, PSComparingVariable.LEFT, PSThisVariable.FirstArg)]
 	[ValidateScriptVariable(PSComparingVariable.Y, PSComparingVariable.RIGHT, PSThisVariable.SecondArg)]
 	public ScriptBlock EqualityScript { get; set; } = null!;
@@ -142,13 +152,14 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// </summary>
 	/// <remarks>
 	/// The script block receives the key as <c>$_</c>, <c>$this</c>, <c>$PSItem</c>, or <c>$args[0]</c> and must
-	/// reference at least one of them. Keys that <see cref="EqualityScript"/> considers equal must produce the same hash
-	/// code.
+	/// reference at least one of them. Parameter validation also rejects a script block that the cmdlet can't run, such
+	/// as one that has a <c>begin</c> block. Its first output is converted to an <see cref="int"/>. Keys that
+	/// <see cref="EqualityScript"/> considers equal must produce the same hash code.
 	/// </remarks>
 	/// <value>The key hash code <see cref="ScriptBlock"/>.</value>
 	[Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
 	[Parameter(Mandatory = true, ParameterSetName = AND_COPY)]
-	[ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.This, PSThisVariable.PSItem, PSThisVariable.FirstArg)]
+	[IsScriptBlock, ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.This, PSThisVariable.PSItem, PSThisVariable.FirstArg)]
 	public ScriptBlock HashCodeScript { get; set; } = null!;
 
 	/// <summary>
@@ -182,10 +193,16 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// key is already in the dictionary, produces a non-terminating error for the exception that the dictionary threw,
 	/// with the converted key as its target. Either way, the remaining entries are still copied.
 	/// </para>
+	/// <para>
+	/// An error from <see cref="EqualityScript"/> or <see cref="HashCodeScript"/>, including one for output that isn't a
+	/// hash code, reaches PowerShell unchanged instead, so the cmdlet ends without writing a dictionary.
+	/// </para>
 	/// </remarks>
 	/// <param name="collection">The dictionary to copy entries into.</param>
 	/// <param name="collectionType">The closed generic type of the dictionary.</param>
 	/// <returns>Always <see langword="true"/>, so all pipeline input is processed.</returns>
+	/// <exception cref="RuntimeException">Thrown when adding an entry throws one, for example because <see cref="HashCodeScript"/> fails.</exception>
+	/// <exception cref="FlowControlException">Thrown when adding an entry throws one, for example because <see cref="HashCodeScript"/> runs <c>break</c>.</exception>
 	protected override bool Process(IDictionary collection, Type collectionType)
 	{
 		if (null != this.InputObject && this.InputObject.Count > 0)

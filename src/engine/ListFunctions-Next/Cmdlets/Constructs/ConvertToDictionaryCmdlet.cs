@@ -135,11 +135,12 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// The script block receives the current object as <c>$_</c>, <c>$PSItem</c>, <c>$this</c>, or <c>$args[0]</c>
-	/// and must reference at least one of them. The first object it outputs becomes the key.
+	/// and must reference at least one of them. Parameter validation also rejects a script block that the cmdlet can't
+	/// run, such as one that has a <c>begin</c> block. The first object it outputs becomes the key.
 	/// </remarks>
 	/// <value>The key selector <see cref="ScriptBlock"/>.</value>
 	[Parameter(Mandatory = true, Position = 0, ParameterSetName = KEY_SCRIPT)]
-	[ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.PSItem, PSThisVariable.This, PSThisVariable.FirstArg)]
+	[IsScriptBlock, ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.PSItem, PSThisVariable.This, PSThisVariable.FirstArg)]
 	public ScriptBlock KeySelector { get; set; } = null!;
 
 	/// <summary>
@@ -165,7 +166,8 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// <see cref="ValueSelector"/> does. Either one can arrive wrapped in a <see cref="PSObject"/>, as a line that
 	/// <c>Get-Content</c> reads does. <see langword="null"/>, an empty string, and a string of white space select nothing,
 	/// so each object is its own value. The parameter rejects any other argument, such as a number or an array of
-	/// names, when it binds.
+	/// names, when it binds, and so does parameter validation for a script block that the cmdlet can't run, such as one
+	/// that has a <c>begin</c> block.
 	/// </para>
 	/// <para>
 	/// A property name or script block can't be combined with <see cref="ValueSelector"/>. A property whose value is
@@ -178,7 +180,7 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// value is unwrapped from its <see cref="PSObject"/> when the parameter binds.
 	/// </value>
 	[Parameter(Mandatory = false, Position = 1), Alias("ValueName", "Value")]
-	[StringOrScriptBlockTransform]
+	[StringOrScriptBlockTransform, IsScriptBlock]
 	[AllowEmptyString, PSAllowNull]
 	public object? ValuePropertyName { get; set; }
 
@@ -187,17 +189,18 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// The script block receives the current object as <c>$_</c>, <c>$PSItem</c>, <c>$this</c>, or <c>$args[0]</c>
-	/// and must reference at least one of them. The first object it outputs becomes the value, converted to the value
-	/// type. When it outputs nothing or <see langword="null"/>, the value is <see langword="null"/> converted to the
-	/// value type, the way PowerShell converts it when it calls the dictionary's <c>Add</c> method: an empty string for
-	/// <see cref="string"/>, 0 for <see cref="int"/>, and <see langword="null"/> for <see cref="object"/> and most other
-	/// reference types. The parameter can't be combined with a property name or script block in
+	/// and must reference at least one of them. Parameter validation also rejects a script block that the cmdlet can't
+	/// run, such as one that has a <c>begin</c> block. The first object it outputs becomes the value, converted to the
+	/// value type. When it outputs nothing or <see langword="null"/>, the value is <see langword="null"/> converted to
+	/// the value type, the way PowerShell converts it when it calls the dictionary's <c>Add</c> method: an empty string
+	/// for <see cref="string"/>, 0 for <see cref="int"/>, and <see langword="null"/> for <see cref="object"/> and most
+	/// other reference types. The parameter can't be combined with a property name or script block in
 	/// <see cref="ValuePropertyName"/>.
 	/// </remarks>
 	/// <value>The value selector <see cref="ScriptBlock"/>, or <see langword="null"/>.</value>
 	[Parameter]
 	[PSAllowNull, AllowEmptyString]
-	[ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.PSItem, PSThisVariable.This, PSThisVariable.FirstArg)]
+	[IsScriptBlock, ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.PSItem, PSThisVariable.This, PSThisVariable.FirstArg)]
 	public ScriptBlock? ValueSelector { get; set; }
 
 	/// <summary>

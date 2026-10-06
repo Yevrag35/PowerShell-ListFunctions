@@ -23,6 +23,14 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// script blocks.
 /// </para>
 /// <para>
+/// Errors from <see cref="EqualityScript"/> and <see cref="HashCodeScript"/> reach PowerShell unchanged, the way they do
+/// from a <c>ForEach-Object</c> script block, and the cmdlet then writes no set. When
+/// <see cref="ScriptBlockErrorAction"/> is <see cref="ActionPreference.Stop"/>, the default, an error that a script
+/// block writes ends the script that runs the cmdlet, as <c>-ErrorAction Stop</c> does. A <c>throw</c> does too unless
+/// the errors are suppressed. A failed method call, and output of <see cref="HashCodeScript"/> that isn't a hash code,
+/// end only the statement, and <c>break</c> leaves the loop around the cmdlet.
+/// </para>
+/// <para>
 /// Duplicate elements are ignored. The set is written as a single object and is not enumerated into the pipeline.
 /// </para>
 /// </remarks>
@@ -91,7 +99,8 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	/// </summary>
 	/// <remarks>
 	/// The script block receives the two elements as <c>$x</c> and <c>$y</c>, as <c>$left</c> and <c>$right</c>, or
-	/// as <c>$args[0]</c> and <c>$args[1]</c>. It must reference one variable for each element. Its output is
+	/// as <c>$args[0]</c> and <c>$args[1]</c>. It must reference one variable for each element. Parameter validation
+	/// also rejects a script block that the cmdlet can't run, such as one that has a <c>begin</c> block. Its output is
 	/// converted to a <see cref="bool"/> by using PowerShell's truthiness rules.
 	/// </remarks>
 	/// <value>The element equality <see cref="ScriptBlock"/>.</value>
@@ -105,8 +114,9 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	/// </summary>
 	/// <remarks>
 	/// The script block receives the element as <c>$_</c>, <c>$this</c>, <c>$PSItem</c>, or <c>$args[0]</c> and must
-	/// reference at least one of them. Elements that <see cref="EqualityScript"/> considers equal must produce the
-	/// same hash code.
+	/// reference at least one of them. Parameter validation also rejects a script block that the cmdlet can't run, such
+	/// as one that has a <c>begin</c> block. Its first output is converted to an <see cref="int"/>. Elements that
+	/// <see cref="EqualityScript"/> considers equal must produce the same hash code.
 	/// </remarks>
 	/// <value>The element hash code <see cref="ScriptBlock"/>.</value>
 	[Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
@@ -138,23 +148,18 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	/// writes.
 	/// </para>
 	/// <para>
-	/// Any other failure while adding an element, such as a script block equality comparer that throws, produces a
-	/// non-terminating error and stops processing. The remaining elements of the current input are still added, but
-	/// later pipeline input is ignored and no set is written.
+	/// An error from <see cref="EqualityScript"/> or <see cref="HashCodeScript"/>, including one for output that isn't a
+	/// hash code, reaches PowerShell unchanged, so the cmdlet ends without writing a set. Any other failure while adding
+	/// an element, such as an element type whose own <see cref="object.GetHashCode"/> method throws, produces a
+	/// non-terminating error for that element, and the cmdlet goes on with the next one.
 	/// </para>
 	/// </remarks>
 	/// <param name="collection">The set to add elements to.</param>
 	/// <param name="collectionType">The closed generic type of the set.</param>
-	/// <returns><see langword="false"/> when an element fails to be added for a reason other than conversion; otherwise, <see langword="true"/>.</returns>
+	/// <returns>Always <see langword="true"/>, so all pipeline input is processed.</returns>
 	protected override bool Process(object collection, Type collectionType)
 	{
-		bool flag = true;
 		object?[] elements = this.GetInputElements(this.InputObject);
-		if (elements.Length == 0)
-		{
-			return flag;
-		}
-
 		if (collection is ICollection<object?> objCol)
 		{
 			foreach (object? item in elements)
@@ -163,11 +168,9 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 				{
 					objCol.Add(item);
 				}
-				catch (Exception e)
+				catch (Exception e) when (!PassesThrough(e))
 				{
-					var rec = e.ToRecord(ErrorCategory.InvalidOperation, item);
-					this.WriteError(rec);
-					flag = false;
+					this.WriteError(e.ToRecord(ErrorCategory.InvalidOperation, item));
 				}
 			}
 		}
@@ -175,27 +178,11 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 		{
 			foreach (object? item in elements)
 			{
-				try
-				{
-					if (!this.AddToCollection(collection, item, LanguagePrimitives.ConvertTo))
-					{
-						flag = false;
-					}
-				}
-				catch (PSInvalidCastException e)
-				{
-					this.WriteConversionError(e, item, this.GenericType);
-				}
-				catch (Exception e)
-				{
-					var rec = e.ToRecord(ErrorCategory.InvalidOperation, item);
-					this.WriteError(rec);
-					flag = false;
-				}
+				this.AddToCollection(collection, item);
 			}
 		}
 
-		return flag;
+		return true;
 	}
 
 	/// <summary>

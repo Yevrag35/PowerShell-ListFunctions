@@ -2,6 +2,7 @@ using ListFunctions.Components;
 using ListFunctions.Exceptions;
 using ListFunctions.Extensions;
 using System.Management.Automation.Internal;
+using System.Runtime.ExceptionServices;
 
 #nullable enable
 
@@ -315,6 +316,26 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	protected static bool PassesThrough(Exception exception)
 	{
 		return exception is RuntimeException or FlowControlException;
+	}
+	/// <summary>
+	/// Throws the specified exception again, with its original stack trace, when <see cref="PassesThrough(Exception)"/>
+	/// accepts it.
+	/// </summary>
+	/// <remarks>
+	/// A derived class that receives an exception as a value, such as the exception that a collection's <c>Add</c> method
+	/// threw when the class called it through reflection, uses this method instead of a <see langword="throw"/> statement,
+	/// which would replace the exception's stack trace. When the method returns, the exception doesn't pass through, and
+	/// the caller can report it as a non-terminating error.
+	/// </remarks>
+	/// <param name="exception">The exception to check. This value must not be <see langword="null"/>.</param>
+	/// <exception cref="RuntimeException">Thrown when <paramref name="exception"/> is a <see cref="RuntimeException"/>. The exception thrown is <paramref name="exception"/> itself.</exception>
+	/// <exception cref="FlowControlException">Thrown when <paramref name="exception"/> is a <see cref="FlowControlException"/>. The exception thrown is <paramref name="exception"/> itself.</exception>
+	private protected static void RethrowIfPassesThrough(Exception exception)
+	{
+		if (PassesThrough(exception))
+		{
+			ExceptionDispatchInfo.Capture(exception).Throw();
+		}
 	}
 	/// <summary>
 	/// Runs the end phase early and stops the commands that send pipeline input to this cmdlet.

@@ -23,8 +23,8 @@ namespace ListFunctions.Cmdlets.Assertions;
 /// <c>Select-Object -First</c> does.
 /// </para>
 /// <para>
-/// The condition is required. When <see cref="Condition"/> is <see langword="null"/>, the cmdlet ends with a
-/// terminating error that wraps an <see cref="ArgumentException"/>.
+/// The condition is required, so PowerShell rejects a <see langword="null"/> condition when it binds the parameter, as
+/// it does for any mandatory parameter. That happens even when there's no input to test.
 /// </para>
 /// <para>
 /// Errors from the condition script block reach PowerShell unchanged, the way they do from a <c>ForEach-Object</c>
@@ -45,13 +45,13 @@ public sealed class AssertAllObjectsCmdlet : AssertObjectCmdlet
 	/// <remarks>
 	/// The script block receives the current element as <c>$_</c>, <c>$PSItem</c>, <c>$this</c>, and <c>$args[0]</c>,
 	/// and must reference at least one of them. Parameter validation rejects a script block that references none,
-	/// including an empty one. Its output is converted to a <see cref="bool"/> by using PowerShell's truthiness rules.
+	/// including an empty one, and one that the cmdlet can't run, such as one that has a <c>begin</c> block. Its output
+	/// is converted to a <see cref="bool"/> by using PowerShell's truthiness rules.
 	/// </remarks>
-	/// <value>The condition <see cref="ScriptBlock"/>. A <see langword="null"/> value passes parameter binding but produces a terminating error.</value>
+	/// <value>The condition <see cref="ScriptBlock"/>. PowerShell rejects <see langword="null"/> when it binds the parameter.</value>
 	[Parameter(Mandatory = true, Position = 0)]
 	[Alias("ScriptBlock", "FilterScript")]
-	[PSAllowNull, AllowEmptyString]
-	[ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.This, PSThisVariable.PSItem, PSThisVariable.FirstArg)]
+	[IsScriptBlock, ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.This, PSThisVariable.PSItem, PSThisVariable.FirstArg)]
 	public override ScriptBlock? Condition
 	{
 		get => base.Condition;
@@ -102,6 +102,10 @@ public sealed class AssertAllObjectsCmdlet : AssertObjectCmdlet
 	/// <summary>
 	/// Throws, because the cmdlet requires a condition.
 	/// </summary>
+	/// <remarks>
+	/// PowerShell rejects a <see langword="null"/> condition when it binds the parameter, so the method runs only when
+	/// <see cref="Condition"/> is set to <see langword="null"/> some other way.
+	/// </remarks>
 	/// <returns>The method doesn't return.</returns>
 	/// <exception cref="ArgumentException">Thrown always, because no condition is set.</exception>
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0009:Member access should be qualified.", Justification = "Used in nameof()")]

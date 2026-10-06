@@ -23,8 +23,8 @@ Item numbers continue from `bugs.md`, so each number names one item in either fi
 - [x] 30 — String comparison rules differ between cmdlets and element types
 - [x] 31 — ConvertTo-Dictionary converts every key and value to the first object's types
 - [x] 32 — New-Dictionary drops entries whose value is `$null`
-- [ ] 33 — A failing comparison script has a different effect in each collection cmdlet
-- [ ] 34 — Script-block parameters reject bad input in different ways
+- [x] 33 — A failing comparison script has a different effect in each collection cmdlet
+- [x] 34 — Script-block parameters reject bad input in different ways
 - [x] 35 — The output type depends on the input
 - [ ] 36 — New-HashSet can't combine `-GenericType` with script equality
 - [ ] 37 — Parameter names, aliases, and positions differ between cmdlets
@@ -586,6 +586,29 @@ foreach ($i in 1..2) { 5, 3 | New-SortedSet [int] -ComparingScript { if ($x -or 
 - **`-ErrorAction` doesn't reach them anymore.** Today they're non-terminating errors, which `-ErrorAction SilentlyContinue` hides and `-ErrorAction Stop` makes end the script. After the change, they end the statement or the script whatever `-ErrorAction` says, and a `try` block handles them, as it does for conditions.
 - **Tests:** two tests collect these errors with `-ErrorAction SilentlyContinue`, and both change. They're `tests/New-HashSet.Tests.ps1:211`, whose `ThrowingHashCode` case then gets an error for each element and an empty set, and New-SortedSet's `Bug10` test (`tests/New-SortedSet.Tests.ps1:48`). Tests in the shape of the conditions' `Bug21` tests have merit for each cmdlet, and one for an error written in `-HashCodeScript` catches a wrapper that comes back.
 
+**Fixed:** as decided.
+
+- **`HashBlock`:** `GetHashObject` runs the script block through `InvokeWithContext` and doesn't catch its exceptions, as `EqualityBlock` and `ComparingBlock<T>` already did. A `throw`, an `ActionPreferenceStopException`, and a `BreakException` reach the caller as they are, and `HashCodeScriptException` reports only a `$null` object and output that isn't a hash code.
+  - `ScriptBlockExtensions.TryInvokeWithContext`, whose only caller was `GetHashObject`, is gone. Its generic overload, which nothing calls, is left for 47.
+- **Adding elements:** the new `ListFunctionCmdletBase.RethrowIfPassesThrough`, which is `private protected`, rethrows an exception that `PassesThrough` accepts, through `ExceptionDispatchInfo`. Both `EqualityConstructingCmdlet.AddToCollection` overloads and `NewSortedSetCmdlet.ProcessCore` call it for the exception that `AddMethodInvoker.TryInvoke` returns. Only an exception that doesn't pass through gets the non-terminating error.
+  - **The single-element overload** lost its conversion delegate and its return value. It converts with `TryConvertItem`, which writes the error that `New-List` writes, so New-HashSet no longer wraps the call in a `catch` for `PSInvalidCastException`. That `catch` would also have caught a `PSInvalidCastException` from a script block, which passes through, and reported it as a failed conversion of the element.
+- **New-HashSet:** `Process` adds an element of an `[object]` set in a `catch` with a `when (!PassesThrough(e))` filter, and an element of a typed set through `AddToCollection`. It always returns `true`. So nothing returns `false` from `EqualityConstructingCmdlet<T>.Process` anymore, and the `wantsToStop` parameter of `End` is always `false` (47).
+- **Results, in both editions:** measured on 2026-10-05 against the Debug build, with each command followed by `'still running'` in a new runspace.
+  - This item's repro ends at New-HashSet's `throw`, with the error `boom`, and nothing after it runs. New-SortedSet's command ends the script the same way.
+  - The four commands under "What changes for users" give what the decision describes. The `Write-Error` in New-HashSet's `-EqualityScript` and the one in New-Dictionary's `-HashCodeScript` end the script, with the error ID `Microsoft.PowerShell.Commands.WriteErrorException`. `break` leaves the loop in its first pass. The `-ComparingScript` without output writes one `ComparingScriptException` error, which ends the statement, and no set.
+  - A failed method call, such as `$null.Foo()`, ends the statement with the error ID `InvokeMethodOnNull,ListFunctions.Cmdlets.Constructs.<class>`. Output that a comparer can't use ends it with a `HashCodeScriptException` or a `ComparingScriptException` whose error ID is `RuntimeException,ListFunctions.Cmdlets.Constructs.<class>`. The command's own `-ErrorAction SilentlyContinue` doesn't hide these errors, and a `try` block catches them.
+  - Under `-ScriptBlockErrorAction Continue`, `Write-Error` in `-HashCodeScript` writes its errors, and the set holds both elements. Under `SilentlyContinue`, a `throw` in `-EqualityScript` is suppressed, the elements compare as unequal, and the set holds both.
+  - Failures that don't come from a script block are unchanged, except in New-HashSet. A duplicate key in New-Dictionary still writes its `ArgumentException` as a non-terminating error, and the dictionary is still written. A typed New-HashSet whose element type's own `GetHashCode` throws now writes an error for each piped element, and an empty set, instead of stopping at the first error without a set.
+- **Docs:** the XML docs of `IHashBlock.GetHashCode`, `HashBlock`, its `GetHashCode` and `GetHashObject`, `EqualityBlock.GetHashCode`, both `AddToCollection` overloads, `NewHashSetCmdlet.Process`, `NewSortedSetCmdlet.ProcessCore` and `ComparingScript`, and `NewDictionaryCmdlet.Process`. The three cmdlets' class remarks describe their script blocks' errors, the way the condition cmdlets' remarks do. In the README:
+  - The `Stop` row of the table in Errors in script blocks says that an error the script block writes ends the whole script.
+  - The section's paragraphs describe every script block instead of only `-Condition`. They add what `Continue` does, that `-ErrorAction` doesn't change any of it, that output a comparer can't use ends the statement, and that the commands write no collection, with an example.
+  - The `-ScriptBlockErrorAction` rows of the three commands link to the section.
+- **Tests:** against commit `b563e31`, before these changes, 23 cases of the new and changed Pester tests fail in each edition, and so do all 6 cases of the new Engine test. The 2 Pester cases that pass check behavior that didn't change.
+  - `tests/New-HashSet.Tests.ps1`: the test that expected a stop and no set is gone. Its `ThrowingHashCode` case joined the test of the errors that `-InputObject` gets, which now runs for piped input too and checks that an empty set is written. A new `Errors in script blocks` context has the `Bug21` shape for `-EqualityScript`, a case for an error that `-HashCodeScript` writes, and a test for output that isn't a hash code. That test passes `-ErrorAction SilentlyContinue`: one error and no set was also the old result, but the old error was non-terminating, and that switch hid it.
+  - `tests/New-SortedSet.Tests.ps1`: the `Bug10` test checks that the output ends the statement with one `ComparingScriptException` error and no set. A new `Errors in ComparingScript` context has the `Bug21` shape. The `Bug14` test no longer passes `-ErrorAction SilentlyContinue`, which can't hide the error anymore.
+  - `tests/New-Dictionary.Tests.ps1`: a new `Errors in script blocks` context has the `Bug21` shape, with its `Write-Error` and `throw` cases in `-HashCodeScript`.
+  - Engine: the `throw` case of `HashBlockTests.GetHashCode_ThrowsWhenTheScriptDoesNotReturnAHashCode` moved to the new `GetHashCode_LetsTheExceptionsOfTheScriptThrough`. It checks that a `throw`, a `Write-Error` under `Stop`, and `break` throw exactly `RuntimeException`, `ActionPreferenceStopException`, and `BreakException`.
+
 ### 34 — Script-block parameters reject bad input in different ways
 
 ```powershell
@@ -604,6 +627,33 @@ New-Dictionary -EqualityScript { begin {} process { $x -eq $y } } -HashCodeScrip
 ```
 
 **Fix idea:** Check the shape of every script-block parameter at binding time with one attribute, as `[IsScriptBlock]` does for New-HashSet. Decide once what `-Condition $null` means, and apply it to all four condition cmdlets.
+
+**Decided on 2026-10-05:** `-Condition $null` is the same as leaving `-Condition` out, which is how PowerShell treats `$null` for a parameter.
+
+- **Assert-AnyObject:** its `-Condition` is optional, so `$null` tests whether any element isn't `$null`, as it does now.
+- **Assert-AllObject, Find-IndexOf, and Find-LastIndexOf:** their `-Condition` is mandatory, so PowerShell rejects `$null` when it binds the parameter, with "Cannot bind argument to parameter 'Condition' because it is null." Only Assert-AllObject changes. Its run-time error appeared only when an element reached the condition, so `@() | Assert-AllObject -Condition $null` gave `$true`.
+- **The other script block parameters already follow the rule:** a mandatory one, such as `-EqualityScript` or `-KeySelector`, rejects `$null`, and ConvertTo-Dictionary's optional `-ValueSelector` treats it as no value selector (28).
+
+**Fixed:** as the fix idea says, with the decision above.
+
+- **One shape check:** `[IsScriptBlock]` is on every parameter that takes a script block. New-HashSet's two already had it. It's new on New-Dictionary's `-EqualityScript` and `-HashCodeScript`, New-SortedSet's `-ComparingScript`, the `-Condition` of the four condition cmdlets, and ConvertTo-Dictionary's `-KeySelector`, `-ValueSelector`, and `-ValuePropertyName`. On `-ValuePropertyName`, which takes a property name too, it checks only a script block, after `[StringOrScriptBlockTransform]` unwraps it.
+- **One message:** `IsScriptBlockAttribute` and `ComparingBase`'s constructor check share the new `ScriptBlockExtensions.ImproperScriptBlockMessage`, which states the rule: "The script block must contain at least one statement, and it can't have a begin block, a clean block, or both a process block and an end block." The `netstandard2.0` build leaves out the clean block, which Windows PowerShell 5.1 doesn't have. The message replaces "block is not a proper script block." and "scriptBlock is not a script block."
+- **`-Condition $null`:** Assert-AllObject's `-Condition` lost `[PSAllowNull]` and `[AllowEmptyString]`.
+  - **`[AllowEmptyString]` never applied.** PowerShell doesn't convert a string to a script block, so `-Condition ''` gives a `ParameterArgumentTransformationError` with or without it, measured on 2026-10-05 in both editions. Assert-AnyObject keeps its own.
+  - **`ProcessWhenNoCondition`** still throws its `ArgumentException`, but binding no longer lets a `$null` condition reach it.
+  - **`AssertObjectCmdlet.HasCondition`** is `Condition is not null`. A script block that's empty or only white space fails validation now, so the check for one had nothing left to catch.
+- **Results, in both editions:** measured on 2026-10-05 against the Debug build.
+  - This item's four shape repros end the statement with a `ParameterArgumentValidationError` for their parameter, with the new message, before any input is read. So does the same `begin`/`process` script block passed to Assert-AllObject, Find-IndexOf, Find-LastIndexOf, and ConvertTo-Dictionary's three parameters. `$people | ConvertTo-Dictionary Id Name` still works.
+  - `1 | Assert-AllObject -Condition $null` and `@() | Assert-AllObject -Condition $null` give the `ParameterArgumentValidationErrorNullNotAllowed` error that `1 | Find-IndexOf -Condition $null` gives. `1, $null | Assert-AnyObject -Condition $null` is `True`, and `$null | Assert-AnyObject -Condition $null` is `False`.
+- **Docs:** the XML docs of `IsScriptBlockAttribute`, of every parameter that got the attribute, of `AssertObjectCmdlet.Condition`, `HasCondition`, `Process`, and `ProcessWhenNoCondition`, and of `AssertAllObjectsCmdlet` and its `ProcessWhenNoCondition`. In the README, the Script blocks section states the shape rule and the `$null` rule, and Assert-AnyObject's `-Condition` row says that `$null` is the same as no condition.
+- **Tests:** all fail against commit `b563e31`, except Assert-AnyObject's, which records behavior that didn't change.
+  - `tests/New-Dictionary.Tests.ps1`: the test that rejects a `begin` block expects `ParameterArgumentValidationError`, as New-HashSet's does, instead of `System.ArgumentException`.
+  - `tests/New-SortedSet.Tests.ps1`: a new test checks that `-ComparingScript` rejects a `begin` block. It has merit because the command accepted one before, and wrote an error for each comparison and a set without those elements.
+  - `tests/Assert-AnyObject.Tests.ps1` and `tests/Assert-AllObject.Tests.ps1`: a new `Condition` context records the decision: `$null` as no condition for Assert-AnyObject, and the binding error for Assert-AllObject, with the empty input that used to give `$true`.
+  - The shape check on the conditions and on ConvertTo-Dictionary has no test. A run-time error became a binding error there, so a test would mostly restate the fix.
+- **Not changed:**
+  - **A function's script block:** `${function:Test-It}` and `(Get-Command Test-It).ScriptBlock` have a `FunctionDefinitionAst`, which `IsProperScriptBlock` rejects, although `InvokeWithContext` runs them. `[ValidateScriptVariable]` already rejected them on every parameter, because it doesn't search the function's body, measured on 2026-10-05 in both editions. So the attribute stops nothing that worked. Accepting them belongs with 48.
+  - **`-ValuePropertyName`'s variables:** a script block passed to it still isn't checked for `$_`, as `-ValueSelector`'s is. `[ValidateScriptVariable]` can't go on that parameter, because it would parse a property name as a script block.
 
 ### 35 — The output type depends on the input
 
@@ -954,6 +1004,7 @@ Removing a type that only tests use means removing its tests too. Keep `ScriptBl
 - `ListFunctionCmdletBase.GetErrorPreference()`. Nothing calls it.
 - `CmdletRunState.Flags`, `IsStopping`, `HadError`, `BeginFailed`, and `ProcessFailed`. Nothing reads them.
 - `SortingCollectorCtor.IsCaseSensitive`. Nothing sets it, but it stays: 37 decided that New-SortedSet gets a `-CaseSensitive` that sets it.
+- The return value of `EqualityConstructingCmdlet<T>.Process`. Since 33, both derived classes always return `true`, so the `wantsToStop` parameter of `End` is always `false`.
 - `GenericCollectionCtor.ShouldConstructDefault` and `ConstructDefault`, added on 2026-10-05. Since 30 and 35, no class creates a fallback collection: `EqualityCollectionCtor` and `SortingCollectorCtor` return `false` from the first and throw from the second.
 
 **Members nothing calls:**
@@ -969,7 +1020,7 @@ Removing a type that only tests use means removing its tests too. Keep `ScriptBl
 - `DictionaryCtor.ValueType`.
 - `AddMethodInvoker.ImplementingType`.
 - Most of `ArraySlice<T>`'s members.
-- `ScriptBlockExtensions.TryInvokeWithContext<T>`.
+- `ScriptBlockExtensions.TryInvokeWithContext<T>`. 33's fix removed the non-generic overload, whose only caller was `HashBlock`.
 - `NewDictionaryCmdlet.GetAddMethod` and `GetHashtableAddMethod`. The second throws "What the hell? That's not a method call..." (`src/engine/ListFunctions-Next/Cmdlets/Constructs/NewDictionaryCmdlet.cs:348`).
 
 **Also:**
@@ -998,6 +1049,7 @@ Fixing these after 4.0.0 doesn't break anyone.
 
 - **Both commands would work:** since the fix for `bugs.md` item 05, a script block with a `param()` block receives the elements as its parameters.
 - **Function calls are rejected too:** the check also rejects a script block that calls a function that reads `$_`.
+- **So is a function's own script block:** `${function:Test-It}` is rejected although its body reads `$_`, because the check doesn't search a function's body. Since 34, `[IsScriptBlock]` rejects it too, because its syntax tree is a `FunctionDefinitionAst`.
 - **The message is incomplete:** it leaves out `$args[0]` and `$args[1]`, which the README lists.
 
 **Fix idea:** Accept a script block whose `param()` block declares a parameter for each element, and list `$args[...]` in the message.

@@ -1,6 +1,7 @@
 BeforeAll {
 	& "$PSScriptRoot/Import-ListFunctions.ps1"
 	. "$PSScriptRoot/Get-BucketCount.ps1"
+	. "$PSScriptRoot/Invoke-InNewRunspace.ps1"
 }
 
 Describe 'New-Dictionary' {
@@ -33,7 +34,7 @@ Describe 'New-Dictionary' {
 		}
 
 		It 'applies -ScriptBlockErrorAction when it copies from -InputObject' -Tag 'Bug07' {
-			# With the default of Stop, Write-Error would stop -HashCodeScript, and the entry wouldn't be copied.
+			# With the default of Stop, Write-Error would end the script, and the command would write no dictionary.
 			$dict = New-Dictionary -EqualityScript { $x -eq $y } -HashCodeScript { Write-Error 'oops'; $_.Length } -InputObject @{ abc = 1 } -ScriptBlockErrorAction SilentlyContinue
 			$dict['abc'] | Should-Be 1
 		}
@@ -76,12 +77,45 @@ Describe 'New-Dictionary' {
 			$dict.ContainsKey('ABC') | Should-BeTrue
 		}
 
-		# New-Dictionary checks the script blocks when it creates the dictionary, so the error ends the command.
+		# The command used to check the script blocks only when it created the dictionary, which ended the command with a
+		# different error than New-HashSet's.
 		It 'rejects a <Parameter> that has a begin block' -ForEach @(
 			@{ Parameter = '-EqualityScript'; EqualityScript = { begin { } process { $x -eq $y } }; HashCodeScript = { $_.GetHashCode() } }
 			@{ Parameter = '-HashCodeScript'; EqualityScript = { $x -eq $y }; HashCodeScript = { begin { } process { $_.GetHashCode() } } }
 		) {
-			{ New-Dictionary -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript } | Should-Throw -FullyQualifiedErrorId 'System.ArgumentException,*'
+			{ New-Dictionary -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript } | Should-Throw -FullyQualifiedErrorId 'ParameterArgumentValidationError,*'
+		}
+	}
+
+	# Errors from -EqualityScript and -HashCodeScript reach PowerShell unchanged, so each result is what ForEach-Object
+	# gives for the same script block in both editions, and the command writes no dictionary. They used to be
+	# non-terminating errors. The scripts run in a new runspace, because Pester's try block would catch both kinds of
+	# error.
+	Context 'Errors in script blocks' {
+		It 'ends the script when -HashCodeScript <Label>' -ForEach @(
+			# A wrapper around this error would end only the statement.
+			@{ Label = 'writes an error under -ScriptBlockErrorAction Stop'; HashCodeScript = "{ if (`$_) { Write-Error 'oops' }; `$_.Length }"; Action = 'Stop'; ErrorId = 'Microsoft.PowerShell.Commands.WriteErrorException' }
+			@{ Label = 'throws'; HashCodeScript = "{ if (`$_) { throw 'boom' }; `$_.Length }"; Action = 'Continue'; ErrorId = 'boom' }
+		) {
+			$result = Invoke-InNewRunspace "@{ a = 1; b = 2 } | New-Dictionary -EqualityScript { `$x -eq `$y } -HashCodeScript $HashCodeScript -ScriptBlockErrorAction $Action; 'still running'"
+			$result.StoppedBy.FullyQualifiedErrorId | Should-Be $ErrorId
+		}
+
+		It 'ends only the statement when a method call in -EqualityScript fails' {
+			# 'a' and 'b' have the same length, so adding the second key runs -EqualityScript.
+			$result = Invoke-InNewRunspace "@{ a = 1; b = 2 } | New-Dictionary -EqualityScript { if (`$x -or `$y) { `$null.Foo() }; `$x -eq `$y } -HashCodeScript { `$_.Length }; 'still running'"
+			$result.StoppedBy | Should-BeNull
+			Should-BeCollection -Expected @('still running') -Actual $result.Output
+			$result.Errors.Count | Should-Be 1
+			# PowerShell keeps the error ID and category of the failed call, and adds the command.
+			$result.Errors[0].FullyQualifiedErrorId | Should-Be 'InvokeMethodOnNull,ListFunctions.Cmdlets.Constructs.NewDictionaryCmdlet'
+			$result.Errors[0].CategoryInfo.Category | Should-Be ([System.Management.Automation.ErrorCategory]::InvalidOperation)
+		}
+
+		It 'leaves the enclosing loop when -HashCodeScript runs break' {
+			$result = Invoke-InNewRunspace "foreach (`$i in 1..2) { `$i; @{ a = 1 } | New-Dictionary -EqualityScript { `$x -eq `$y } -HashCodeScript { if (`$_) { break }; `$_.Length } }; 'after the loop'"
+			$result.Errors.Count | Should-Be 0
+			Should-BeCollection -Expected @(1, 'after the loop') -Actual $result.Output
 		}
 	}
 

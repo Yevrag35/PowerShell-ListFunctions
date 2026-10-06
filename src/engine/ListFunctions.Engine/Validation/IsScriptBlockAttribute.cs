@@ -16,10 +16,12 @@ namespace ListFunctions.Validation;
 /// </para>
 /// <para>
 /// The attribute checks only <see cref="ScriptBlock"/> arguments. An argument of any other type, including
-/// <see langword="null"/>, passes.
+/// <see langword="null"/>, passes, so the attribute can also check a parameter that takes a script block or another
+/// value.
 /// </para>
 /// <para>
-/// The attribute keeps no state, so it is thread-safe.
+/// The cmdlets put the attribute on every parameter that takes a script block, so a script block that they can't run
+/// fails parameter binding, before the cmdlet reads any input. The attribute keeps no state, so it is thread-safe.
 /// </para>
 /// </remarks>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
@@ -28,6 +30,10 @@ public sealed class IsScriptBlockAttribute : ValidateArgumentsAttribute
 	/// <summary>
 	/// Validates that the specified argument, when it is a <see cref="ScriptBlock"/>, has a body that can be invoked.
 	/// </summary>
+	/// <remarks>
+	/// The error message states the rule that the class remarks describe, so it's the same for every script block that
+	/// fails.
+	/// </remarks>
 	/// <param name="arguments">The argument to validate. Only a <see cref="ScriptBlock"/> is checked.</param>
 	/// <param name="engineIntrinsics">The engine intrinsics of the session that binds the parameter. The method doesn't use it.</param>
 	/// <exception cref="ValidationMetadataException">Thrown when <paramref name="arguments"/> is a script block without a body that can be invoked.</exception>
@@ -35,8 +41,7 @@ public sealed class IsScriptBlockAttribute : ValidateArgumentsAttribute
 	{
 		if (arguments is ScriptBlock block && !block.IsProperScriptBlock())
 		{
-			throw new ValidationMetadataException(
-				$"{nameof(block)} is not a proper script block.");
+			throw new ValidationMetadataException(ScriptBlockExtensions.ImproperScriptBlockMessage);
 		}
 	}
 }

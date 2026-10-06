@@ -54,6 +54,10 @@ Most commands take script blocks, which they run once for each element or once f
 
 A script block has to use at least one of these variables for each element it receives. Otherwise, the command fails with a parameter validation error. A variable that appears only inside a nested script block doesn't count.
 
+The commands run one block of a script block: its `process` block if it has one, and otherwise its `end` block, which holds the statements of a script block without named blocks. So a script block can't have a `begin` block, a `clean` block, or both a `process` block and an `end` block, and the block that runs has to contain at least one statement. A script block that breaks this rule fails with a parameter validation error too, before the command reads any input.
+
+Passing `$null` to a script block parameter is the same as leaving the parameter out. So when the command requires the parameter, as `Assert-AllObject`, `Find-IndexOf`, and `Find-LastIndexOf` require `-Condition`, PowerShell rejects `$null` with a parameter binding error. `Assert-AnyObject -Condition $null` tests for elements that aren't `$null`, the same as `Assert-AnyObject` without a condition.
+
 Only the first value that a script block outputs is used. The output of a condition or an equality script block is converted to `[bool]` by PowerShell's usual rules, so `0`, `''`, `$null`, and no output at all count as `$false`.
 
 ## Generic types
@@ -99,7 +103,7 @@ if (Get-ChildItem -File | Any { $_.Length -gt 1GB }) {
 
 | Parameter | Description |
 | --- | --- |
-| `-Condition` | Position 0. Aliases: `ScriptBlock`, `FilterScript`. Optional. The test to run on each element. |
+| `-Condition` | Position 0. Aliases: `ScriptBlock`, `FilterScript`. Optional. The test to run on each element. `$null` is the same as no condition. |
 | `-InputObject` | The elements to test. Accepts pipeline input. |
 | `-ScriptBlockErrorAction` | Alias: `ScriptErrorAction`. The `$ErrorActionPreference` inside `-Condition`. Default: `SilentlyContinue`. See [Errors in script blocks](#errors-in-script-blocks). |
 
@@ -266,7 +270,7 @@ $set.Count              # 2
 | `-CaseSensitive` | Compares strings with regard to case. Available when the element type is `[object]` or `[string]`. |
 | `-EqualityScript` | A script block that returns whether two elements are equal. Requires `-HashCodeScript`. |
 | `-HashCodeScript` | A script block that returns an element's hash code. Requires `-EqualityScript`. |
-| `-ScriptBlockErrorAction` | The `$ErrorActionPreference` inside `-EqualityScript` and `-HashCodeScript`. Default: `Stop`. |
+| `-ScriptBlockErrorAction` | The `$ErrorActionPreference` inside `-EqualityScript` and `-HashCodeScript`. Default: `Stop`. See [Errors in script blocks](#errors-in-script-blocks). |
 
 ### New-SortedSet
 
@@ -317,7 +321,7 @@ $set.Name               # Bob, Ann
 | `-GenericType` | Position 0. Alias: `Type`. The element type, `T`. Default: `[string]`, or `[object]` with `-ComparingScript`. |
 | `-InputObject` | The elements to add. Accepts pipeline input. |
 | `-ComparingScript` | A script block that returns the sort order of two elements. |
-| `-ScriptBlockErrorAction` | The `$ErrorActionPreference` inside `-ComparingScript`. Default: `Stop`. |
+| `-ScriptBlockErrorAction` | The `$ErrorActionPreference` inside `-ComparingScript`. Default: `Stop`. See [Errors in script blocks](#errors-in-script-blocks). |
 
 ### New-Dictionary
 
@@ -368,7 +372,7 @@ $dict.Add([pscustomobject]@{ Id = 1; Name = 'second' }, 'b')    # Error: the key
 | `-CaseSensitive` | Compares string keys with regard to case. Available when the key type is `[object]` or `[string]`. |
 | `-EqualityScript` | A script block that returns whether two keys are equal. Requires `-HashCodeScript`. |
 | `-HashCodeScript` | A script block that returns a key's hash code. Requires `-EqualityScript`. |
-| `-ScriptBlockErrorAction` | The `$ErrorActionPreference` inside `-EqualityScript` and `-HashCodeScript`. Default: `Stop`. |
+| `-ScriptBlockErrorAction` | The `$ErrorActionPreference` inside `-EqualityScript` and `-HashCodeScript`. Default: `Stop`. See [Errors in script blocks](#errors-in-script-blocks). |
 
 ### ConvertTo-Dictionary
 
@@ -453,7 +457,7 @@ Get-ChildItem -Path $HOME -File -Recurse | Any { $_.Length -gt 1GB }
 | Commands | Default | Effect |
 | --- | --- | --- |
 | `Assert-AnyObject`, `Assert-AllObject`, `Find-IndexOf`, `Find-LastIndexOf` | `SilentlyContinue` | Errors in `-Condition` are suppressed. |
-| `New-HashSet`, `New-SortedSet`, `New-Dictionary` | `Stop` | Errors in `-EqualityScript`, `-HashCodeScript`, and `-ComparingScript` are terminating errors. |
+| `New-HashSet`, `New-SortedSet`, `New-Dictionary` | `Stop` | An error that `-EqualityScript`, `-HashCodeScript`, or `-ComparingScript` writes ends the whole script. |
 
 Because of the `SilentlyContinue` default, an error in a condition can go unnoticed. To see it, pass `-ScriptBlockErrorAction Stop`:
 
@@ -467,12 +471,23 @@ $files | Any { (Get-Item -Path $_).Length -gt 0 } -ScriptBlockErrorAction Stop
 # Error: Cannot find path '...\missing-1.txt' because it does not exist.
 ```
 
-Errors in `-Condition` reach PowerShell unchanged, the same as errors in a `ForEach-Object` script block. With `-ScriptBlockErrorAction Stop`:
+Errors in every script block reach PowerShell unchanged, the same as errors in a `ForEach-Object` script block. With `-ScriptBlockErrorAction Stop`:
 
-- An error that the condition writes, such as the one from `Get-Item` above, ends the whole script, as `-ErrorAction Stop` would. To handle it, run the command in a `try` block.
+- An error that the script block writes, such as the one from `Get-Item` above, ends the whole script, as `-ErrorAction Stop` would. To handle it, run the command in a `try` block.
 - A failed method call, such as `$null.Foo()`, ends only the statement that runs the command.
 
-A `throw` in a condition ends the whole script unless `-ScriptBlockErrorAction` is `SilentlyContinue`, and `break` leaves the loop that runs the command.
+A `throw` in a script block ends the whole script unless `-ScriptBlockErrorAction` is `SilentlyContinue`, and `break` leaves the loop that runs the command. With `Continue`, an error that the script block writes appears, and the script block goes on, so the command uses its output. The command's own `-ErrorAction` doesn't change any of this, because these errors come from your script block, not from the command.
+
+`-HashCodeScript` has to output an `[int]`, or a value that converts to one, and so does `-ComparingScript`. When either outputs nothing, `$null`, or a value that can't be converted, the error ends the statement that runs the command, the same as a failed method call.
+
+`New-HashSet`, `New-SortedSet`, and `New-Dictionary` don't output a collection when an error from one of their script blocks reaches PowerShell. Their other errors are non-terminating, such as an element that can't be converted to the element type, or a duplicate key: the command writes the error, skips that element or entry, and goes on with the rest.
+
+```powershell
+$people = [pscustomobject]@{ Name = 'Ann' }, [pscustomobject]@{ FullName = 'Bob Smith' }
+$set = $people | New-HashSet -EqualityScript { $x.Name -eq $y.Name } -HashCodeScript { $_.Name.ToUpperInvariant().GetHashCode() }
+# Error: You cannot call a method on a null-valued expression.
+# Bob has no Name property, so the statement ends there, and nothing is assigned to $set.
+```
 
 `ConvertTo-Dictionary` has no `-ScriptBlockErrorAction`. Its `-KeySelector` and `-ValueSelector` run under your own `$ErrorActionPreference`, and their errors reach PowerShell the same way.
 

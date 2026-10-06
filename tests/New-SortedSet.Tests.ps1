@@ -1,5 +1,6 @@
 BeforeAll {
 	& "$PSScriptRoot/Import-ListFunctions.ps1"
+	. "$PSScriptRoot/Invoke-InNewRunspace.ps1"
 }
 
 # Should-BeCollection doesn't compare the order of the elements, so the tests that check an order compare the joined
@@ -105,26 +106,64 @@ Describe 'New-SortedSet' {
 		}
 	}
 
-	It "writes an error when the output of -ComparingScript <Label>" -Tag 'Bug10' -ForEach @(
-		@{ Label = "can't be converted to [int]"; Script = { 'x' + $x + $y } }
-		@{ Label = 'is missing'; Script = { $null = $x, $y } }
-		@{ Label = 'is $null'; Script = { $null = $x, $y; $null } }
+	# The output used to give a non-terminating error for each comparison, and a set without those elements.
+	It "ends only the statement when the output of -ComparingScript <Label>" -Tag 'Bug10' -ForEach @(
+		@{ Label = "can't be converted to [int]"; Script = "{ 'x' + `$x + `$y }" }
+		@{ Label = 'is missing'; Script = "{ `$null = `$x, `$y }" }
+		@{ Label = 'is $null'; Script = "{ `$null = `$x, `$y; `$null }" }
 	) {
-		# The first element is added without a comparison. Each of the other two fails.
-		$set = 5, 3, 1 | New-SortedSet [int] -ComparingScript $Script -ErrorVariable err -ErrorAction SilentlyContinue
-		Should-BeCollection -Expected @(5) -Actual ([object[]]$set)
-		$err.Count | Should-Be 2
-		Should-HaveType -Expected ([ListFunctions.Modern.Exceptions.ComparingScriptException]) -Actual $err[0].Exception
+		# The first element is added without a comparison, so the error comes from adding the second one.
+		$result = Invoke-InNewRunspace "5, 3, 1 | New-SortedSet [int] -ComparingScript $Script; 'still running'"
+		$result.StoppedBy | Should-BeNull
+		Should-BeCollection -Expected @('still running') -Actual $result.Output
+		$result.Errors.Count | Should-Be 1
+		# Should-HaveType would print the whole exception on failure, which takes minutes. A type name prints quickly.
+		$result.Errors[0].Exception.GetType().FullName | Should-Be 'ListFunctions.Modern.Exceptions.ComparingScriptException'
 	}
 
 	It "doesn't end the process when -ComparingScript returns something that isn't an [int]" -Tag 'Bug14' {
 		# The test passes if control comes back. Debug builds used to end the process here through Debug.Fail. Since
-		# bug 10 was fixed, the command writes an error for this output instead of converting it to 0.
+		# bug 10 was fixed, this output is an error that ends the statement, instead of 0.
 		try {
-			$null = 5, 3, 1 | New-SortedSet [int] -ComparingScript { 'x' + $x + $y } -ErrorAction SilentlyContinue
+			$null = 5, 3, 1 | New-SortedSet [int] -ComparingScript { 'x' + $x + $y }
 		}
 		catch {
 			# Any error is fine. The test checks only that the process survives.
+		}
+	}
+
+	# ScriptBlock.InvokeWithContext, which runs -ComparingScript, refuses a script block that has a begin block. The
+	# command used to accept one, and wrote an error for each comparison.
+	It 'rejects a -ComparingScript that has a begin block' {
+		{ 5, 3 | New-SortedSet -ComparingScript { begin { } process { $x - $y } } } | Should-Throw -FullyQualifiedErrorId 'ParameterArgumentValidationError,*'
+	}
+
+	# Errors from -ComparingScript reach PowerShell unchanged, so each result is what ForEach-Object gives for the same
+	# script block in both editions, and the command writes no set. They used to be non-terminating errors. The scripts
+	# run in a new runspace, because Pester's try block would catch both kinds of error.
+	Context 'Errors in ComparingScript' {
+		It 'ends the script when -ComparingScript <Label>' -ForEach @(
+			@{ Label = 'writes an error under -ScriptBlockErrorAction Stop'; Script = "{ if (`$x -or `$y) { Write-Error 'oops' }; `$x.CompareTo(`$y) }"; Action = 'Stop'; ErrorId = 'Microsoft.PowerShell.Commands.WriteErrorException' }
+			@{ Label = 'throws'; Script = "{ if (`$x -or `$y) { throw 'boom' }; `$x.CompareTo(`$y) }"; Action = 'Continue'; ErrorId = 'boom' }
+		) {
+			$result = Invoke-InNewRunspace "5, 3 | New-SortedSet [int] -ComparingScript $Script -ScriptBlockErrorAction $Action; 'still running'"
+			$result.StoppedBy.FullyQualifiedErrorId | Should-Be $ErrorId
+		}
+
+		It 'ends only the statement when a method call in -ComparingScript fails' {
+			$result = Invoke-InNewRunspace "5, 3 | New-SortedSet [int] -ComparingScript { if (`$x -or `$y) { `$null.Foo() }; `$x.CompareTo(`$y) }; 'still running'"
+			$result.StoppedBy | Should-BeNull
+			Should-BeCollection -Expected @('still running') -Actual $result.Output
+			$result.Errors.Count | Should-Be 1
+			# PowerShell keeps the error ID and category of the failed call, and adds the command.
+			$result.Errors[0].FullyQualifiedErrorId | Should-Be 'InvokeMethodOnNull,ListFunctions.Cmdlets.Constructs.NewSortedSetCmdlet'
+			$result.Errors[0].CategoryInfo.Category | Should-Be ([System.Management.Automation.ErrorCategory]::InvalidOperation)
+		}
+
+		It 'leaves the enclosing loop when -ComparingScript runs break' {
+			$result = Invoke-InNewRunspace "foreach (`$i in 1..2) { `$i; 5, 3 | New-SortedSet [int] -ComparingScript { if (`$x -or `$y) { break }; `$x.CompareTo(`$y) } }; 'after the loop'"
+			$result.Errors.Count | Should-Be 0
+			Should-BeCollection -Expected @(1, 'after the loop') -Actual $result.Output
 		}
 	}
 }

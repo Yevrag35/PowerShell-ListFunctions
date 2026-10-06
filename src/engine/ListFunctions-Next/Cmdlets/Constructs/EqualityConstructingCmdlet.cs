@@ -120,10 +120,8 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// The method resolves the generic type arguments from <see cref="GetGenericTypes"/>, gets the equality comparer
 	/// from <see cref="GetCustomEqualityComparer(Type)"/>, and gets an <see cref="EqualityCollectionCtor"/> from
 	/// <see cref="GetConstructor(IEqualityComparer, Type[])"/>. It passes <see cref="Capacity"/> to that object and
-	/// constructs the collection with it. It also prepares the invoker that
-	/// <see cref="AddToCollection(T, object[])"/> and
-	/// <see cref="AddToCollection(T, object, Func{object, Type, object})"/> use to call the collection's
-	/// <c>Add</c> method.
+	/// constructs the collection with it. It also prepares the invoker that <see cref="AddToCollection(T, object[])"/> and
+	/// <see cref="AddToCollection(T, object)"/> use to call the collection's <c>Add</c> method.
 	/// </remarks>
 	protected sealed override void BeginCore()
 	{
@@ -253,20 +251,23 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	}
 
 	/// <summary>
-	/// Converts the specified item and passes it to the collection's <c>Add</c> method.
+	/// Converts the specified item to the collection's element type and passes it to the collection's <c>Add</c>
+	/// method.
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	/// The method is for collections whose <c>Add</c> method takes a single argument, such as sets. It does nothing
-	/// when <paramref name="collection"/> or <paramref name="item"/> is <see langword="null"/>. Otherwise it passes
-	/// <paramref name="item"/> and the collection's element type, its first generic type argument, to
-	/// <paramref name="conversion"/>.
+	/// The method is for collections whose <c>Add</c> method takes a single argument, such as sets. The element type is
+	/// the collection's first generic type argument. The method does nothing when <paramref name="collection"/> or
+	/// <paramref name="item"/> is <see langword="null"/>, or when <paramref name="item"/> converts to
+	/// <see langword="null"/>. An item that can't be converted produces the non-terminating error that <c>New-List</c>
+	/// writes.
 	/// </para>
 	/// <para>
-	/// When the converted item is <see langword="null"/>, the call to <c>Add</c> is skipped without an error. When
-	/// <c>Add</c> throws, the method writes a non-terminating error for that exception instead of throwing, and returns
-	/// <see langword="false"/>. The error's target object is <paramref name="item"/> as it was before conversion.
-	/// Exceptions thrown by <paramref name="conversion"/> propagate to the caller.
+	/// When <c>Add</c> throws a <see cref="RuntimeException"/> or a <see cref="FlowControlException"/>, such as an error
+	/// from a script block that compares the elements, the method throws it again unchanged, so it reaches PowerShell the
+	/// way an error from a <c>ForEach-Object</c> script block does. Any other exception from <c>Add</c>, such as one from
+	/// an element type's own <see cref="object.GetHashCode"/> method, produces a non-terminating error instead. The
+	/// error's target object is <paramref name="item"/> as it was before conversion.
 	/// </para>
 	/// <para>
 	/// <b>Performance:</b> The method reuses one argument array for every call, so it doesn't allocate an array for
@@ -275,25 +276,23 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// </remarks>
 	/// <param name="collection">The collection to add to.</param>
 	/// <param name="item">The item to convert and add, or <see langword="null"/>.</param>
-	/// <param name="conversion">A function that receives <paramref name="item"/> and the collection's element type and returns the converted item.</param>
-	/// <returns><see langword="true"/> when the item was added or skipped; <see langword="false"/> when <c>Add</c> threw.</returns>
-	protected bool AddToCollection(T collection, object? item, Func<object?, Type, object?> conversion)
+	/// <exception cref="RuntimeException">Thrown when <c>Add</c> throws one, for example because a script block that compares the elements fails.</exception>
+	/// <exception cref="FlowControlException">Thrown when <c>Add</c> throws one, for example because a script block that compares the elements runs <c>break</c>.</exception>
+	protected void AddToCollection(T collection, object? item)
 	{
-		if (collection is null || item is null)
+		if (collection is null || item is null || !this.TryConvertItem(item, _genericTypes[0], out object? converted))
 		{
-			return true;
+			return;
 		}
 
 		object?[] args = _addArgs ??= new object?[1];
-		args[0] = conversion(item, _genericTypes[0]);
+		args[0] = converted;
 
-		if (_addMethod.TryInvoke(collection, args, false, out Exception? caughtEx))
+		if (!_addMethod.TryInvoke(collection, args, addIfNull: false, out Exception? caughtEx))
 		{
-			return true;
+			RethrowIfPassesThrough(caughtEx);
+			this.WriteError(caughtEx.ToRecord(ErrorCategory.InvalidOperation, item));
 		}
-
-		this.WriteError(caughtEx.ToRecord(ErrorCategory.InvalidOperation, item));
-		return false;
 	}
 	/// <summary>
 	/// Passes the specified arguments to the collection's <c>Add</c> method.
@@ -302,16 +301,21 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// <para>
 	/// Every call reaches <c>Add</c>, even when an argument is <see langword="null"/>, so the collection decides whether
 	/// it accepts <see langword="null"/>. For example, a dictionary stores a <see langword="null"/> value when its value
-	/// type can hold one, and it rejects a <see langword="null"/> key.
+	/// type can hold one, and it rejects a <see langword="null"/> key. The method does nothing when
+	/// <paramref name="collection"/> is <see langword="null"/>.
 	/// </para>
 	/// <para>
-	/// When <c>Add</c> throws, the method writes a non-terminating error for that exception instead of throwing. The
-	/// error's target object is the first argument, such as a dictionary's key. The method does nothing when
-	/// <paramref name="collection"/> is <see langword="null"/>.
+	/// When <c>Add</c> throws a <see cref="RuntimeException"/> or a <see cref="FlowControlException"/>, such as an error
+	/// from a script block that compares the keys, the method throws it again unchanged, so it reaches PowerShell the way
+	/// an error from a <c>ForEach-Object</c> script block does. Any other exception from <c>Add</c>, such as the one for a
+	/// duplicate key, produces a non-terminating error instead. The error's target object is the first argument, such as
+	/// a dictionary's key.
 	/// </para>
 	/// </remarks>
 	/// <param name="collection">The collection to add to.</param>
 	/// <param name="arguments">The arguments for the <c>Add</c> method, in parameter order. This value must not be <see langword="null"/>.</param>
+	/// <exception cref="RuntimeException">Thrown when <c>Add</c> throws one, for example because a script block that compares the keys fails.</exception>
+	/// <exception cref="FlowControlException">Thrown when <c>Add</c> throws one, for example because a script block that compares the keys runs <c>break</c>.</exception>
 	protected void AddToCollection(T collection, object?[] arguments)
 	{
 		if (collection is null)
@@ -321,6 +325,8 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 
 		if (!_addMethod.TryInvoke(collection, arguments, addIfNull: true, out Exception? caughtEx))
 		{
+			RethrowIfPassesThrough(caughtEx);
+
 			// The caller can reuse the array for its next entry, so the record keeps the first argument instead.
 			object? target = arguments.Length > 0 ? arguments[0] : null;
 			this.WriteError(caughtEx.ToRecord(ErrorCategory.InvalidOperation, target));

@@ -27,9 +27,10 @@ public abstract class AssertObjectCmdlet : ListFunctionCmdletBase
 	/// Gets or sets the script block that tests each input object.
 	/// </summary>
 	/// <remarks>
-	/// A script block that is <see langword="null"/>, empty, or only white space counts as no condition, and the cmdlet
-	/// calls <see cref="ProcessWhenNoCondition"/> instead of testing input with it. Derived classes override the
-	/// property to make it a parameter.
+	/// <see langword="null"/> means no condition, the same as leaving the parameter out, and the cmdlet calls
+	/// <see cref="ProcessWhenNoCondition"/> instead of testing input with a script block. Derived classes override the
+	/// property to make it a parameter. A cmdlet that requires a condition makes the parameter mandatory, so PowerShell
+	/// rejects <see langword="null"/> when it binds the parameter.
 	/// </remarks>
 	/// <value>The condition <see cref="ScriptBlock"/>, or <see langword="null"/> when none is set.</value>
 	public virtual ScriptBlock? Condition
@@ -38,7 +39,7 @@ public abstract class AssertObjectCmdlet : ListFunctionCmdletBase
 		set
 		{
 			field = value;
-			this.HasCondition = !(value is null || string.IsNullOrWhiteSpace(value.ToString()));
+			this.HasCondition = value is not null;
 		}
 	}
 	/// <summary>
@@ -63,15 +64,15 @@ public abstract class AssertObjectCmdlet : ListFunctionCmdletBase
 	private protected ScriptBlockFilter? Filter { get; private set; }
 
 	/// <summary>
-	/// Gets a value that indicates whether <see cref="Condition"/> is a script block with content.
+	/// Gets a value that indicates whether <see cref="Condition"/> is set.
 	/// </summary>
 	/// <remarks>
 	/// The <see cref="Condition"/> setter updates the value. When it is <see langword="true"/>, <see cref="Filter"/>
 	/// isn't <see langword="null"/> after <see cref="BeginCore"/> runs.
 	/// </remarks>
 	/// <value>
-	/// <see langword="true"/> when <see cref="Condition"/> isn't <see langword="null"/>, empty, or only white space;
-	/// otherwise, <see langword="false"/>.
+	/// <see langword="true"/> when <see cref="Condition"/> isn't <see langword="null"/>; otherwise,
+	/// <see langword="false"/>.
 	/// </value>
 	[MemberNotNullWhen(true, nameof(Condition), nameof(Filter))]
 	private protected bool HasCondition { get; set; }
@@ -122,9 +123,8 @@ public abstract class AssertObjectCmdlet : ListFunctionCmdletBase
 	/// When implemented in a derived class, tests the current pipeline input with the condition filter.
 	/// </summary>
 	/// <remarks>
-	/// The base class calls this method only when <see cref="Condition"/> is a script block with content. An error from
-	/// the condition script block reaches PowerShell unchanged, and any other exception from this method becomes a
-	/// terminating error.
+	/// The base class calls this method only when <see cref="Condition"/> is set. An error from the condition script
+	/// block reaches PowerShell unchanged, and any other exception from this method becomes a terminating error.
 	/// </remarks>
 	/// <param name="filter">The filter that tests objects with <see cref="Condition"/>. This value isn't <see langword="null"/>.</param>
 	/// <returns>
@@ -136,8 +136,8 @@ public abstract class AssertObjectCmdlet : ListFunctionCmdletBase
 	/// When implemented in a derived class, processes the current pipeline input when no condition is set.
 	/// </summary>
 	/// <remarks>
-	/// The base class calls this method when <see cref="Condition"/> is <see langword="null"/>, empty, or only white
-	/// space. An exception from this method becomes a terminating error.
+	/// The base class calls this method when <see cref="Condition"/> is <see langword="null"/>. An exception from this
+	/// method becomes a terminating error.
 	/// </remarks>
 	/// <returns>
 	/// <see langword="true"/> when the result of the assertion is decided and the cmdlet stops processing input;

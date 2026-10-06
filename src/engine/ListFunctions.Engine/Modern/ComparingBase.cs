@@ -68,7 +68,7 @@ public abstract class ComparingBase
 		if (!scriptBlock.IsProperScriptBlock())
 		{
 			paramName ??= nameof(scriptBlock);
-			throw new ArgumentException($"{nameof(scriptBlock)} is not a script block.", paramName);
+			throw new ArgumentException(ScriptBlockExtensions.ImproperScriptBlockMessage, paramName);
 		}
 	}
 }

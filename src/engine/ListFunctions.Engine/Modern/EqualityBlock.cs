@@ -158,7 +158,8 @@ public sealed class EqualityBlock : ComparingBase, IEqualityBlock
 	/// <param name="obj">The object to compute the hash code of. This value must not be <see langword="null"/>.</param>
 	/// <returns>The hash code that <see cref="HashCodeBlock"/> computes for <paramref name="obj"/>.</returns>
 	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="obj"/> is null.</exception>
-	/// <exception cref="Exceptions.HashCodeScriptException">Thrown when <see cref="HashCodeBlock"/> is a <see cref="HashBlock"/> and its script block fails.</exception>
+	/// <exception cref="Exceptions.HashCodeScriptException">Thrown when <see cref="HashCodeBlock"/> is a <see cref="HashBlock"/> and its script block's first output is missing, null, or can't be converted to an <see cref="int"/>.</exception>
+	/// <exception cref="RuntimeException">Thrown when <see cref="HashCodeBlock"/> is a <see cref="HashBlock"/> and its script block throws.</exception>
 	public int GetHashCode([DisallowNull] object obj)
 	{
 		Guard.NotNull(obj);

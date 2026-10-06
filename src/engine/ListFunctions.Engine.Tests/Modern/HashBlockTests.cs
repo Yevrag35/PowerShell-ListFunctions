@@ -75,13 +75,29 @@ public sealed class HashBlockTests : IClassFixture<RunspaceFixture>
 	[InlineData("$null = $_")]
 	[InlineData("$null")]
 	[InlineData("$_.ToUpperInvariant()")]
-	[InlineData("throw 'No hash code'")]
 	public void GetHashCode_ThrowsWhenTheScriptDoesNotReturnAHashCode(string hashCodeScript)
 	{
 		using RunspaceScope scope = _runspace.Enter();
 		var block = new HashBlock(ScriptBlock.Create(hashCodeScript));
 
 		Assert.Throws<HashCodeScriptException>(() => block.GetHashCode("abcd", additionalVariables: null));
+	}
+
+	// The cmdlets pass these exceptions on to PowerShell, which decides by their type what each one ends. Wrapped in a
+	// HashCodeScriptException, an error that the script writes under Stop would end only the statement instead of the
+	// whole script, and break couldn't leave the loop around the command.
+	[Theory]
+	[InlineData("throw 'No hash code'", typeof(RuntimeException))]
+	[InlineData("Write-Error 'No hash code'; $_.Length", typeof(ActionPreferenceStopException))]
+	[InlineData("break", typeof(BreakException))]
+	public void GetHashCode_LetsTheExceptionsOfTheScriptThrough(string hashCodeScript, Type expected)
+	{
+		using RunspaceScope scope = _runspace.Enter();
+		var block = new HashBlock(ScriptBlock.Create(hashCodeScript));
+		IEnumerable<PSVariable> variables = [new PSVariable("ErrorActionPreference", ActionPreference.Stop)];
+
+		Exception exception = Assert.ThrowsAny<Exception>(() => block.GetHashCode("abcd", variables));
+		Assert.Equal(expected, exception.GetType());
 	}
 
 	// ScriptBlock.InvokeWithContext, which runs the script, refuses a script block that has a begin block, or both a

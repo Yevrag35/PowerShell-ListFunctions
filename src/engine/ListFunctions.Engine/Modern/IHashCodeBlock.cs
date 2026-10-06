@@ -14,7 +14,9 @@ public interface IHashBlock
 	/// </summary>
 	/// <remarks>
 	/// Implementations decide how they report a <see langword="null"/> object or a script block that fails.
-	/// <see cref="HashBlock"/> reports both as a <see cref="Exceptions.HashCodeScriptException"/>.
+	/// <see cref="HashBlock"/> reports a <see langword="null"/> object, and output that isn't a hash code, as a
+	/// <see cref="Exceptions.HashCodeScriptException"/>. It lets an exception that the script block throws reach the caller
+	/// unchanged.
 	/// </remarks>
 	/// <param name="obj">The object to compute the hash code of. This value must not be <see langword="null"/>.</param>
 	/// <param name="additionalVariables">The variables to define in the script block's scope along with the object, or <see langword="null"/> for none.</param>

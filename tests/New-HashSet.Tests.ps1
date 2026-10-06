@@ -1,6 +1,7 @@
 BeforeAll {
 	& "$PSScriptRoot/Import-ListFunctions.ps1"
 	. "$PSScriptRoot/Get-BucketCount.ps1"
+	. "$PSScriptRoot/Invoke-InNewRunspace.ps1"
 }
 
 Describe 'New-HashSet' {
@@ -226,13 +227,25 @@ namespace NewHashSetTests
 '@
 		}
 
-		It 'writes an error that targets each element a typed set fails to add' {
-			$null = New-HashSet ([NewHashSetTests.ThrowingHashCode]) -InputObject 1, 2 -ErrorVariable err -ErrorAction SilentlyContinue
+		# These errors don't come from a script block, so they're non-terminating. Piped input used to stop at the first
+		# one, and the command wrote no set.
+		It 'writes an error that targets each element a typed set fails to add, and writes the set, when the input is <Label>' -ForEach @(
+			@{ Label = 'piped'; Piped = $true }
+			@{ Label = 'passed to -InputObject'; Piped = $false }
+		) {
+			if ($Piped) {
+				$set = 1, 2 | New-HashSet ([NewHashSetTests.ThrowingHashCode]) -ErrorVariable err -ErrorAction SilentlyContinue
+			}
+			else {
+				$set = New-HashSet ([NewHashSetTests.ThrowingHashCode]) -InputObject 1, 2 -ErrorVariable err -ErrorAction SilentlyContinue
+			}
 			$err.Count | Should-Be 2
 			# Conversion errors have the InvalidType category, so InvalidOperation shows that these errors come from Add.
 			$err[0].CategoryInfo.Category | Should-Be ([System.Management.Automation.ErrorCategory]::InvalidOperation)
 			$err[0].TargetObject | Should-Be 1
 			$err[1].TargetObject | Should-Be 2
+			Should-HaveType -Expected ([System.Collections.Generic.HashSet[NewHashSetTests.ThrowingHashCode]]) -Actual $set
+			$set.Count | Should-Be 0
 		}
 
 		It 'writes the exception that Add throws when a typed set fails to add an element' {
@@ -241,33 +254,48 @@ namespace NewHashSetTests
 			# Should-HaveType would print the whole exception on failure, which takes minutes. A type name prints quickly.
 			$err[0].Exception.GetType().FullName | Should-Be 'System.InvalidOperationException'
 		}
+	}
 
-		# The type is named as a string because Pester reads -ForEach before BeforeAll defines the type.
-		It 'stops at the first element that <Label> fails to add, and writes no set' -ForEach @(
-			@{
-				Label = 'a typed set'
-				Elements = 1, 2
-				Parameters = @{ GenericType = 'NewHashSetTests.ThrowingHashCode' }
-				Failed = 1
-			}
-			@{
-				# 'a' and 'A' share a hash code, so adding 'A' runs -EqualityScript.
-				Label = 'a set with script block equality'
-				Elements = 'a', 'A', 'b'
-				Parameters = @{
-					EqualityScript = { throw 'boom'; $x -eq $y }
-					HashCodeScript = { $_.ToUpperInvariant().GetHashCode() }
-				}
-				Failed = 'A'
-			}
+	# Errors from -EqualityScript and -HashCodeScript reach PowerShell unchanged, so each result is what ForEach-Object
+	# gives for the same script block in both editions, and the command writes no set. They used to be non-terminating
+	# errors that stopped the command. The scripts run in a new runspace, because Pester's try block would catch both
+	# kinds of error. 'a' and 'b' have the same length, so adding 'b' runs -EqualityScript.
+	Context 'Errors in script blocks' {
+		It 'ends the script when <Parameter> <Label>' -ForEach @(
+			@{ Parameter = '-EqualityScript'; Label = 'writes an error under -ScriptBlockErrorAction Stop'; EqualityScript = "{ if (`$x -or `$y) { Write-Error 'oops' }; `$x -eq `$y }"; HashCodeScript = "{ `$_.Length }"; Action = 'Stop'; ErrorId = 'Microsoft.PowerShell.Commands.WriteErrorException' }
+			@{ Parameter = '-EqualityScript'; Label = 'throws'; EqualityScript = "{ if (`$x -or `$y) { throw 'boom' }; `$x -eq `$y }"; HashCodeScript = "{ `$_.Length }"; Action = 'Continue'; ErrorId = 'boom' }
+			# A wrapper around this error would end only the statement.
+			@{ Parameter = '-HashCodeScript'; Label = 'writes an error under -ScriptBlockErrorAction Stop'; EqualityScript = "{ `$x -eq `$y }"; HashCodeScript = "{ if (`$_) { Write-Error 'oops' }; `$_.Length }"; Action = 'Stop'; ErrorId = 'Microsoft.PowerShell.Commands.WriteErrorException' }
 		) {
-			$set = $Elements | New-HashSet @Parameters -ErrorVariable err -ErrorAction SilentlyContinue
-			Should-BeNull -Actual $set
-			# Like Select-Object -First, the command stops the commands upstream of it with an exception that Windows
-			# PowerShell 5.1 also puts in the error variable. That exception isn't an error record.
-			$records = @($err | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] })
-			$records.Count | Should-Be 1
-			$records[0].TargetObject | Should-Be $Failed
+			$result = Invoke-InNewRunspace "'a', 'b' | New-HashSet -EqualityScript $EqualityScript -HashCodeScript $HashCodeScript -ScriptBlockErrorAction $Action; 'still running'"
+			$result.StoppedBy.FullyQualifiedErrorId | Should-Be $ErrorId
+		}
+
+		It 'ends only the statement when a method call in -EqualityScript fails' {
+			$result = Invoke-InNewRunspace "'a', 'b' | New-HashSet -EqualityScript { if (`$x -or `$y) { `$null.Foo() }; `$x -eq `$y } -HashCodeScript { `$_.Length }; 'still running'"
+			$result.StoppedBy | Should-BeNull
+			Should-BeCollection -Expected @('still running') -Actual $result.Output
+			$result.Errors.Count | Should-Be 1
+			# PowerShell keeps the error ID and category of the failed call, and adds the command.
+			$result.Errors[0].FullyQualifiedErrorId | Should-Be 'InvokeMethodOnNull,ListFunctions.Cmdlets.Constructs.NewHashSetCmdlet'
+			$result.Errors[0].CategoryInfo.Category | Should-Be ([System.Management.Automation.ErrorCategory]::InvalidOperation)
+		}
+
+		# -ErrorAction SilentlyContinue hid the non-terminating error that the command used to write for this output. It
+		# can't hide an error that ends the statement.
+		It "ends only the statement when the output of -HashCodeScript isn't a hash code, whatever -ErrorAction says" {
+			$result = Invoke-InNewRunspace "'a', 'b' | New-HashSet -EqualityScript { `$x -eq `$y } -HashCodeScript { `$_.ToUpperInvariant() } -ErrorAction SilentlyContinue; 'still running'"
+			$result.StoppedBy | Should-BeNull
+			Should-BeCollection -Expected @('still running') -Actual $result.Output
+			$result.Errors.Count | Should-Be 1
+			# Should-HaveType would print the whole exception on failure, which takes minutes. A type name prints quickly.
+			$result.Errors[0].Exception.GetType().FullName | Should-Be 'ListFunctions.Modern.Exceptions.HashCodeScriptException'
+		}
+
+		It 'leaves the enclosing loop when -EqualityScript runs break' {
+			$result = Invoke-InNewRunspace "foreach (`$i in 1..2) { `$i; 'a', 'b' | New-HashSet -EqualityScript { if (`$x -or `$y) { break } } -HashCodeScript { `$_.Length } }; 'after the loop'"
+			$result.Errors.Count | Should-Be 0
+			Should-BeCollection -Expected @(1, 'after the loop') -Actual $result.Output
 		}
 	}
 }

@@ -46,12 +46,13 @@ public sealed class FindLastIndexCmdlet : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// The script block receives the current element as <c>$_</c>, <c>$PSItem</c>, <c>$this</c>, and <c>$args[0]</c>,
-	/// and must reference at least one of them. Parameter validation rejects a script block that references none.
-	/// The script block's output is converted to a <see cref="bool"/> by using PowerShell's truthiness rules.
+	/// and must reference at least one of them. Parameter validation rejects a script block that references none, and
+	/// one that the cmdlet can't run, such as one that has a <c>begin</c> block. The script block's output is converted
+	/// to a <see cref="bool"/> by using PowerShell's truthiness rules.
 	/// </remarks>
-	/// <value>The condition <see cref="ScriptBlock"/> to evaluate against each input element.</value>
+	/// <value>The condition <see cref="ScriptBlock"/> to evaluate against each input element. PowerShell rejects <see langword="null"/> when it binds the parameter.</value>
 	[Parameter(Mandatory = true, Position = 0), Alias("ScriptBlock")]
-	[ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.This, PSThisVariable.PSItem, PSThisVariable.FirstArg)]
+	[IsScriptBlock, ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.This, PSThisVariable.PSItem, PSThisVariable.FirstArg)]
 	public ScriptBlock Condition { get; set; } = null!;
 
 	/// <summary>

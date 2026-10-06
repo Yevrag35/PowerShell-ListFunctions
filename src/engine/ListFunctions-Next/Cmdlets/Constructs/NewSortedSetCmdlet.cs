@@ -26,6 +26,14 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// element type defaults to <see cref="object"/>.
 /// </para>
 /// <para>
+/// Errors from <see cref="ComparingScript"/> reach PowerShell unchanged, the way they do from a <c>ForEach-Object</c>
+/// script block, and the cmdlet then writes no set. When <see cref="ScriptBlockErrorAction"/> is
+/// <see cref="ActionPreference.Stop"/>, the default, an error that the script block writes ends the script that runs the
+/// cmdlet, as <c>-ErrorAction Stop</c> does. A <c>throw</c> does too unless the errors are suppressed. A failed method
+/// call, and output that isn't an <see cref="int"/>, end only the statement, and <c>break</c> leaves the loop around the
+/// cmdlet.
+/// </para>
+/// <para>
 /// Elements that compare as equal are stored once. The set is written as a single object and is not enumerated into
 /// the pipeline.
 /// </para>
@@ -69,16 +77,18 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 	/// <para>
 	/// The script block receives the two elements as <c>$x</c> and <c>$y</c>, as <c>$left</c> and <c>$right</c>, or
 	/// as <c>$args[0]</c> and <c>$args[1]</c>. It must reference one variable for each element and return an integer
-	/// that is less than zero, zero, or greater than zero, as <see cref="IComparer{T}.Compare(T, T)"/> does.
+	/// that is less than zero, zero, or greater than zero, as <see cref="IComparer{T}.Compare(T, T)"/> does. Parameter
+	/// validation also rejects a script block that the cmdlet can't run, such as one that has a <c>begin</c> block.
 	/// </para>
 	/// <para>
 	/// Its first output is converted to an <see cref="int"/>. When it returns no value, <see langword="null"/>, or a
-	/// value that can't be converted, the element being added isn't added, and the cmdlet writes a non-terminating
-	/// error.
+	/// value that can't be converted, the error ends the statement that runs the cmdlet, as a failed method call does,
+	/// and the cmdlet writes no set.
 	/// </para>
 	/// </remarks>
 	/// <value>The comparison <see cref="ScriptBlock"/>.</value>
 	[Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
+	[IsScriptBlock]
 	[ValidateScriptVariable(PSComparingVariable.X, PSComparingVariable.LEFT, PSThisVariable.FirstArg)]
 	[ValidateScriptVariable(PSComparingVariable.Y, PSComparingVariable.RIGHT, PSThisVariable.SecondArg)]
 	public ScriptBlock ComparingScript { get; set; } = null!;
@@ -148,12 +158,21 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 	/// Converts the elements of the current <see cref="InputObject"/> and adds them to the set.
 	/// </summary>
 	/// <remarks>
+	/// <para>
 	/// An element that cannot be converted to <see cref="GenericType"/> produces a non-terminating error, the same one
-	/// that <c>New-List</c> writes, and is skipped. <see langword="null"/> elements are skipped without an error. When
-	/// adding an element throws, for example because <see cref="ComparingScript"/> fails, the method writes a
-	/// non-terminating error for the exception that the set threw, and continues.
+	/// that <c>New-List</c> writes, and is skipped. <see langword="null"/> elements are skipped without an error.
+	/// </para>
+	/// <para>
+	/// When adding an element throws a <see cref="RuntimeException"/> or a <see cref="FlowControlException"/>, such as
+	/// an error from <see cref="ComparingScript"/>, including one for output that isn't an <see cref="int"/>, the method
+	/// throws it again unchanged, so it reaches PowerShell, and the cmdlet writes no set. Any other exception, such as one
+	/// from the element type's own comparison, produces a non-terminating error for that element, and the method goes on
+	/// with the next one.
+	/// </para>
 	/// </remarks>
 	/// <returns>Always <see langword="true"/>, so all pipeline input is processed.</returns>
+	/// <exception cref="RuntimeException">Thrown when adding an element throws one, for example because <see cref="ComparingScript"/> fails.</exception>
+	/// <exception cref="FlowControlException">Thrown when adding an element throws one, for example because <see cref="ComparingScript"/> runs <c>break</c>.</exception>
 	protected override bool ProcessCore()
 	{
 		bool flag = true;
@@ -176,6 +195,7 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 			_arr[0] = result;
 			if (!_addMethod.TryInvoke(_set, _arr, false, out Exception? caught))
 			{
+				RethrowIfPassesThrough(caught);
 				this.WriteError(caught.ToRecord(ErrorCategory.InvalidType, item));
 			}
 		}

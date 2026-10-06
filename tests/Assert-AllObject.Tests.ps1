@@ -9,6 +9,14 @@ Describe 'Assert-AllObject' {
 		1, 2, 3 | Assert-AllObject { $args[0] -gt 1 } | Should-BeFalse
 	}
 
+	Context 'Condition' {
+		# $null is the same as leaving -Condition out, which the command requires, so it's rejected the way Find-IndexOf
+		# rejects it. It used to be an error only when an element reached the condition, so empty input gave $true.
+		It 'rejects -Condition $null when it binds the parameter, even when there is no input' {
+			{ @() | Assert-AllObject -Condition $null } | Should-Throw -FullyQualifiedErrorId 'ParameterArgumentValidationErrorNullNotAllowed,*'
+		}
+	}
+
 	Context 'Pipeline input' {
 		It 'passes a piped <Name> to -Condition as one element' -Tag 'Bug06' -ForEach @(
 			@{ Name = '$null'; Items = @(1, $null) }

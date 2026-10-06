@@ -13,6 +13,10 @@ namespace ListFunctions.Modern;
 /// with any additional variables that the caller passes to <see cref="GetHashCode(object, IEnumerable{PSVariable})"/>.
 /// </para>
 /// <para>
+/// An exception that the script block throws reaches the caller unchanged. Output that isn't a hash code throws a
+/// <see cref="HashCodeScriptException"/>.
+/// </para>
+/// <para>
 /// Instances aren't thread-safe, because every call reuses the same list of script block variables.
 /// </para>
 /// </remarks>
@@ -66,13 +70,20 @@ public sealed class HashBlock : ComparingBase, IHashBlock
 	/// rules, so the string <c>'42'</c> gives the hash code 42.
 	/// </para>
 	/// <para>
+	/// An exception that the script block throws reaches the caller unchanged, so PowerShell handles it the way it handles
+	/// one from any other script block. For example, the exception for an error that the script block writes under
+	/// <c>$ErrorActionPreference = 'Stop'</c> still ends the whole script, and the one that <c>break</c> throws still
+	/// leaves the loop around the command.
+	/// </para>
+	/// <para>
 	/// The method isn't thread-safe, because every call reuses the same list of script block variables.
 	/// </para>
 	/// </remarks>
 	/// <param name="obj">The object to compute the hash code of. This value must not be <see langword="null"/>.</param>
 	/// <param name="additionalVariables">The variables to define in the script block's scope along with the object, or <see langword="null"/> for none.</param>
 	/// <returns>The first output of the script block, converted to an <see cref="int"/>.</returns>
-	/// <exception cref="HashCodeScriptException">Thrown when <paramref name="obj"/> is null, when the script block throws, or when its first output is missing, null, or can't be converted to an <see cref="int"/>.</exception>
+	/// <exception cref="HashCodeScriptException">Thrown when <paramref name="obj"/> is null, or when the script block's first output is missing, null, or can't be converted to an <see cref="int"/>.</exception>
+	/// <exception cref="RuntimeException">Thrown when the script block throws.</exception>
 	public int GetHashCode([DisallowNull] object obj, IEnumerable<PSVariable>? additionalVariables)
 	{
 		if (obj is null)
@@ -88,6 +99,7 @@ public sealed class HashBlock : ComparingBase, IHashBlock
 		}
 		catch (PSInvalidCastException e)
 		{
+			// InvokeWithContext removes $_ and $this from the list it's given, so the list is rebuilt for the exception.
 			throw HashCodeScriptException.FromBlockException(e, obj, this.SetContextVariables(obj, additionalVariables));
 		}
 	}
@@ -96,25 +108,21 @@ public sealed class HashBlock : ComparingBase, IHashBlock
 	/// Runs the hash code script block for the specified object and returns the script block's first output.
 	/// </summary>
 	/// <remarks>
-	/// The method returns only when the script block succeeds and its first output isn't <see langword="null"/>. The
-	/// caller converts that output to the hash code.
+	/// The method doesn't catch the script block's exceptions, so they reach the caller unchanged. It returns only when the
+	/// script block's first output isn't <see langword="null"/>, and the caller converts that output to the hash code.
 	/// </remarks>
 	/// <param name="obj">The object to pass to the script block as <c>$_</c>, <c>$this</c>, <c>$PSItem</c>, and <c>$args[0]</c>.</param>
 	/// <param name="additionalVariables">The variables to define in the script block's scope along with the object, or <see langword="null"/> for none.</param>
-	/// <returns>The first output of the script block.</returns>
-	/// <exception cref="HashCodeScriptException">Thrown when the script block throws, or when it has no output or its first output is null.</exception>
+	/// <returns>The first output of the script block, unwrapped from its <see cref="PSObject"/>.</returns>
+	/// <exception cref="HashCodeScriptException">Thrown when the script block has no output, or when its first output is null.</exception>
+	/// <exception cref="RuntimeException">Thrown when the script block throws.</exception>
 	private object? GetHashObject(object obj, IEnumerable<PSVariable>? additionalVariables)
 	{
 		List<PSVariable> variables = this.SetContextVariables(obj, additionalVariables);
-		if (!this.Script.TryInvokeWithContext(variables, [obj], out object? hashObj, out Exception? exception))
+		Collection<PSObject> output = this.Script.InvokeWithContext(null, variables, [obj]);
+		if (output.Count == 0 || !output[0].TryGetBaseObject(out object? hashObj))
 		{
-			if (exception is null)
-			{
-				return this.ThrowNullHashCode(obj, additionalVariables);
-			}
-
-			// InvokeWithContext removes $_ and $this from the list it's given, so the list is rebuilt for the exception.
-			throw HashCodeScriptException.FromBlockException(exception, obj, this.SetContextVariables(obj, additionalVariables));
+			return this.ThrowNullHashCode(obj, additionalVariables);
 		}
 
 		return hashObj;

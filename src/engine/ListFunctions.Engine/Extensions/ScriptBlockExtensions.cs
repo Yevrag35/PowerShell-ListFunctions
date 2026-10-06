@@ -10,6 +10,20 @@ namespace ListFunctions.Extensions;
 internal static class ScriptBlockExtensions
 {
 	/// <summary>
+	/// The message that reports a script block that <see cref="IsProperScriptBlock(ScriptBlock)"/> rejects.
+	/// </summary>
+	/// <remarks>
+	/// The message states the rule instead of the reason that a particular script block breaks it. Windows PowerShell 5.1
+	/// has no <c>clean</c> blocks, so only the .NET 10 build's message mentions one.
+	/// </remarks>
+	internal const string ImproperScriptBlockMessage =
+#if NETCOREAPP
+		"The script block must contain at least one statement, and it can't have a begin block, a clean block, or both a process block and an end block.";
+#else
+		"The script block must contain at least one statement, and it can't have a begin block, or both a process block and an end block.";
+#endif
+
+	/// <summary>
 	/// Determines whether a script block has a body that can be invoked as a comparer or predicate.
 	/// </summary>
 	/// <remarks>
@@ -83,58 +97,6 @@ internal static class ScriptBlockExtensions
 		return results.GetFirstValue(selectAs, defaultIfNull);
 	}
 
-	/// <summary>
-	/// Attempts to invoke a script block with the specified variables and arguments, and returns its first output object.
-	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// The method catches every exception that the invocation throws and returns it through <paramref name="caughtError"/>
-	/// instead of throwing.
-	/// </para>
-	/// <para>
-	/// The first output object is unwrapped from its <see cref="PSObject"/> to the underlying base object.
-	/// </para>
-	/// </remarks>
-	/// <param name="scriptBlock">The script block to invoke.</param>
-	/// <param name="variables">The variables to define in the script block's scope, such as <c>$_</c> or <c>$left</c> and <c>$right</c>.</param>
-	/// <param name="args">
-	/// The arguments to pass to the script block. PowerShell does not copy this array, so pass a new array on every call.
-	/// </param>
-	/// <param name="result">
-	/// When this method returns, contains the unwrapped first output object, or <paramref name="defaultIfNull"/> when the script
-	/// block outputs nothing or throws.
-	/// </param>
-	/// <param name="caughtError">
-	/// When this method returns, contains the exception that the invocation threw, or <see langword="null"/> when it succeeded.
-	/// </param>
-	/// <param name="defaultIfNull">The value to return through <paramref name="result"/> when there is no output object to return.</param>
-	/// <returns>
-	/// <see langword="true"/> when the invocation succeeds and <paramref name="result"/> is not <see langword="null"/>; otherwise,
-	/// <see langword="false"/>.
-	/// </returns>
-	internal static bool TryInvokeWithContext(this ScriptBlock scriptBlock, List<PSVariable> variables, object?[] args, [NotNullIfNotNull(nameof(defaultIfNull))] out object? result, out Exception? caughtError, object? defaultIfNull = null)
-	{
-		try
-		{
-			Collection<PSObject> results = scriptBlock.InvokeWithContext(null, variables, args);
-			caughtError = null;
-			if (results.Count > 0 && results[0] is PSObject o)
-			{
-				result = PSObject.AsPSObject(o.BaseObject).ImmediateBaseObject;
-				return result is not null;
-			}
-
-			result = defaultIfNull;
-			return result is not null;
-
-		}
-		catch (Exception e)
-		{
-			caughtError = e;
-			result = defaultIfNull;
-			return false;
-		}
-	}
 	/// <summary>
 	/// Attempts to invoke a script block with the specified variables and arguments, and converts its first output object.
 	/// </summary>

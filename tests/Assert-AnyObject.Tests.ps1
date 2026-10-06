@@ -9,6 +9,15 @@ Describe 'Assert-AnyObject' {
 		1, 2, 3 | Assert-AnyObject { $args[0] -gt 5 } | Should-BeFalse
 	}
 
+	Context 'Condition' {
+		# $null is the same as leaving -Condition out, as for every script block parameter. The commands that require a
+		# condition reject it instead.
+		It 'tests for an element that is not $null when -Condition is $null' {
+			1, $null | Assert-AnyObject -Condition $null | Should-BeTrue
+			$null | Assert-AnyObject -Condition $null | Should-BeFalse
+		}
+	}
+
 	Context 'Pipeline input' {
 		It 'passes a piped <Name> to -Condition as one element' -Tag 'Bug06' -ForEach @(
 			@{ Name = '$null'; Items = @(1, $null); Condition = { $null -eq $_ } }
