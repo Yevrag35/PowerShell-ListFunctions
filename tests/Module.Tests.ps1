@@ -27,4 +27,11 @@ Describe 'ListFunctions module' {
 		# Should-BeCollection can't copy a collection of value types, so pass it an object[].
 		Should-BeCollection -Expected @(1, 2, 3) -Actual ([object[]]$list)
 	}
+
+	It 'does not answer a request for a dependency version that it does not reference' {
+		# Without ListFunctions, the load fails because no System.Memory 99.0.0.0 exists. In Windows PowerShell 5.1, the
+		# module's assembly resolver must not answer it with the module's own copy. PowerShell 7 has no such resolver.
+		{ [System.Reflection.Assembly]::Load('System.Memory, Version=99.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51') } |
+			Should-Throw -ExceptionMessage '*System.Memory, Version=99.0.0.0*'
+	}
 }

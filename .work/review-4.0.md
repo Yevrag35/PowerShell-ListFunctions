@@ -36,7 +36,7 @@ Item numbers continue from `bugs.md`, so each number names one item in either fi
 **Robustness**
 
 - [ ] 42 — Every cmdlet reads private members of PSObject, with no fallback
-- [ ] 43 — The Windows PowerShell 5.1 assembly resolver answers for every module
+- [x] 43 — The Windows PowerShell 5.1 assembly resolver answers for every module
 - [ ] 44 — Compatibility shims are public types in other projects' namespaces
 
 **Public surface and dead code**
@@ -892,10 +892,7 @@ Two of the dependencies barely earn their place:
 - **`System.Collections.Immutable`:** used in one file, `src/engine/ListFunctions.Engine/Modern/Variables/PSComparingVariable.cs`.
 - **`Microsoft.Bcl.Memory`:** serves one `span[^1]`, in `src/engine/ListFunctions.Engine/Validation/ValidateScriptVariableAttribute.cs:342`.
 
-**Fix idea:**
-
-- Answer only when `ResolveEventArgs.RequestingAssembly` is one of the module's own assemblies, and handle the case where it's `null`.
-- Drop the two little-used dependencies from the `netstandard2.0` build.
+**Fixed 2026-10-05**
 
 ### 44 — Compatibility shims are public types in other projects' namespaces
 
