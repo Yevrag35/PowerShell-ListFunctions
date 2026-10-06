@@ -31,9 +31,14 @@ namespace ListFunctions.Cmdlets;
 public abstract class ListFunctionCmdletBase : PSCmdlet
 {
 	/// <summary>
-	/// The name of the parameter set in which a cmdlet takes script blocks that compare its elements.
+	/// The name of the parameter set in which a cmdlet takes script blocks that decide whether two elements or keys are
+	/// equal.
 	/// </summary>
 	protected const string WITH_CUSTOM_EQUALITY = "WithCustomEquality";
+	/// <summary>
+	/// The name of the dynamic <c>-CaseSensitive</c> parameter.
+	/// </summary>
+	private protected const string CASE_SENSE = "CaseSensitive";
 	/// <summary>
 	/// The suffix that turns the name of a common parameter into the name of its preference variable.
 	/// </summary>

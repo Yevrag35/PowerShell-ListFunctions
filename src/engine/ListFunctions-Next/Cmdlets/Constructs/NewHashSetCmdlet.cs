@@ -51,7 +51,7 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	/// The set is created with room for this many elements, so it doesn't have to grow until it holds more.
 	/// </remarks>
 	/// <value>The requested initial capacity, from 0 through <see cref="int.MaxValue"/>. Defaults to 0.</value>
-	[Parameter, ValidateRange(0, int.MaxValue), PSDefaultValue(Value = 0)]
+	[Parameter, Alias("Size"), ValidateRange(0, int.MaxValue), PSDefaultValue(Value = 0)]
 	public override int Capacity { get; set; }
 
 	/// <summary>
@@ -133,7 +133,7 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	/// cmdlet's own <c>-ErrorAction</c> behavior.
 	/// </remarks>
 	/// <value>The error action preference for script block execution. Defaults to <see cref="ActionPreference.Stop"/>.</value>
-	[Parameter(ParameterSetName = WITH_CUSTOM_EQUALITY)]
+	[Parameter(ParameterSetName = WITH_CUSTOM_EQUALITY), Alias("ScriptErrorAction")]
 	[PSDefaultValue(Value = ActionPreference.Stop)]
 	public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.Stop;
 

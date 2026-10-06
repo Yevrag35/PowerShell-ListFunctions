@@ -15,7 +15,9 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// <remarks>
 /// <para>
 /// Without <see cref="ComparingScript"/>, the element type defaults to <see cref="string"/>, and its elements compare
-/// with <see cref="StringComparer.OrdinalIgnoreCase"/>. Other element types use
+/// with <see cref="StringComparer.OrdinalIgnoreCase"/>, or with <see cref="StringComparer.Ordinal"/> when the dynamic
+/// <c>-CaseSensitive</c> switch is set. The cmdlet offers the switch only for <see cref="string"/> elements, and
+/// PowerShell rejects it with <see cref="ComparingScript"/>. Other element types use
 /// <see cref="Comparer{T}.Default"/>, so they must have a consistent default order: they must implement
 /// <see cref="IComparable{T}"/> of themselves, be enums, or be <see cref="Nullable{T}"/> of such a type. Any other
 /// element type, <see cref="object"/> and <see cref="PSObject"/> included, is a terminating error before the cmdlet
@@ -38,12 +40,26 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// the pipeline.
 /// </para>
 /// </remarks>
-[Cmdlet(VerbsCommon.New, "SortedSet", DefaultParameterSetName = "None")]
+[Cmdlet(VerbsCommon.New, "SortedSet", DefaultParameterSetName = DEFAULT_ORDER)]
 [OutputType(typeof(SortedSet<object>))]
-public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
+public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase, IDynamicParameters
 {
+	/// <summary>
+	/// The name of the default parameter set, in which the elements sort in their type's default order.
+	/// </summary>
+	/// <remarks>
+	/// The dynamic <c>-CaseSensitive</c> switch belongs only to this set, so it can't be combined with
+	/// <see cref="ComparingScript"/>.
+	/// </remarks>
+	private const string DEFAULT_ORDER = "None";
+	/// <summary>
+	/// The name of the parameter set in which <see cref="ComparingScript"/> decides the sort order.
+	/// </summary>
+	private const string WITH_COMPARING_SCRIPT = "WithComparingScript";
+
 	private AddMethodInvoker _addMethod = null!;
 	private object?[] _arr = null!;
+	private RuntimeDefinedParameter? _caseSensitive;
 	private SortingCollectorCtor _ctor = null!;
 	private object _set = null!;
 
@@ -87,7 +103,7 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 	/// </para>
 	/// </remarks>
 	/// <value>The comparison <see cref="ScriptBlock"/>.</value>
-	[Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
+	[Parameter(Mandatory = true, ParameterSetName = WITH_COMPARING_SCRIPT)]
 	[IsScriptBlock]
 	[ValidateScriptVariable(PSComparingVariable.X, PSComparingVariable.LEFT, PSThisVariable.FirstArg)]
 	[ValidateScriptVariable(PSComparingVariable.Y, PSComparingVariable.RIGHT, PSThisVariable.SecondArg)]
@@ -114,9 +130,56 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 	/// cmdlet's own <c>-ErrorAction</c> behavior.
 	/// </remarks>
 	/// <value>The error action preference for script block execution. Defaults to <see cref="ActionPreference.Stop"/>.</value>
-	[Parameter(ParameterSetName = WITH_CUSTOM_EQUALITY)]
+	[Parameter(ParameterSetName = WITH_COMPARING_SCRIPT), Alias("ScriptErrorAction")]
 	[PSDefaultValue(Value = ActionPreference.Stop)]
 	public ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.Stop;
+
+	/// <summary>
+	/// Returns the dynamic <c>-CaseSensitive</c> parameter when the set's elements are strings.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// PowerShell calls the method after it binds the other parameters on the command line, so <see cref="GenericType"/>
+	/// holds the element type, if one was given. The method offers the switch when that type is <see cref="string"/>,
+	/// and when no type was given, because <see cref="string"/> is then the element type unless
+	/// <see cref="ComparingScript"/> is supplied.
+	/// </para>
+	/// <para>
+	/// When the switch comes before a positional element type, as in <c>New-SortedSet -CaseSensitive [int]</c>,
+	/// PowerShell can't bind the type by position until it knows that the switch takes no argument, so it binds the type
+	/// after the method returns. <see cref="BeginCore"/> then rejects the switch for a type other than
+	/// <see cref="string"/>.
+	/// </para>
+	/// <para>
+	/// The switch belongs only to the default parameter set, so PowerShell rejects it when <see cref="ComparingScript"/>
+	/// is supplied, because the script block decides the order then. The method creates the switch once and returns it
+	/// on every later call.
+	/// </para>
+	/// </remarks>
+	/// <returns>
+	/// A <see cref="RuntimeDefinedParameterDictionary"/> that contains <c>-CaseSensitive</c>, or <see langword="null"/>
+	/// when <see cref="GenericType"/> is a type other than <see cref="string"/>.
+	/// </returns>
+	public object? GetDynamicParameters()
+	{
+		if (this.GenericType is not null && !typeof(string).Equals(this.GenericType))
+		{
+			return null;
+		}
+
+		_caseSensitive ??= new RuntimeDefinedParameter(CASE_SENSE, typeof(SwitchParameter), new Collection<Attribute>()
+		{
+			new ParameterAttribute()
+			{
+				ParameterSetName = DEFAULT_ORDER,
+			},
+		});
+
+		return new RuntimeDefinedParameterDictionary()
+		{
+			{ CASE_SENSE, _caseSensitive },
+		};
+	}
 
 	/// <summary>
 	/// Resolves the element type and creates the sorted set with it.
@@ -124,14 +187,16 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 	/// <remarks>
 	/// With <see cref="ComparingScript"/>, the element type defaults to <see cref="object"/>, and the set compares its
 	/// elements with the script block. Without it, the element type defaults to <see cref="string"/>, and the set uses
-	/// the element type's default order, which the method checks for before it creates the set.
+	/// the element type's default order, which the method checks for before it creates the set. The order of
+	/// <see cref="string"/> elements considers case when the dynamic <c>-CaseSensitive</c> switch is set.
 	/// </remarks>
 	/// <exception cref="ArgumentException">
 	/// Thrown when <see cref="ComparingScript"/> isn't supplied and <see cref="GenericType"/> has no consistent default
-	/// order.
+	/// order, or isn't <see cref="string"/> although the dynamic <c>-CaseSensitive</c> switch is set.
 	/// </exception>
 	protected override void BeginCore()
 	{
+		bool caseSensitive = LanguagePrimitives.IsTrue(_caseSensitive?.Value);
 		IComparer? comparer = null;
 		if (this.MyInvocation.BoundParameters.ContainsKey(nameof(this.ComparingScript)))
 		{
@@ -149,9 +214,20 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase
 					+ "order, such as [string], [int], [datetime], or an enum.",
 					nameof(this.GenericType));
 			}
+
+			if (caseSensitive && !typeof(string).Equals(this.GenericType))
+			{
+				throw new ArgumentException(
+					$"Cannot sort elements of type \"{this.GenericType.GetTypeName()}\" with -CaseSensitive, because the "
+					+ "switch applies only to [string] elements.",
+					CASE_SENSE);
+			}
 		}
 
-		_ctor = new SortingCollectorCtor(this.GenericType, comparer);
+		_ctor = new SortingCollectorCtor(this.GenericType, comparer)
+		{
+			IsCaseSensitive = caseSensitive,
+		};
 		_set = _ctor.Construct();
 	}
 	/// <summary>

@@ -177,6 +177,15 @@ Describe 'New-Dictionary' {
 			Should-Be -Expected $Expected -Actual $dict['a']
 		}
 
+		# -InputObject is a hashtable to copy, not an element, so unlike the commands that take elements, the command
+		# doesn't accept $null. The README gives the reason for each command's rule.
+		It 'rejects a piped $null with a parameter binding error, and writes an empty dictionary' {
+			$dict = $null | New-Dictionary -ErrorVariable err -ErrorAction SilentlyContinue
+			$err.Count | Should-Be 1
+			$err[0].FullyQualifiedErrorId | Should-Be 'ParameterArgumentValidationErrorNullNotAllowed,ListFunctions.Cmdlets.Constructs.NewDictionaryCmdlet'
+			$dict.Count | Should-Be 0
+		}
+
 		It 'clones values with -CloneValues before it converts them' -Tag 'Bug08' {
 			$source = @{ Items = [System.Collections.ArrayList]@(1, 2) }
 			$dict = $source | New-Dictionary [string] ([System.Collections.ArrayList]) -CloneValues

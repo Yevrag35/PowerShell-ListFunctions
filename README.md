@@ -43,6 +43,17 @@ Every command except `New-Dictionary` takes its elements from the pipeline or fr
 Find-IndexOf -InputObject 1, 2, 3 { $_ -eq 3 }       # 2
 ```
 
+### `$null` input
+
+The commands don't all treat `$null` the same way. Each one does what fits its job:
+
+- **`Assert-AnyObject`, `Assert-AllObject`, `Find-IndexOf`, and `Find-LastIndexOf`** pass a `$null` element to `-Condition` like any other element, so your condition decides what it means. An index counts every element, which is why `1, $null, 3 | Find-IndexOf { $_ -eq 3 }` above is `2`, the index of `3` in the input. Without a condition, `Assert-AnyObject` tests whether the input holds anything, so it doesn't count `$null` elements.
+- **`New-List`** skips `$null` elements unless you pass `-IncludeNullElements`. A list keeps every element it's given, so `$null` elements, which usually stand for missing values, would pile up in it. Pass the switch when they matter, for example to keep the list's positions in step with the input. In a typed list, a `$null` element then becomes what `$list.Add($null)` would store, such as `0` in a `List[int]`.
+- **`New-HashSet`** adds a `$null` element to an `[object]` set, which stores it as it is, and only once, like any other distinct element. So `$set.Contains($null)` tells you whether the input had one. A set of any other type skips `$null` elements, because in most types, `$null` would become a value that wasn't in the input, such as `0` in an `[int]` set.
+- **`New-SortedSet`** skips `$null` elements, whatever the element type. In the default `[string]` set, `$null` would become `''`, a value that wasn't in the input, and in an `[object]` set, the set would put it first without running your `-ComparingScript`.
+- **`New-Dictionary`** copies the entries of a hashtable, so `$null` in place of the hashtable is a parameter binding error. A `$null` value in the hashtable is copied, because it may be intentional. It's converted to `-ValueType` like any other value, so it becomes `''` for `[string]` and `0` for `[int]`.
+- **`ConvertTo-Dictionary`** skips a `$null` input object, which has no key or value to select. An object whose key is `$null` writes a non-terminating error and isn't added, because a dictionary can't hold a `$null` key, and the error tells you which objects lack a key, for example because the property name is misspelled. A `$null` value is stored, because it may be intentional, such as a property that's empty on some of the objects.
+
 ## Script blocks
 
 Most commands take script blocks, which they run once for each element or once for each pair of elements they compare. The command sets variables that hold the elements:
@@ -148,7 +159,7 @@ Find-IndexOf -InputObject $names -Condition { $_ -like 'C*' }   # 2
 
 | Parameter | Description |
 | --- | --- |
-| `-Condition` | Position 0. Alias: `ScriptBlock`. Required. The test to run on each element. |
+| `-Condition` | Position 0. Aliases: `ScriptBlock`, `FilterScript`. Required. The test to run on each element. |
 | `-InputObject` | Alias: `List`. The elements to search. Accepts pipeline input. |
 | `-ScriptBlockErrorAction` | Alias: `ScriptErrorAction`. The `$ErrorActionPreference` inside `-Condition`. Default: `SilentlyContinue`. |
 
@@ -172,7 +183,7 @@ Each of these commands outputs the collection it builds as a single object. When
 
 ### New-List
 
-Creates a `System.Collections.Generic.List[T]`. Input elements are converted to `T` as they're added. An element that can't be converted writes a non-terminating error and isn't added. `$null` elements are skipped unless you pass `-IncludeNullElements`.
+Creates a `System.Collections.Generic.List[T]`. Input elements are converted to `T` as they're added. An element that can't be converted writes a non-terminating error and isn't added. `$null` elements are skipped unless you pass `-IncludeNullElements`. See [`$null` input](#null-input).
 
 ```powershell
 # A List[object]. Like an ArrayList, it holds elements of any type.
@@ -191,13 +202,13 @@ $list = New-List [int] -InputObject 1, 2, '3'
 | Parameter | Description |
 | --- | --- |
 | `-GenericType` | Position 0. Alias: `Type`. The element type, `T`. Default: `[object]`. |
-| `-Capacity` | Position 1. Alias: `Size`. The initial capacity, which is how many elements the list can hold before it has to grow. Default: `4`. |
+| `-Capacity` | Alias: `Size`. The initial capacity, which is how many elements the list can hold before it has to grow. Default: `0`. |
 | `-InputObject` | The elements to add. Accepts pipeline input. |
 | `-IncludeNullElements` | Alias: `IncludeNulls`. Adds `$null` elements instead of skipping them. |
 
 ### New-HashSet
 
-Creates a `System.Collections.Generic.HashSet[T]`, which holds each distinct element once. Input elements are converted to `T` as they're added. An element that can't be converted writes a non-terminating error and isn't added.
+Creates a `System.Collections.Generic.HashSet[T]`, which holds each distinct element once. Input elements are converted to `T` as they're added. An element that can't be converted writes a non-terminating error and isn't added. An `[object]` set adds a `$null` element, and a set of any other type skips it. See [`$null` input](#null-input).
 
 Unless you supply script block equality, the set compares elements like this:
 
@@ -273,18 +284,18 @@ $set.Count              # 2
 | Parameter | Description |
 | --- | --- |
 | `-GenericType` | Position 0. Alias: `Type`. The element type, `T`. Default: `[object]`. |
-| `-Capacity` | The initial capacity, which is how many elements the set can hold before it has to grow. Default: `0`. |
+| `-Capacity` | Alias: `Size`. The initial capacity, which is how many elements the set can hold before it has to grow. Default: `0`. |
 | `-InputObject` | The elements to add. Accepts pipeline input. |
 | `-CaseSensitive` | Compares strings with regard to case. Available when the element type is `[object]` or `[string]`. |
 | `-EqualityScript` | A script block that returns whether two elements are equal. Requires `-HashCodeScript`. |
 | `-HashCodeScript` | A script block that returns an element's hash code. Requires `-EqualityScript`. |
-| `-ScriptBlockErrorAction` | The `$ErrorActionPreference` inside `-EqualityScript` and `-HashCodeScript`. Default: `Stop`. See [Errors in script blocks](#errors-in-script-blocks). |
+| `-ScriptBlockErrorAction` | Alias: `ScriptErrorAction`. The `$ErrorActionPreference` inside `-EqualityScript` and `-HashCodeScript`. Default: `Stop`. See [Errors in script blocks](#errors-in-script-blocks). |
 
 ### New-SortedSet
 
-Creates a `System.Collections.Generic.SortedSet[T]`, which holds each distinct element once and keeps the elements in sorted order. Input elements are converted to `T` as they're added. An element that can't be converted writes a non-terminating error and isn't added.
+Creates a `System.Collections.Generic.SortedSet[T]`, which holds each distinct element once and keeps the elements in sorted order. Input elements are converted to `T` as they're added. An element that can't be converted writes a non-terminating error and isn't added. `$null` elements are skipped. See [`$null` input](#null-input).
 
-Unless you supply a script block sort order, the set uses the default order of `T`, which is `[string]` unless you pass `-GenericType`. A `[string]` set compares strings ordinally, without regard to case: it orders them by the codes of their characters, as if they were uppercase. So digits sort before letters, and punctuation such as `_` and letters outside ASCII, such as `é`, sort after `Z`. The order doesn't depend on your culture or on the PowerShell edition. Elements that compare as equal are duplicates, so a `[string]` set holds only one of `'a'` and `'A'`.
+Unless you supply a script block sort order, the set uses the default order of `T`, which is `[string]` unless you pass `-GenericType`. A `[string]` set compares strings ordinally, without regard to case: it orders them by the codes of their characters, as if they were uppercase. So digits sort before letters, and punctuation such as `_` and letters outside ASCII, such as `é`, sort after `Z`. The order doesn't depend on your culture or on the PowerShell edition. Elements that compare as equal are duplicates, so a `[string]` set holds only one of `'a'` and `'A'`. With `-CaseSensitive`, a `[string]` set compares the codes of the characters as they are, so `'a'` and `'A'` are different elements, and the uppercase letters `A` to `Z` sort before the lowercase ones.
 
 `T` needs a default order: it has to implement `IComparable[T]`, as `[int]` implements `IComparable[int]`, or be an enum, or be a `Nullable[U]` whose `U` qualifies. `[string]`, `[int]`, `[datetime]`, and `[version]` all qualify. Any other type, such as `[object]` or `[psobject]`, is an error before the command reads any input. To sort elements of those types, pass `-ComparingScript`.
 
@@ -299,6 +310,10 @@ $set                    # 10, 3, 5
 # Strings sort by the codes of their uppercase characters.
 $set = 'b', '_x', 'a', 'Z' | New-SortedSet
 $set                    # a, b, Z, _x
+
+# With -CaseSensitive, 'a' and 'A' are different elements, and uppercase letters sort first.
+$set = 'b', 'a', 'B', 'A' | New-SortedSet -CaseSensitive
+$set                    # A, B, a, b
 ```
 
 #### Script block sort order
@@ -309,10 +324,6 @@ To define the order yourself, pass `-ComparingScript`. It receives two elements,
 # Descending order.
 $set = 5, 3, 1 | New-SortedSet [int] -ComparingScript { $y.CompareTo($x) }
 $set                    # 5, 3, 1
-
-# Case-sensitive order, in which 'a' and 'A' are different elements.
-$set = 'b', 'a', 'B', 'A' | New-SortedSet [string] -ComparingScript { [string]::CompareOrdinal($x, $y) }
-$set                    # A, B, a, b
 
 # Order by a property. Jim is the same age as Ann, so the set treats him as a duplicate.
 $people = @(
@@ -328,8 +339,9 @@ $set.Name               # Bob, Ann
 | --- | --- |
 | `-GenericType` | Position 0. Alias: `Type`. The element type, `T`. Default: `[string]`, or `[object]` with `-ComparingScript`. |
 | `-InputObject` | The elements to add. Accepts pipeline input. |
+| `-CaseSensitive` | Compares strings with regard to case. Available when the element type is `[string]`, the default, but not with `-ComparingScript`. |
 | `-ComparingScript` | A script block that returns the sort order of two elements. |
-| `-ScriptBlockErrorAction` | The `$ErrorActionPreference` inside `-ComparingScript`. Default: `Stop`. See [Errors in script blocks](#errors-in-script-blocks). |
+| `-ScriptBlockErrorAction` | Alias: `ScriptErrorAction`. The `$ErrorActionPreference` inside `-ComparingScript`. Default: `Stop`. See [Errors in script blocks](#errors-in-script-blocks). |
 
 ### New-Dictionary
 
@@ -380,7 +392,7 @@ $dict.Add([pscustomobject]@{ Id = 1; Name = 'second' }, 'b')    # Error: the key
 | `-CaseSensitive` | Compares string keys with regard to case. Available when the key type is `[object]` or `[string]`. |
 | `-EqualityScript` | A script block that returns whether two keys are equal. Requires `-HashCodeScript`. |
 | `-HashCodeScript` | A script block that returns a key's hash code. Requires `-EqualityScript`. |
-| `-ScriptBlockErrorAction` | The `$ErrorActionPreference` inside `-EqualityScript` and `-HashCodeScript`. Default: `Stop`. See [Errors in script blocks](#errors-in-script-blocks). |
+| `-ScriptBlockErrorAction` | Alias: `ScriptErrorAction`. The `$ErrorActionPreference` inside `-EqualityScript` and `-HashCodeScript`. Default: `Stop`. See [Errors in script blocks](#errors-in-script-blocks). |
 
 ### ConvertTo-Dictionary
 
@@ -390,7 +402,7 @@ Builds a `Dictionary[TKey, TValue]` that indexes the input objects by a key: eit
 
 `[string]` keys are compared ordinally, without regard to case. `[object]` keys are compared the same way when both are strings, and with their own `Equals` method otherwise, so `1` and `'1'` are different keys. To compare keys another way, pass `-KeyComparer`. With `[object]` keys, PowerShell's dot notation, such as `$byName.Jane`, doesn't read or set keys. Use the indexer, `$byName['Jane']`, or pass `[string]` as `-KeyType`.
 
-The command skips input objects that are `$null`. An object whose key is `$null`, such as one that doesn't have the property that `-KeyPropertyName` names, writes a non-terminating error and isn't added. With no input, the command returns an empty dictionary.
+The command skips input objects that are `$null`. An object whose key is `$null`, such as one that doesn't have the property that `-KeyPropertyName` names, writes a non-terminating error and isn't added. See [`$null` input](#null-input) for the reasons. With no input, the command returns an empty dictionary.
 
 ```powershell
 $people = @(

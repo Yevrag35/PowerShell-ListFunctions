@@ -29,10 +29,6 @@ namespace ListFunctions.Cmdlets.Constructs;
 public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 {
 	/// <summary>
-	/// The name of the dynamic <c>-CaseSensitive</c> parameter.
-	/// </summary>
-	protected const string CASE_SENSE = "CaseSensitive";
-	/// <summary>
 	/// The name of the parameter set that copies existing entries without a custom equality comparer.
 	/// </summary>
 	protected const string JUST_COPY = "JustCopy";

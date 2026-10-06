@@ -80,6 +80,31 @@ Describe 'New-SortedSet' {
 		}
 	}
 
+	# -CaseSensitive compares [string] elements with Ordinal, the case-sensitive counterpart of OrdinalIgnoreCase, so
+	# the uppercase letters A to Z sort before the lowercase ones. Should-Be ignores case, so the order is compared with
+	# Should-BeString -CaseSensitive.
+	Context 'CaseSensitive' {
+		It "keeps 'a' and 'A' apart and sorts uppercase letters first with <Label>" -ForEach @(
+			@{ Label = 'no element type'; Command = { 'b', 'a', 'B', 'A' | New-SortedSet -CaseSensitive } }
+			@{ Label = 'the element type [string]'; Command = { New-SortedSet [string] -CaseSensitive -InputObject 'b', 'a', 'B', 'A' } }
+		) {
+			$set = & $Command
+			$set.Count | Should-Be 4
+			($set -join ', ') | Should-BeString -Expected 'A, B, a, b' -CaseSensitive
+		}
+
+		# The switch is offered only for [string] elements, and it doesn't belong to the parameter set of -ComparingScript.
+		# When it comes before a positional element type, PowerShell offers it before it binds the type, so the command
+		# rejects it itself.
+		It 'rejects -CaseSensitive <Label>' -ForEach @(
+			@{ Label = 'after the element type [int]'; Command = { New-SortedSet [int] -CaseSensitive }; ErrorId = 'NamedParameterNotFound,*' }
+			@{ Label = 'before the element type [int]'; Command = { New-SortedSet -CaseSensitive [int] }; ErrorId = 'System.ArgumentException,*' }
+			@{ Label = 'with -ComparingScript'; Command = { New-SortedSet -CaseSensitive -ComparingScript { $x.CompareTo($y) } }; ErrorId = 'ParameterNotInParameterSet,*' }
+		) {
+			$Command | Should-Throw -FullyQualifiedErrorId $ErrorId
+		}
+	}
+
 	Context 'Conversion' {
 		It "writes an error for an element that can't be converted, and adds the others, when the input is <Label>" -Tag 'Bug17' -ForEach @(
 			@{ Label = 'piped'; Piped = $true }

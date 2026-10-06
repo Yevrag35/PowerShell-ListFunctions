@@ -173,6 +173,7 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// <value>The error action preference for script block execution. Defaults to <see cref="ActionPreference.Stop"/>.</value>
 	[Parameter(ParameterSetName = WITH_CUSTOM_EQUALITY)]
 	[Parameter(ParameterSetName = AND_COPY)]
+	[Alias("ScriptErrorAction")]
 	[PSDefaultValue(Value = ActionPreference.Stop)]
 	public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.Stop;
 

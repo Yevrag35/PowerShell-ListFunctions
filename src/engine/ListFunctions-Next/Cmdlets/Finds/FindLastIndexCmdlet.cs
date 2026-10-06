@@ -51,7 +51,7 @@ public sealed class FindLastIndexCmdlet : ListFunctionCmdletBase
 	/// to a <see cref="bool"/> by using PowerShell's truthiness rules.
 	/// </remarks>
 	/// <value>The condition <see cref="ScriptBlock"/> to evaluate against each input element. PowerShell rejects <see langword="null"/> when it binds the parameter.</value>
-	[Parameter(Mandatory = true, Position = 0), Alias("ScriptBlock")]
+	[Parameter(Mandatory = true, Position = 0), Alias("ScriptBlock", "FilterScript")]
 	[IsScriptBlock, ValidateScriptVariable(PSThisVariable.Underscore, PSThisVariable.This, PSThisVariable.PSItem, PSThisVariable.FirstArg)]
 	public ScriptBlock Condition { get; set; } = null!;
 

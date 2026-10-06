@@ -29,10 +29,13 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 	/// <summary>
 	/// Gets or sets the initial capacity of the list.
 	/// </summary>
-	/// <remarks>A value of 0 creates the list with a capacity of 4.</remarks>
-	/// <value>The initial capacity, from 0 through <see cref="int.MaxValue"/>.</value>
-	[Parameter(Position = 1)]
-	[Alias("Size"), PSDefaultValue(Value = 4), ValidateRange(0, int.MaxValue)]
+	/// <remarks>
+	/// The list is created with room for this many elements, so it doesn't have to grow until it holds more. A value of 0
+	/// gives the list a capacity of 0, as <see cref="List{T}.List()"/> does.
+	/// </remarks>
+	/// <value>The initial capacity, from 0 through <see cref="int.MaxValue"/>. Defaults to 0.</value>
+	[Parameter]
+	[Alias("Size"), PSDefaultValue(Value = 0), ValidateRange(0, int.MaxValue)]
 	public int Capacity { get; set; }
 
 	/// <summary>
@@ -98,10 +101,9 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 	/// </remarks>
 	protected override void BeginCore()
 	{
-		uint capacity = this.Capacity > 0 ? (uint)this.Capacity : 4u;
 		try
 		{
-			_list = ListWrapper.CreateTyped(this.GenericType, capacity, this.IncludeNullElements);
+			_list = ListWrapper.CreateTyped(this.GenericType, (uint)this.Capacity, this.IncludeNullElements);
 		}
 		catch (Exception e)
 		{

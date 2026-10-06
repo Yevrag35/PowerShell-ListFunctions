@@ -27,8 +27,8 @@ Item numbers continue from `bugs.md`, so each number names one item in either fi
 - [x] 34 — Script-block parameters reject bad input in different ways
 - [x] 35 — The output type depends on the input
 - [x] 36 — New-HashSet can't combine `-GenericType` with script equality
-- [ ] 37 — Parameter names, aliases, and positions differ between cmdlets
-- [ ] 38 — Each cmdlet handles `$null` input differently
+- [x] 37 — Parameter names, aliases, and positions differ between cmdlets
+- [x] 38 — Each cmdlet handles `$null` input differently
 - [ ] 39 — `-InputObject` gives wrong answers in two cases
 - [ ] 40 — Condition script blocks hide their errors by default
 - [ ] 41 — Command, alias, and class names
@@ -775,6 +775,19 @@ The README says that the element type is always `[object]` in this mode. New-Dic
   - New-SortedSet's table (`README.md:305`) needs a `-CaseSensitive` row, and its description (`README.md:275`) says that a `[string]` set holds only one of `'a'` and `'A'`.
 - **Tests:** New-SortedSet's `-CaseSensitive` has merit for a test, because nothing else pins down that `'a'` and `'A'` stay apart, or their ordinal order. The aliases, the set name, and `-Capacity` need none. No test passes New-List's `-Capacity` by position.
 
+**Fixed:** as decided. `-KeyType` came with 31. Measured on 2026-10-06 against the Debug build, in both editions:
+
+- **`-Capacity`:** New-List's has no position, and `[PSDefaultValue(Value = 0)]` replaces `Value = 4`. `BeginCore` passes the capacity on as it is. `New-List [int] 5` and `New-List [int] 1, 2, 3` fail with `PositionalParameterNotFound`, and `(New-List).Capacity` is 0, as `[System.Collections.Generic.List[int]]::new().Capacity` is.
+- **Aliases:** `FilterScript` on the `-Condition` of Find-IndexOf and Find-LastIndexOf, `ScriptErrorAction` on the `-ScriptBlockErrorAction` of New-HashSet, New-SortedSet, and New-Dictionary, and `Size` on New-HashSet's `-Capacity`. Each one binds.
+- **New-SortedSet's parameter sets:** `-ComparingScript` and `-ScriptBlockErrorAction` are in `WithComparingScript`, named by the new private constant `WITH_COMPARING_SCRIPT`. The default set keeps its name, `None`, through the new constant `DEFAULT_ORDER`.
+- **New-SortedSet's `-CaseSensitive`:** `NewSortedSetCmdlet` implements `IDynamicParameters`. `GetDynamicParameters` offers the switch, in the default set only, when `-GenericType` is `[string]` or isn't given. `BeginCore` passes it to `SortingCollectorCtor.IsCaseSensitive`. `CASE_SENSE` moved from `EqualityConstructingCmdlet<T>` to `ListFunctionCmdletBase`, as `private protected`, so that both cmdlets use it.
+  - `'b', 'a', 'B', 'A' | New-SortedSet -CaseSensitive` holds `A, B, a, b`, and so does `New-SortedSet [string] -CaseSensitive -InputObject 'b', 'a', 'B', 'A'`. `-CaseSensitive:$false` keeps the default order, `a, b`.
+  - `New-SortedSet [int] -CaseSensitive` and `New-SortedSet ([object]) -CaseSensitive` fail with `NamedParameterNotFound`. With `-ComparingScript`, in either order, the switch fails with `ParameterNotInParameterSet`: "Parameter 'CaseSensitive' cannot be specified in parameter set 'WithComparingScript'."
+  - **The switch before a positional type:** PowerShell takes a positional argument that follows an unknown parameter for that parameter's value, so it asks for the dynamic parameters before it binds the type. `New-SortedSet -CaseSensitive [int]` was offered the switch, and gave a `SortedSet[int]` that ignored it. `BeginCore` rejects that case with an `ArgumentException`, a terminating error whose ID is `System.ArgumentException,ListFunctions.Cmdlets.Constructs.NewSortedSetCmdlet`: 'Cannot sort elements of type "System.Int32" with -CaseSensitive, because the switch applies only to [string] elements.'
+- **Not changed:** New-HashSet and New-Dictionary have the same gap. `New-HashSet -CaseSensitive [int]` gives a `HashSet[int]`, and `New-Dictionary -CaseSensitive [int]` a `Dictionary[int, object]`, without an error, while the same commands with the switch after `[int]` fail with `NamedParameterNotFound`. The same check in `EqualityConstructingCmdlet<T>.BeginCore` would close it.
+- **Docs:** the XML docs of New-List's `Capacity`, of `NewSortedSetCmdlet` and its `GetDynamicParameters` and `BeginCore`, and of `ListFunctionCmdletBase.WITH_CUSTOM_EQUALITY`, which now describes only equality script blocks. In the README: New-List's `-Capacity` row, Find-IndexOf's `-Condition` row, New-HashSet's `-Capacity` row, the three `-ScriptBlockErrorAction` rows, and New-SortedSet's description, examples, and table, which has a `-CaseSensitive` row. The example that sorted with `-ComparingScript { [string]::CompareOrdinal($x, $y) }` now uses `-CaseSensitive`.
+- **Tests:** a new `CaseSensitive` context in `tests/New-SortedSet.Tests.ps1` checks that `'a'` and `'A'` stay apart in ordinal order, with no element type and with `[string]`, and that the switch is rejected after `[int]`, before `[int]`, and with `-ComparingScript`. Against commit `d0637d3`, 4 of the 5 cases fail in each edition. The fifth, the switch after `[int]`, passes, because that error didn't change.
+
 ### 38 — Each cmdlet handles `$null` input differently
 
 ```powershell
@@ -809,6 +822,24 @@ After 31's decision, this happens only when `-ValueType` names such a type. `[ob
 
 - **ConvertTo-Dictionary:** a `$null` input object is skipped, a `$null` key writes a non-terminating error and its object is skipped, and a `$null` value is always stored (see 31).
 - **New-Dictionary:** a `$null` value is kept too (see 32).
+
+**Fixed:** as decided. 31 and 32 gave the dictionary cmdlets the rules above, so the code doesn't change, and the fix is the README.
+
+- **README:** a new `$null` input section, under Input, gives each command's rule and the reason for it:
+  - **The condition cmdlets** pass a `$null` element to `-Condition`, so the condition decides what it means, and an index counts it, so the index is the element's position in the input. Without a condition, Assert-AnyObject asks whether the input holds anything, so it doesn't count `$null`.
+  - **New-List** skips `$null` unless `-IncludeNullElements` is given, because a list keeps every element, so `$null` elements, which usually stand for missing values, would pile up in it.
+  - **New-HashSet** adds `$null` to an `[object]` set, which holds it once, as it is, so `$set.Contains($null)` tells whether the input had one. A set of any other type skips it, because most types would turn it into a value that wasn't in the input, such as `0` in an `[int]` set.
+  - **New-SortedSet** skips `$null` for every element type. The default `[string]` set would turn it into `''`, and an `[object]` set would sort it first without running `-ComparingScript`.
+  - **New-Dictionary** copies a hashtable, so a `$null` in its place is a parameter binding error. A `$null` value is copied, converted to `-ValueType`, because it may be intentional.
+  - **ConvertTo-Dictionary** skips a `$null` input object, which has no key or value to select. A `$null` key writes an error, because a dictionary can't hold one, and the error names the objects without a key, such as when a property name is misspelled. A `$null` value is stored, because it may be intentional.
+
+  The sections of New-List, New-HashSet, New-SortedSet, and ConvertTo-Dictionary link to it. New-HashSet's and New-SortedSet's sections now state their rules too, which they didn't before.
+- **Results, in both editions:** measured on 2026-10-06 against the Debug build. The repro gives what the item shows, except that `$null | New-Dictionary` writes an empty `Dictionary[object, object]` since 35, with the same binding error. `New-Dictionary -InputObject $null` ends the statement with that error and writes nothing. Every claim in the new section holds: for example, `$s.Add($null)` on an `[object]` set from `New-SortedSet -ComparingScript { throw "ran $x $y" }` puts `$null` first without running the script block.
+  - **The reasons cover the common types only.** New-HashSet and New-SortedSet also skip `$null` for `[Nullable[int]]` and `[version]`, in which it would stay `$null`. They skip an element that converts to `$null` too, such as `[NullString]::Value` in a `[string]` set.
+  - **A variable that holds no output sends no `$null`.** After `$files = Get-ChildItem -Path $env:TEMP -Filter 'no-such-file-*.xyz'`, `$files | New-HashSet` gives an empty set, and `$files | ForEach-Object { 'ran' }` outputs nothing, because the variable holds `AutomationNull.Value`. Only a real `$null`, such as one in an array or one assigned to a variable, reaches the commands.
+- **Tests:** two rules that the decision keeps had no test, and each got one. Both pass against commit `d0637d3`, because the behavior didn't change. Each of the other rules already had a test.
+  - `tests/New-HashSet.Tests.ps1`: a typed set skips a piped `$null` without an error, for `[int]` and `[string]`. It's the other half of the existing test for an `[object]` set, which adds it.
+  - `tests/New-Dictionary.Tests.ps1`: a piped `$null` gets a `ParameterArgumentValidationErrorNullNotAllowed` error, and the command still writes an empty dictionary. A later change that gives `-InputObject` `[AllowNull()]`, like the other commands' `-InputObject`, would skip it silently instead.
 
 ### 39 — `-InputObject` gives wrong answers in two cases
 
@@ -1010,7 +1041,7 @@ Removing a type that only tests use means removing its tests too. Keep `ScriptBl
 - `EqualityConstructingCmdlet<T>.Begin` and `TryGetDynamicParameters`. No class overrides either one.
 - `ListFunctionCmdletBase.GetErrorPreference()`. Nothing calls it.
 - `CmdletRunState.Flags`, `IsStopping`, `HadError`, `BeginFailed`, and `ProcessFailed`. Nothing reads them.
-- `SortingCollectorCtor.IsCaseSensitive`. Nothing sets it, but it stays: 37 decided that New-SortedSet gets a `-CaseSensitive` that sets it.
+- `SortingCollectorCtor.IsCaseSensitive`. Since 37, New-SortedSet's `-CaseSensitive` sets it.
 - The return value of `EqualityConstructingCmdlet<T>.Process`. Since 33, both derived classes always return `true`, so the `wantsToStop` parameter of `End` is always `false`.
 - `GenericCollectionCtor.ShouldConstructDefault` and `ConstructDefault`, added on 2026-10-05. Since 30 and 35, no class creates a fallback collection: `EqualityCollectionCtor` and `SortingCollectorCtor` return `false` from the first and throw from the second.
 

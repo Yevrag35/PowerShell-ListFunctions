@@ -5,6 +5,14 @@ namespace ListFunctions.Extensions;
 /// </summary>
 public static class ExceptionExtensions
 {
+	extension(ArgumentNullException e)
+	{
+		public static void ThrowIfNull([NotNull] object? o, string? paramName)
+		{
+			Guard.NotNull(o, paramName);
+		}
+	}
+
 	/// <summary>
 	/// Creates an <see cref="ErrorRecord"/> for the exception, with the specified category and no target object.
 	/// </summary>

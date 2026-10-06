@@ -195,6 +195,17 @@ Describe 'New-HashSet' {
 			$set.Count | Should-Be 2
 			$set.Contains($null) | Should-BeTrue
 		}
+
+		# Unlike an [object] set, a typed set skips $null instead of converting it, so it doesn't hold a value that wasn't
+		# in the input, such as 0 in an [int] set. The README gives the reason for each command's rule.
+		It 'skips a piped $null in a [<Name>] set without an error' -ForEach @(
+			@{ Name = 'int'; Type = [int]; Elements = @(1, $null); Expected = @(1) }
+			@{ Name = 'string'; Type = [string]; Elements = @('a', $null); Expected = @('a') }
+		) {
+			$set = $Elements | New-HashSet $Type -ErrorVariable err -ErrorAction SilentlyContinue
+			Should-BeCollection -Expected $Expected -Actual ([object[]]$set)
+			$err.Count | Should-Be 0
+		}
 	}
 
 	Context 'Conversion' {
