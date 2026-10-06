@@ -22,7 +22,7 @@ public sealed class ModuleInitializer : IModuleAssemblyInitializer
 	private static readonly string s_assLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 	private const string DLL = ".dll";
 	private const string BACK = "\\";
-	private static int s_registered;
+	private static int _registered;
 
 	/// <summary>
 	/// Registers the assembly resolver with the current application domain.
@@ -37,7 +37,7 @@ public sealed class ModuleInitializer : IModuleAssemblyInitializer
 	/// </remarks>
 	public void OnImport()
 	{
-		if (Interlocked.Exchange(ref s_registered, 1) == 0)
+		if (Interlocked.Exchange(ref _registered, 1) == 0)
 		{
 			AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
 		}
@@ -101,26 +101,25 @@ public sealed class ModuleInitializer : IModuleAssemblyInitializer
 	{
 		foreach (Assembly loaded in AppDomain.CurrentDomain.GetAssemblies())
 		{
-			if (loaded.IsDynamic)
+			if (isApplicable(loaded))
 			{
-				continue;
-			}
-
-			string location = loaded.Location;
-			if (location.Length == 0 || !string.Equals(Path.GetDirectoryName(location), s_assLocation, StringComparison.OrdinalIgnoreCase))
-			{
-				continue;
-			}
-
-			foreach (AssemblyName reference in loaded.GetReferencedAssemblies())
-			{
-				if (string.Equals(reference.FullName, requestedFullName, StringComparison.OrdinalIgnoreCase))
+				foreach (AssemblyName reference in loaded.GetReferencedAssemblies())
 				{
-					return true;
+					if (string.Equals(reference.FullName, requestedFullName, StringComparison.OrdinalIgnoreCase))
+					{
+						return true;
+					}
 				}
 			}
 		}
 
 		return false;
+
+		static bool isApplicable(Assembly assembly)
+		{
+			return !assembly.IsDynamic
+				&& assembly.Location is { Length: > 0 } loc
+				&& string.Equals(Path.GetDirectoryName(loc), s_assLocation, StringComparison.OrdinalIgnoreCase);
+		}
 	}
 }
