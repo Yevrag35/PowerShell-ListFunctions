@@ -41,7 +41,7 @@ internal sealed class PSVariableNameEquality : IEqualityComparer<PSVariable>
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="obj"/> is null.</exception>
 	public int GetHashCode(PSVariable obj)
 	{
-		Guard.NotNull(obj, nameof(obj));
+		ArgumentNullException.ThrowIfNull(obj);
 		return StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Name);
 	}
 }

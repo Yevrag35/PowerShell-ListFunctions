@@ -98,7 +98,7 @@ public sealed class HashCodeScriptException : ScriptBlockInvocationException
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="info"/> is null.</exception>
 	public override void GetObjectData(SerializationInfo info, StreamingContext context)
 	{
-		Guard.NotNull(info, nameof(info));
+		ArgumentNullException.ThrowIfNull(info);
 		info.AddValue(nameof(this.HashCodeBlockType), this.HashCodeBlockType);
 
 		base.GetObjectData(info, context);

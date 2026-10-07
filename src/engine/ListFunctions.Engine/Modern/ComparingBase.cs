@@ -45,7 +45,7 @@ public abstract class ComparingBase
 		}
 		else
 		{
-			Guard.NotNull(scriptBlock);
+			ArgumentNullException.ThrowIfNull(scriptBlock);
 		}
 
 		this.Script = scriptBlock;

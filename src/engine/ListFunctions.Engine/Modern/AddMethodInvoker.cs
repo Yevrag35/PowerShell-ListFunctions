@@ -41,7 +41,7 @@ public sealed class AddMethodInvoker
 	/// <exception cref="ArgumentException">Thrown when the collection type isn't a supported collection or dictionary, or has the wrong number of type arguments.</exception>
 	public AddMethodInvoker(GenericCollectionCtor constructor)
 	{
-		Guard.NotNull(constructor, nameof(constructor));
+		ArgumentNullException.ThrowIfNull(constructor);
 
 		this.ImplementingType = constructor.ConstructingGenericType;
 		_genericTypes = constructor.GenericArgumentTypes;

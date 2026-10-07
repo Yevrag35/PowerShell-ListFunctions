@@ -48,7 +48,7 @@ internal static class ScriptBlockExtensions
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="scriptBlock"/> is null.</exception>
 	internal static bool IsProperScriptBlock(this ScriptBlock scriptBlock)
 	{
-		Guard.NotNull(scriptBlock);
+		ArgumentNullException.ThrowIfNull(scriptBlock);
 
 		if (scriptBlock.Ast is not ScriptBlockAst scriptAst || scriptAst.BeginBlock is not null)
 		{

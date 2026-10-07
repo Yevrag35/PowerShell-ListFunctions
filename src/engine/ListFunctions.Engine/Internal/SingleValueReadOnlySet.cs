@@ -158,7 +158,7 @@ internal readonly struct SingleValueReadOnlySet<T> : IReadOnlySet<T> where T : n
 	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
 	public bool IsProperSubsetOf(IEnumerable<T> other)
 	{
-		Guard.NotNull(other, nameof(other));
+		ArgumentNullException.ThrowIfNull(other);
 		if (this.IsEmpty)
 		{
 			return other.AsValueEnumerable().Any();
@@ -191,7 +191,7 @@ internal readonly struct SingleValueReadOnlySet<T> : IReadOnlySet<T> where T : n
 	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
 	public bool IsProperSupersetOf(IEnumerable<T> other)
 	{
-		Guard.NotNull(other, nameof(other));
+		ArgumentNullException.ThrowIfNull(other);
 		if (this.IsEmpty)
 		{
 			return false;
@@ -211,7 +211,7 @@ internal readonly struct SingleValueReadOnlySet<T> : IReadOnlySet<T> where T : n
 	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
 	public bool IsSubsetOf(IEnumerable<T> other)
 	{
-		Guard.NotNull(other, nameof(other));
+		ArgumentNullException.ThrowIfNull(other);
 		if (this.IsEmpty)
 		{
 			return true;
@@ -240,7 +240,7 @@ internal readonly struct SingleValueReadOnlySet<T> : IReadOnlySet<T> where T : n
 	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
 	public bool IsSupersetOf(IEnumerable<T> other)
 	{
-		Guard.NotNull(other, nameof(other));
+		ArgumentNullException.ThrowIfNull(other);
 		if (this.IsEmpty)
 		{
 			return !other.AsValueEnumerable().Any();
@@ -268,7 +268,7 @@ internal readonly struct SingleValueReadOnlySet<T> : IReadOnlySet<T> where T : n
 	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
 	public bool Overlaps(IEnumerable<T> other)
 	{
-		Guard.NotNull(other, nameof(other));
+		ArgumentNullException.ThrowIfNull(other);
 		if (this.IsEmpty)
 		{
 			return false;
@@ -301,7 +301,7 @@ internal readonly struct SingleValueReadOnlySet<T> : IReadOnlySet<T> where T : n
 	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
 	public bool SetEquals(IEnumerable<T> other)
 	{
-		Guard.NotNull(other, nameof(other));
+		ArgumentNullException.ThrowIfNull(other);
 		if (this.IsEmpty)
 		{
 			return !other.AsValueEnumerable().Any();

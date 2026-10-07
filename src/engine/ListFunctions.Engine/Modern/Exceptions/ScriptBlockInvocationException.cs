@@ -122,7 +122,7 @@ public abstract class ScriptBlockInvocationException : RuntimeException
 	protected ScriptBlockInvocationException(SerializationInfo info, StreamingContext context)
 		: base(info, context)
 	{
-		Guard.NotNull(info, nameof(info));
+		ArgumentNullException.ThrowIfNull(info);
 		this.Offender = info.GetValue(nameof(this.Offender), typeof(object));
 		this.Script = info.GetString(nameof(this.Script)) ?? string.Empty;
 		this.Variables = (IReadOnlyDictionary<string, object?>)info.GetValue(nameof(this.Variables), typeof(ReadOnlyDictionary<string, object?>));
@@ -139,7 +139,7 @@ public abstract class ScriptBlockInvocationException : RuntimeException
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="info"/> is null.</exception>
 	public override void GetObjectData(SerializationInfo info, StreamingContext context)
 	{
-		Guard.NotNull(info, nameof(info));
+		ArgumentNullException.ThrowIfNull(info);
 		info.AddValue(nameof(this.Offender), this.Offender, this.OffenderType);
 		info.AddValue(nameof(this.Variables), this.Variables, typeof(ReadOnlyDictionary<string, object?>));
 		info.AddValue(nameof(this.Script), this.Script);

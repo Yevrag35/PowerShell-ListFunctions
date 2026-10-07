@@ -93,7 +93,7 @@ public abstract class GenericCollectionCtor
 	/// </exception>
 	protected GenericCollectionCtor(Type genericDefinition, Type[]? genericTypes, CreateConstructingType? makeConstructingTypeCallback)
 	{
-		Guard.NotNull(genericDefinition, nameof(genericDefinition));
+		ArgumentNullException.ThrowIfNull(genericDefinition);
 		GuardDefinition(genericDefinition);
 
 		this.GenericDefinitionType = genericDefinition;

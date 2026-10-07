@@ -103,7 +103,7 @@ public sealed class ComparingScriptException : ScriptBlockInvocationException
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="info"/> is null.</exception>
 	public override void GetObjectData(SerializationInfo info, StreamingContext context)
 	{
-		Guard.NotNull(info, nameof(info));
+		ArgumentNullException.ThrowIfNull(info);
 		info.AddValue(nameof(this.ComparingBlockType), this.ComparingBlockType);
 
 		base.GetObjectData(info, context);

@@ -162,7 +162,7 @@ public sealed class EqualityBlock : ComparingBase, IEqualityBlock
 	/// <exception cref="RuntimeException">Thrown when <see cref="HashCodeBlock"/> is a <see cref="HashBlock"/> and its script block throws.</exception>
 	public int GetHashCode([DisallowNull] object obj)
 	{
-		Guard.NotNull(obj);
+		ArgumentNullException.ThrowIfNull(obj);
 		return this.HashCodeBlock.GetHashCode(obj, _additionalVariables);
 	}
 

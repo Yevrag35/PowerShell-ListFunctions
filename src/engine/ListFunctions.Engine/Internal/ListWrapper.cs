@@ -123,7 +123,7 @@ public abstract class ListWrapper
 	/// <exception cref="OutOfMemoryException">Thrown when <paramref name="capacity"/> exceeds the maximum array length.</exception>
 	public static ListWrapper CreateTyped(Type elementType, uint capacity, bool includeNulls = false)
 	{
-		Guard.NotNull(elementType);
+		ArgumentNullException.ThrowIfNull(elementType);
 		Type listType = typeof(ListWrapper<>).MakeGenericType(elementType);
 		ListWrapper wrapper = (ListWrapper)Activator.CreateInstance(listType)!;
 		wrapper.SetCapacity(capacity);

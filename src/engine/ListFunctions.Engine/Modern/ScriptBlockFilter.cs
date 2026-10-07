@@ -51,7 +51,7 @@ public sealed class ScriptBlockFilter
 #endif
 			additionalVariables)
 	{
-		Guard.NotNull(scriptBlock);
+		ArgumentNullException.ThrowIfNull(scriptBlock);
 		_scriptBlock = scriptBlock;
 		_extraVariables = new();
 		_extraVariables.AddRange(additionalVariables
@@ -93,7 +93,7 @@ public sealed class ScriptBlockFilter
 			additionalVariables)
 		: this(scriptBlock, additionalVariables)
 	{
-		Guard.NotNull(errorHandler);
+		ArgumentNullException.ThrowIfNull(errorHandler);
 		_errorHandler = errorHandler;
 	}
 

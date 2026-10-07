@@ -144,7 +144,7 @@ public sealed class ValidateScriptVariableAttribute : ValidateArgumentsAttribute
 	/// <exception cref="ArgumentException">Thrown when <paramref name="variableNames"/> is empty.</exception>
 	private static int ParseIndexes(string[]? variableNames, out int[]? indexes)
 	{
-		Guard.NotNull(variableNames);
+		ArgumentNullException.ThrowIfNull(variableNames);
 		if (variableNames.Length == 0)
 		{
 			throw new ArgumentException("Must contain at least 1 variable name.", nameof(variableNames));

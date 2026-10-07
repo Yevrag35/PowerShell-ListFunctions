@@ -37,7 +37,7 @@ public sealed class EqualityComparerAdapter<T> : IEqualityComparer<T>, IEquality
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="innerComparer"/> is null.</exception>
 	public EqualityComparerAdapter(IEqualityComparer innerComparer)
 	{
-		Guard.NotNull(innerComparer);
+		ArgumentNullException.ThrowIfNull(innerComparer);
 		this.InnerComparer = innerComparer;
 	}
 

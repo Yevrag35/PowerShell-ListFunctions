@@ -51,7 +51,7 @@ public static class ReflectionResolver
 			return GetHashtableAdd();
 		}
 
-		Guard.NotNull(types);
+		ArgumentNullException.ThrowIfNull(types);
 		if (types.Length <= 0 || types.Length > 2)
 		{
 			throw new ArgumentException("Wrong number of Type arguments were supplied.");

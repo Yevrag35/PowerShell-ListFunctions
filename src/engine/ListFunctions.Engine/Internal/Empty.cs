@@ -79,7 +79,7 @@ internal sealed class ReadOnlyEmpty<TKey, TValue> : IReadOnlyList<TValue>, IRead
 		[DoesNotReturn]
 		get
 		{
-			Guard.NotNull(key, nameof(key));
+			ArgumentNullException.ThrowIfNull(key);
 			throw new KeyNotFoundException();
 		}
 	}
@@ -138,7 +138,7 @@ internal sealed class ReadOnlyEmpty<TKey, TValue> : IReadOnlyList<TValue>, IRead
 	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="key"/> is null.</exception>
 	bool IReadOnlyDictionary<TKey, TValue>.ContainsKey(TKey key)
 	{
-		Guard.NotNull(key, nameof(key));
+		ArgumentNullException.ThrowIfNull(key);
 		return false;
 	}
 

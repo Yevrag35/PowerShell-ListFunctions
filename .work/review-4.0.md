@@ -1130,7 +1130,6 @@ Removing a type that only tests use means removing its tests too. Keep `ScriptBl
 
 **Members nothing calls:**
 
-- `Guard.NotNull(void*)`, `NotNullOrEmpty`, and `ThrowIfGreaterThanOrEqual`.
 - `Empty.Set<T>()`.
 - `PSVariableCollectionExtensions.GetLastValue`.
 - `ComparingScriptException.FromBlockException<T>(Exception, ...)`.

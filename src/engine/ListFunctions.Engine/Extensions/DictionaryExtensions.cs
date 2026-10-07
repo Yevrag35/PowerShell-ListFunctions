@@ -39,8 +39,8 @@ public static class DictionaryExtensions
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="dictionary"/> or <paramref name="key"/> is null.</exception>
 	public static bool TryAdd<TKey, TValue>(this Dictionary<TKey, TValue> dictionary, TKey key, TValue value) where TKey : notnull
 	{
-		Guard.NotNull(dictionary, nameof(dictionary));
-		Guard.NotNull(key, nameof(key));
+		ArgumentNullException.ThrowIfNull(dictionary);
+		ArgumentNullException.ThrowIfNull(key);
 
 		bool added = false;
 		if (!dictionary.ContainsKey(key))

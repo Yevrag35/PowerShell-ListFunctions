@@ -240,7 +240,7 @@ public readonly struct ArraySlice<T> : IReadOnlyCollection<T>
 	/// </exception>
 	public ArraySlice(T[] array, int offset, int length)
 	{
-		Guard.NotNull(array);
+		ArgumentNullException.ThrowIfNull(array);
 		Guard.ThrowIfNegativeOrGreaterThan(length, (uint)array.Length - (uint)offset, nameof(length));
 		_array = array;
 		_offset = offset;
