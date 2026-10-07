@@ -189,7 +189,7 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// <param name="comparer">The equality comparer for the collection, or <see langword="null"/> to use the constructor's default.</param>
 	/// <param name="genericTypes">The generic type arguments returned by <see cref="GetGenericTypes"/>, or <see langword="null"/> when none were resolved.</param>
 	/// <returns>The <see cref="EqualityCollectionCtor"/> that constructs the collection.</returns>
-	protected abstract EqualityCollectionCtor GetConstructor(IEqualityComparer? comparer, Type[]? genericTypes);
+	private protected abstract EqualityCollectionCtor GetConstructor(IEqualityComparer? comparer, Type[]? genericTypes);
 
 	/// <summary>
 	/// When overridden in a derived class, adds the derived cmdlet's own dynamic parameters.

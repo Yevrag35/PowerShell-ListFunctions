@@ -28,7 +28,7 @@ namespace ListFunctions.Modern.Constructors;
 /// Instances aren't thread-safe. The object caches the default comparer the first time it needs one.
 /// </para>
 /// </remarks>
-public abstract class EqualityCollectionCtor : GenericCollectionCtor
+internal abstract class EqualityCollectionCtor : GenericCollectionCtor
 {
 	/// <summary>
 	/// The generic type definition of the default equality comparer, <see cref="EqualityComparer{T}"/>.

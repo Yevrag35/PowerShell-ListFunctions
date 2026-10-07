@@ -259,7 +259,7 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// <param name="comparer">The key equality comparer, or <see langword="null"/> to use the default for the key type.</param>
 	/// <param name="genericTypes">The generic type arguments. This implementation reads <see cref="KeyType"/> and <see cref="ValueType"/> instead.</param>
 	/// <returns>A <see cref="DictionaryCtor"/> that honors the <c>-CaseSensitive</c> switch.</returns>
-	protected override EqualityCollectionCtor GetConstructor(IEqualityComparer? comparer, Type[]? genericTypes)
+	private protected override EqualityCollectionCtor GetConstructor(IEqualityComparer? comparer, Type[]? genericTypes)
 	{
 		return new DictionaryCtor(comparer, this.KeyType, this.ValueType)
 		{

@@ -11,7 +11,7 @@ namespace ListFunctions.Modern.Constructors;
 /// <see cref="object.GetHashCode"/> methods, so <c>1</c> and <c>"1"</c> are different elements. Elements of any other
 /// type compare with <see cref="EqualityComparer{T}.Default"/>.
 /// </remarks>
-public sealed class HashSetCtor : EqualityCollectionCtor
+internal sealed class HashSetCtor : EqualityCollectionCtor
 {
 	/// <summary>
 	/// The generic type definition of the set, <see cref="HashSet{T}"/>.

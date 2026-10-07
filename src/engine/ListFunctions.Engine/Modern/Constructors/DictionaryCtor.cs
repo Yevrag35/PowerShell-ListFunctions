@@ -22,7 +22,7 @@ namespace ListFunctions.Modern.Constructors;
 /// keys, is wrapped in an <see cref="EqualityComparerAdapter{T}"/>.
 /// </para>
 /// </remarks>
-public sealed class DictionaryCtor : EqualityCollectionCtor
+internal sealed class DictionaryCtor : EqualityCollectionCtor
 {
 	/// <summary>
 	/// The generic type definition of the dictionary, <see cref="Dictionary{TKey, TValue}"/>.

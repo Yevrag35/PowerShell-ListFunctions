@@ -16,7 +16,7 @@ namespace ListFunctions.Modern;
 /// each call depends on the collection it adds to.
 /// </para>
 /// </remarks>
-public sealed class AddMethodInvoker
+internal sealed class AddMethodInvoker
 {
 	private readonly Type[] _genericTypes;
 	private readonly MethodInfo _method;

@@ -13,7 +13,7 @@ namespace ListFunctions.Modern.Constructors;
 /// Instances aren't thread-safe. The object caches its comparer the first time it needs one.
 /// </para>
 /// </remarks>
-public sealed class SortingCollectorCtor : GenericCollectionCtor
+internal sealed class SortingCollectorCtor : GenericCollectionCtor
 {
 	/// <summary>
 	/// The generic type definition of the set, <see cref="SortedSet{T}"/>.

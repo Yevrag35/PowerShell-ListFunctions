@@ -209,7 +209,7 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	/// <param name="comparer">The element equality comparer, or <see langword="null"/> to use the default for the element type.</param>
 	/// <param name="genericTypes">The generic type arguments. The first element is the element type; when the array is <see langword="null"/> or empty, <see cref="object"/> is used.</param>
 	/// <returns>A <see cref="HashSetCtor"/> that honors the <c>-CaseSensitive</c> switch.</returns>
-	protected override EqualityCollectionCtor GetConstructor(IEqualityComparer? comparer, Type[]? genericTypes)
+	private protected override EqualityCollectionCtor GetConstructor(IEqualityComparer? comparer, Type[]? genericTypes)
 	{
 		return new HashSetCtor(genericTypes is null || genericTypes.Length <= 0
 			? typeof(object)

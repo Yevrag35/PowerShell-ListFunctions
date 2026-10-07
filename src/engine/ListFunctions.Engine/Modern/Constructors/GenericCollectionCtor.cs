@@ -13,7 +13,7 @@ namespace ListFunctions.Modern.Constructors;
 /// <param name="genericTypeDefinition">The open generic type definition, such as <c>typeof(List&lt;&gt;)</c>.</param>
 /// <param name="genericTypeArguments">The type arguments to close <paramref name="genericTypeDefinition"/> over.</param>
 /// <returns>The closed generic type that the collection constructor creates instances of.</returns>
-public delegate Type CreateConstructingType(Type genericTypeDefinition, Type[] genericTypeArguments);
+internal delegate Type CreateConstructingType(Type genericTypeDefinition, Type[] genericTypeArguments);
 
 /// <summary>
 /// Provides the base class for objects that create instances of a closed generic collection type through
@@ -31,7 +31,7 @@ public delegate Type CreateConstructingType(Type genericTypeDefinition, Type[] g
 /// <see cref="GenericArgumentTypes"/>.
 /// </para>
 /// </remarks>
-public abstract class GenericCollectionCtor
+internal abstract class GenericCollectionCtor
 {
 	/// <summary>
 	/// Gets the closed generic type of the collection that <see cref="Construct"/> creates.
@@ -123,7 +123,7 @@ public abstract class GenericCollectionCtor
 			object defCol = this.ConstructDefault();
 			this.ConstructingGenericType = defCol.GetType();
 			this.GenericArgumentTypes = this.ConstructingGenericType.GetGenericArguments()
-				?? Array.Empty<Type>();
+				?? Type.EmptyTypes;
 
 			return defCol;
 		}
@@ -214,6 +214,7 @@ public abstract class GenericCollectionCtor
 	/// <exception cref="ArgumentException">
 	/// Thrown when <paramref name="genericDefinition"/> isn't a generic type, isn't a class, or is abstract.
 	/// </exception>
+	[MethodImpl(MethodImplOptions.NoInlining)]
 	private static void GuardDefinition(Type genericDefinition)
 	{
 		if (!genericDefinition.IsGenericType)
@@ -242,6 +243,7 @@ public abstract class GenericCollectionCtor
 	/// Thrown when <paramref name="genericTypes"/> doesn't match the number of type parameters or doesn't satisfy their
 	/// constraints.
 	/// </exception>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	private static Type MakeConstructingType(Type genericTypeDefinition, Type[] genericTypes)
 	{
 		return genericTypeDefinition.MakeGenericType(genericTypes);
@@ -263,20 +265,17 @@ public abstract class GenericCollectionCtor
 	/// A new array that contains the elements of <paramref name="types"/>, or an empty array when
 	/// <paramref name="types"/> is <see langword="null"/> or empty.
 	/// </returns>
-	private static Type[] SetGenericTypes(IReadOnlyList<Type>? types)
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private static Type[] SetGenericTypes(Type[]? types)
 	{
-		if (types is null || types.Count <= 0)
+		Type[] result = [];
+		if (types is { Length: > 0})
 		{
-			return Array.Empty<Type>();
+			result = new Type[types.Length];
+			Array.Copy(types, result, types.Length);
 		}
 
-		Type[] copyTo = new Type[types.Count];
-		for (int i = 0; i < types.Count; i++)
-		{
-			copyTo[i] = types[i];
-		}
-
-		return copyTo;
+		return result;
 	}
 	/// <summary>
 	/// Throws an <see cref="ActivatorCtorException"/> for the specified type.
@@ -284,7 +283,7 @@ public abstract class GenericCollectionCtor
 	/// <param name="badType">The type that couldn't be created.</param>
 	/// <returns>This method never returns.</returns>
 	/// <exception cref="ActivatorCtorException">Always thrown.</exception>
-	[DoesNotReturn]
+	[DoesNotReturn, DebuggerStepThrough, MethodImpl(MethodImplOptions.NoInlining)]
 	private static object ThrowBadCtor(Type badType)
 	{
 		throw new ActivatorCtorException(badType);
@@ -296,7 +295,7 @@ public abstract class GenericCollectionCtor
 	/// <param name="caughtException">The exception that creating the instance threw.</param>
 	/// <returns>This method never returns.</returns>
 	/// <exception cref="ActivatorCtorException">Always thrown.</exception>
-	[DoesNotReturn]
+	[DoesNotReturn, DebuggerStepThrough, MethodImpl(MethodImplOptions.NoInlining)]
 	private static object ThrowBadCtor(Type badType, Exception caughtException)
 	{
 		throw new ActivatorCtorException(badType, caughtException);
