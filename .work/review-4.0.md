@@ -35,7 +35,7 @@ Item numbers continue from `bugs.md`, so each number names one item in either fi
 
 **Robustness**
 
-- [ ] 42 — Every cmdlet reads private members of PSObject, with no fallback
+- [x] 42 — Every cmdlet reads private members of PSObject, with no fallback
 - [x] 43 — The Windows PowerShell 5.1 assembly resolver answers for every module
 - [ ] 44 — Compatibility shims are public types in other projects' namespaces
 
@@ -948,6 +948,11 @@ What `SilentlyContinue` does today, measured on 2026-10-06 in both editions:
 - **Tests:** `tests/Assert-AnyObject.Tests.ps1` and `tests/Assert-AllObject.Tests.ps1` are now `tests/Test-AnyObject.Tests.ps1` and `tests/Test-AllObject.Tests.ps1`. They and `tests/Module.Tests.ps1` call the cmdlets by their new names, and expect the new class names in error IDs.
   - **New test:** in `tests/Module.Tests.ps1`, Assert-AnyObject and Assert-AllObject must be aliases of the Test cmdlets, because scripts written for 3.x use those names. The manifest tests don't catch a dropped alias, because it would be dropped from the manifest too.
   - **A trap for tests that call an alias:** the first `& Import-ListFunctions.ps1` in a session leaves every alias of the module unresolvable, and a second import makes them resolvable. Measured with `Any`, `Assert-AnyObject`, and `Find-IndexOf`. So a call to an alias fails with `CommandNotFoundException` in `Invoke-InNewRunspace`, which imports once, and in a test file that runs alone or first. The new test reads `$module.ExportedAliases` instead of calling the aliases.
+- **Find cmdlets:** the same commit, `f33805f`, also renamed Find-IndexOf and Find-LastIndexOf to Find-Index and Find-LastIndex, the names of their classes `FindIndexCmdlet` and `FindLastIndexCmdlet`. The old names became aliases, and Find-Index and Find-LastIndex, which were 3.x aliases, became the cmdlet names. The commit changed only the `[Cmdlet]` and `[Alias]` attributes, so 13 Pester tests failed in each edition. Finished on 2026-10-06:
+  - **Manifest:** the two names swap places between `CmdletsToExport` and `AliasesToExport`. `ReleaseNotes` still names Find-IndexOf, because it's the 3.x text, which `bugs.md` item 15 replaces.
+  - **Tests:** `tests/Find-IndexOf.Tests.ps1` and `tests/Find-LastIndexOf.Tests.ps1` are now `tests/Find-Index.Tests.ps1` and `tests/Find-LastIndex.Tests.ps1`. They, `tests/Module.Tests.ps1`, and a comment in `tests/Test-AllObject.Tests.ps1` use the new names. The alias test in `tests/Module.Tests.ps1` now also checks Find-IndexOf and Find-LastIndexOf.
+  - **Docs:** in the README, the Commands table, the two cmdlets' sections, their anchors and alias lists, and every sentence and example that names them. The examples that call the `IndexOf` alias keep it. The XML docs of `ListFunctionCmdletBase.GetSearchElements` name the new cmdlets.
+  - **Results:** all 304 Pester tests pass in each edition, PowerShell 7.6.6 and Windows PowerShell 5.1.26100.9444.
 
 ## Robustness
 
@@ -965,6 +970,15 @@ Every cmdlet calls it for every input object (`src/engine/ListFunctions-Next/Cmd
 - **Already measured:** on 2026-10-03, that test gave the same answer as the private flag in both editions, for every case tried: `[pscustomobject]`, `New-Object PSObject`, a PSObject that wraps a PSCustomObject, AutomationNull, and ordinary values.
 - **Not checked:** deserialized objects.
 - **A model to follow:** the stop-upstream code in `ListFunctionCmdletBase` already falls back when PowerShell lacks what it needs.
+
+**Fixed:** as the fix idea says. No fallback is needed, because nothing reads non-public members anymore. Measured on 2026-10-06 against the Debug build, in both editions.
+
+- **The code:** `GetBaseObject` reads `PSObject.ImmediateBaseObject`, and a new private `HasBaseObject` tests whether that is a `PSCustomObject`. The `Marshal` class is gone, with its `UnsafeAccessor` methods and its reflection. So the method can't throw `MissingFieldException`, `MissingMethodException`, or `TypeInitializationException`, and Windows PowerShell 5.1 no longer makes reflection calls for each input object.
+- **The loop stays:** the public `PSObject.BaseObject` can't replace it. In both editions, for a PSObject that wraps a custom object, `BaseObject` returns the `PSCustomObject` placeholder, where `GetBaseObject` returns the custom object.
+- **Why the test matches the flag:** in PowerShell 7.6.6's source, only `PSObject` itself writes the flag: its constructors, `Copy`, and `SetCoreOnDeserialization`. Each write sets the flag exactly when the immediate base object is a `PSCustomObject`. The deserializer creates each `<Obj>` as `new PSObject()`, and gives the value of a known type to `SetCoreOnDeserialization`. PowerShell's own `RehydrateCimInstance` finds a property bag by testing `BaseObject is not PSCustomObject`.
+- **Deserialized objects:** a scratch script made two comparisons on every `PSObject` it could reach: the private flag against the `PSCustomObject` test, and the old algorithm's result against the built `GetBaseObject`'s. It started from live objects and from their round trips through `PSSerializer`, `Export-Clixml` and `Import-Clixml`, and `Start-Job`. It reached 166 PSObjects in each edition, 80 to 86 of them without a base object, and every comparison agreed.
+- **Docs:** in `GetBaseObject`'s remarks, a paragraph that says what "no base object" means replaces the one about reflection and `TypeInitializationException`.
+- **Tests:** the new `src/engine/ListFunctions.Engine.Tests/Extensions/PSObjectExtensionsTests.cs` checks four behaviors. `GetBaseObject` unwraps every layer, and unwraps a deserialized string. It returns a custom object, AutomationNull, and a deserialized property bag as themselves. It stops at a custom object that another PSObject wraps. Its 8 tests passed in both targets before and after the change. They run against real PowerShell, so they'd catch a release that breaks the `PSCustomObject` test.
 
 ### 43 — The Windows PowerShell 5.1 assembly resolver answers for every module
 

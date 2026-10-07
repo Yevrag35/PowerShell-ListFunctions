@@ -22,8 +22,8 @@ ListFunctions runs on Windows PowerShell 5.1 (.NET Framework 4.8) and on PowerSh
 | --- | --- | --- | --- |
 | [Test-AnyObject](#test-anyobject) | `Any`, `Any-Object`, `Assert-Any`, `Assert-AnyObject` | `[bool]` | Tests whether any element satisfies a condition, or whether there are any elements at all. |
 | [Test-AllObject](#test-allobject) | `All`, `All-Object`, `All-Objects`, `Assert-All`, `Assert-AllObject`, `Assert-AllObjects` | `[bool]` | Tests whether every element satisfies a condition. |
-| [Find-IndexOf](#find-indexof) | `IndexOf`, `Find-Index` | `[int]` | Finds the index of the first element that satisfies a condition. |
-| [Find-LastIndexOf](#find-lastindexof) | `LastIndexOf`, `Find-LastIndex` | `[int]` | Finds the index of the last element that satisfies a condition. |
+| [Find-Index](#find-index) | `Find-IndexOf`, `IndexOf` | `[int]` | Finds the index of the first element that satisfies a condition. |
+| [Find-LastIndex](#find-lastindex) | `Find-LastIndexOf`, `LastIndexOf` | `[int]` | Finds the index of the last element that satisfies a condition. |
 | [New-List](#new-list) | | `List[T]` | Creates a list. |
 | [New-HashSet](#new-hashset) | | `HashSet[T]` | Creates a set of distinct elements, optionally with script block equality. |
 | [New-SortedSet](#new-sortedset) | | `SortedSet[T]` | Creates a sorted set of distinct elements, optionally with a script block sort order. |
@@ -37,21 +37,21 @@ Every command except `New-Dictionary` takes its elements from the pipeline or fr
 - Each object that comes through the pipeline is one element, even when it's `$null` or an array, the same as with `ForEach-Object`.
 - An array or a list that you pass to `-InputObject` supplies its elements, and `$null` supplies none. Any other value, such as a string or a hashtable, is one element.
 
-`Find-IndexOf` and `Find-LastIndexOf` search what you pass to `-InputObject` the same way they'd search it piped, so a set, a queue, or any other collection supplies its elements too. A value that isn't a collection is one element, and they write a warning for it, unless it's a string, which PowerShell never treats as a collection. For a dictionary, such as a hashtable, the warning suggests `$dict.GetEnumerator()`, which supplies the entries.
+`Find-Index` and `Find-LastIndex` search what you pass to `-InputObject` the same way they'd search it piped, so a set, a queue, or any other collection supplies its elements too. A value that isn't a collection is one element, and they write a warning for it, unless it's a string, which PowerShell never treats as a collection. For a dictionary, such as a hashtable, the warning suggests `$dict.GetEnumerator()`, which supplies the entries.
 
 ```powershell
-1, $null, 3 | Find-IndexOf { $_ -eq 3 }              # 2
-@(1, @(2, 3), 4) | Find-IndexOf { $_ -is [array] }   # 1
-Find-IndexOf -InputObject 1, 2, 3 { $_ -eq 3 }       # 2
+1, $null, 3 | Find-Index { $_ -eq 3 }              # 2
+@(1, @(2, 3), 4) | Find-Index { $_ -is [array] }   # 1
+Find-Index -InputObject 1, 2, 3 { $_ -eq 3 }       # 2
 
 $set = 1, 2, 3 | New-HashSet [int]
-Find-IndexOf -InputObject $set { $_ -eq 2 }          # 1, the same as $set | Find-IndexOf { $_ -eq 2 }
+Find-Index -InputObject $set { $_ -eq 2 }          # 1, the same as $set | Find-Index { $_ -eq 2 }
 ```
 
 A command takes its input from the pipeline or from `-InputObject`, not from both. When it gets both, it writes an error before it reads any input, and no result:
 
 ```powershell
-'a', 'b' | Find-IndexOf { $_ -eq 1 } -InputObject 1, 2
+'a', 'b' | Find-Index { $_ -eq 1 } -InputObject 1, 2
 # Error: Cannot use -InputObject and pipeline input together, because both supply the command's input. Pipe the input,
 # or pass it to -InputObject, but not both.
 ```
@@ -60,7 +60,7 @@ A command takes its input from the pipeline or from `-InputObject`, not from bot
 
 The commands don't all treat `$null` the same way. Each one does what fits its job:
 
-- **`Test-AnyObject`, `Test-AllObject`, `Find-IndexOf`, and `Find-LastIndexOf`** pass a `$null` element to `-Condition` like any other element, so your condition decides what it means. An index counts every element, which is why `1, $null, 3 | Find-IndexOf { $_ -eq 3 }` above is `2`, the index of `3` in the input. Without a condition, `Test-AnyObject` tests whether the input holds anything, so it doesn't count `$null` elements.
+- **`Test-AnyObject`, `Test-AllObject`, `Find-Index`, and `Find-LastIndex`** pass a `$null` element to `-Condition` like any other element, so your condition decides what it means. An index counts every element, which is why `1, $null, 3 | Find-Index { $_ -eq 3 }` above is `2`, the index of `3` in the input. Without a condition, `Test-AnyObject` tests whether the input holds anything, so it doesn't count `$null` elements.
 - **`New-List`** skips `$null` elements unless you pass `-IncludeNullElements`. A list keeps every element it's given, so `$null` elements, which usually stand for missing values, would pile up in it. Pass the switch when they matter, for example to keep the list's positions in step with the input. In a typed list, a `$null` element then becomes what `$list.Add($null)` would store, such as `0` in a `List[int]`.
 - **`New-HashSet`** adds a `$null` element to an `[object]` set, which stores it as it is, and only once, like any other distinct element. So `$set.Contains($null)` tells you whether the input had one. A set of any other type skips `$null` elements, because in most types, `$null` would become a value that wasn't in the input, such as `0` in an `[int]` set.
 - **`New-SortedSet`** skips `$null` elements, whatever the element type. In the default `[string]` set, `$null` would become `''`, a value that wasn't in the input, and in an `[object]` set, the set would put it first without running your `-ComparingScript`.
@@ -80,7 +80,7 @@ A script block has to use at least one of these variables for each element it re
 
 The commands run one block of a script block: its `process` block if it has one, and otherwise its `end` block, which holds the statements of a script block without named blocks. So a script block can't have a `begin` block, a `clean` block, or both a `process` block and an `end` block, and the block that runs has to contain at least one statement. A script block that breaks this rule fails with a parameter validation error too, before the command reads any input.
 
-Passing `$null` to a script block parameter is the same as leaving the parameter out. So when the command requires the parameter, as `Test-AllObject`, `Find-IndexOf`, and `Find-LastIndexOf` require `-Condition`, PowerShell rejects `$null` with a parameter binding error. `Test-AnyObject -Condition $null` tests for elements that aren't `$null`, the same as `Test-AnyObject` without a condition.
+Passing `$null` to a script block parameter is the same as leaving the parameter out. So when the command requires the parameter, as `Test-AllObject`, `Find-Index`, and `Find-LastIndex` require `-Condition`, PowerShell rejects `$null` with a parameter binding error. `Test-AnyObject -Condition $null` tests for elements that aren't `$null`, the same as `Test-AnyObject` without a condition.
 
 Only the first value that a script block outputs is used. The output of a condition or an equality script block is converted to `[bool]` by PowerShell's usual rules, so `0`, `''`, `$null`, and no output at all count as `$false`.
 
@@ -156,18 +156,18 @@ if (-not ($array | All { $_ -is [int] })) {
 
 ## Searching
 
-### Find-IndexOf
+### Find-Index
 
-Aliases: `IndexOf`, `Find-Index`
+Aliases: `Find-IndexOf`, `IndexOf`
 
 Returns the zero-based index of the first input element that satisfies `-Condition`, or `-1` if none does. After the first match, it stops: it doesn't test the remaining elements, and it [stops the commands that send it pipeline input](#stopping-early).
 
 ```powershell
 $names = 'Ann', 'Bob', 'Cid', 'Bob'
 
-$names | Find-IndexOf { $_ -eq 'Bob' }                          # 1
-$names | IndexOf { $_ -like 'Z*' }                              # -1
-Find-IndexOf -InputObject $names -Condition { $_ -like 'C*' }   # 2
+$names | Find-Index { $_ -eq 'Bob' }                          # 1
+$names | IndexOf { $_ -like 'Z*' }                            # -1
+Find-Index -InputObject $names -Condition { $_ -like 'C*' }   # 2
 ```
 
 | Parameter | Description |
@@ -176,19 +176,19 @@ Find-IndexOf -InputObject $names -Condition { $_ -like 'C*' }   # 2
 | `-InputObject` | Alias: `List`. The elements to search. Accepts pipeline input. |
 | `-ScriptBlockErrorAction` | Alias: `ScriptErrorAction`. What happens to errors in `-Condition`. Default: `SilentlyContinue`, which writes each error as a warning. See [Errors in script blocks](#errors-in-script-blocks). |
 
-### Find-LastIndexOf
+### Find-LastIndex
 
-Aliases: `LastIndexOf`, `Find-LastIndex`
+Aliases: `Find-LastIndexOf`, `LastIndexOf`
 
 Returns the zero-based index of the last input element that satisfies `-Condition`, or `-1` if none does. It collects all of its input before it searches backward from the end.
 
 ```powershell
 $names = 'Ann', 'Bob', 'Cid', 'Bob'
 
-$names | Find-LastIndexOf { $_ -eq 'Bob' }     # 3
+$names | Find-LastIndex { $_ -eq 'Bob' }     # 3
 ```
 
-It takes the same parameters as [Find-IndexOf](#find-indexof).
+It takes the same parameters as [Find-Index](#find-index).
 
 ## Building collections
 
@@ -471,7 +471,7 @@ $byDept['HR']           # Jane
 
 ## Stopping early
 
-`Test-AnyObject`, `Test-AllObject`, and `Find-IndexOf` have their answer as soon as they reach a deciding element: the first match for `Test-AnyObject` and `Find-IndexOf`, or the first failure for `Test-AllObject`. At that point, the command writes its result and stops the commands before it in the pipeline, the same way `Select-Object -First` does. Those commands produce no more output, so a search of a large or slow source ends as soon as it has an answer.
+`Test-AnyObject`, `Test-AllObject`, and `Find-Index` have their answer as soon as they reach a deciding element: the first match for `Test-AnyObject` and `Find-Index`, or the first failure for `Test-AllObject`. At that point, the command writes its result and stops the commands before it in the pipeline, the same way `Select-Object -First` does. Those commands produce no more output, so a search of a large or slow source ends as soon as it has an answer.
 
 ```powershell
 # Get-ChildItem stops walking the directory tree after it finds the first file larger than 1 GB.
@@ -481,7 +481,7 @@ Get-ChildItem -Path $HOME -File -Recurse | Any { $_.Length -gt 1GB }
 - The stopped commands don't run their `end` blocks. On PowerShell 7.3 and later, an advanced function's `clean` block still runs.
 - Only the pipeline that contains the command stops. Statements after that pipeline still run, and so does any pipeline that runs it, for example through `ForEach-Object`.
 - With `-InputObject`, there are no commands before it to stop. PowerShell evaluates the whole argument before the command starts, so `Any -InputObject (Get-ChildItem -Recurse) { $_.Length -gt 1GB }` still walks the entire tree. To stop early, pipe the input instead.
-- `Find-LastIndexOf` and the commands that build collections always read all of their input.
+- `Find-LastIndex` and the commands that build collections always read all of their input.
 
 ## Errors in script blocks
 
@@ -489,12 +489,12 @@ Get-ChildItem -Path $HOME -File -Recurse | Any { $_.Length -gt 1GB }
 
 | Commands | Default | Effect |
 | --- | --- | --- |
-| `Test-AnyObject`, `Test-AllObject`, `Find-IndexOf`, `Find-LastIndexOf` | `SilentlyContinue` | An error in `-Condition` becomes a warning, and the element doesn't satisfy the condition. |
+| `Test-AnyObject`, `Test-AllObject`, `Find-Index`, `Find-LastIndex` | `SilentlyContinue` | An error in `-Condition` becomes a warning, and the element doesn't satisfy the condition. |
 | `New-HashSet`, `New-SortedSet`, `New-Dictionary` | `Stop` | An error that `-EqualityScript`, `-HashCodeScript`, or `-ComparingScript` writes ends the whole script. |
 
 ### Warnings from conditions
 
-`Test-AnyObject`, `Test-AllObject`, `Find-IndexOf`, and `Find-LastIndexOf` turn errors in `-Condition` into warnings when `-ScriptBlockErrorAction` is `SilentlyContinue`, the default, or `Ignore`. They run `-Condition` with `$ErrorActionPreference` set to `Stop`, so the first error that the condition doesn't handle itself, such as an error that a command writes, a failed method call, or a `throw`, ends the condition for that element. The command writes the error's message as a warning, and the element doesn't satisfy the condition, so `Test-AllObject` returns `$false`, and the other commands go on with the next element.
+`Test-AnyObject`, `Test-AllObject`, `Find-Index`, and `Find-LastIndex` turn errors in `-Condition` into warnings when `-ScriptBlockErrorAction` is `SilentlyContinue`, the default, or `Ignore`. They run `-Condition` with `$ErrorActionPreference` set to `Stop`, so the first error that the condition doesn't handle itself, such as an error that a command writes, a failed method call, or a `throw`, ends the condition for that element. The command writes the error's message as a warning, and the element doesn't satisfy the condition, so `Test-AllObject` returns `$false`, and the other commands go on with the next element.
 
 ```powershell
 $files = 'missing-1.txt', 'missing-2.txt'

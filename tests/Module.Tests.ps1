@@ -15,12 +15,15 @@ Describe 'ListFunctions module' {
 		Should-BeCollection -Expected @($manifest.AliasesToExport | Sort-Object) -Actual $exported
 	}
 
-	# 3.x named these cmdlets with the Assert verb. 4.0 names them with Test, which PowerShell uses for commands that
-	# return a [bool], and keeps the old names as aliases so that scripts written for 3.x still run. The manifest tests
+	# 4.0 renames these cmdlets and keeps their 3.x names as aliases, so that scripts written for 3.x still run. The Assert
+	# cmdlets take Test, the verb that PowerShell uses for commands that return a [bool]. The Find cmdlets swap names with
+	# their 3.x aliases, Find-Index and Find-LastIndex, which match the class names in their error IDs. The manifest tests
 	# don't catch a dropped alias, because it would be dropped from the manifest too.
 	It 'keeps the 3.x name <Alias> as an alias of <Name>' -ForEach @(
 		@{ Alias = 'Assert-AnyObject'; Name = 'Test-AnyObject' }
 		@{ Alias = 'Assert-AllObject'; Name = 'Test-AllObject' }
+		@{ Alias = 'Find-IndexOf'; Name = 'Find-Index' }
+		@{ Alias = 'Find-LastIndexOf'; Name = 'Find-LastIndex' }
 	) {
 		$module.ExportedAliases[$Alias].Definition | Should-Be $Name
 	}
@@ -53,9 +56,9 @@ Describe 'ListFunctions module' {
 	It 'rejects pipeline input together with -InputObject in <Name>' -ForEach @(
 		@{ Name = 'Test-AnyObject'; Command = "1, 2 | Test-AnyObject { `$_ -eq 1 } -InputObject 1, 2" }
 		@{ Name = 'Test-AllObject'; Command = "1, 2 | Test-AllObject { `$_ -eq 1 } -InputObject 1, 2" }
-		@{ Name = 'Find-IndexOf'; Command = "'a', 'b' | Find-IndexOf { `$_ -eq 1 } -InputObject 1, 2" }
-		@{ Name = 'Find-IndexOf with an empty pipeline'; Command = "@() | Find-IndexOf { `$_ -eq 1 } -InputObject 1, 2" }
-		@{ Name = 'Find-LastIndexOf'; Command = "'a', 'b' | Find-LastIndexOf { `$_ -eq 1 } -InputObject 1, 2" }
+		@{ Name = 'Find-Index'; Command = "'a', 'b' | Find-Index { `$_ -eq 1 } -InputObject 1, 2" }
+		@{ Name = 'Find-Index with an empty pipeline'; Command = "@() | Find-Index { `$_ -eq 1 } -InputObject 1, 2" }
+		@{ Name = 'Find-LastIndex'; Command = "'a', 'b' | Find-LastIndex { `$_ -eq 1 } -InputObject 1, 2" }
 		@{ Name = 'New-List'; Command = "1, 2 | New-List -InputObject 3" }
 		@{ Name = 'New-HashSet'; Command = "1, 2 | New-HashSet -InputObject 3" }
 		@{ Name = 'New-SortedSet'; Command = "1, 2 | New-SortedSet -InputObject 3" }

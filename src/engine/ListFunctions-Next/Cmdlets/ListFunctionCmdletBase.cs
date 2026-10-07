@@ -614,7 +614,7 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	}
 	/// <summary>
 	/// Returns the elements to search in the specified input object, which is the value of the pipeline input parameter
-	/// of Find-IndexOf or Find-LastIndexOf.
+	/// of Find-Index or Find-LastIndex.
 	/// </summary>
 	/// <remarks>
 	/// <para>

@@ -30,9 +30,9 @@ public static class PSObjectExtensions
 	/// <see cref="PSObject"/>, or at a nested <see cref="PSObject"/> that has no base object, and returns that object.
 	/// </para>
 	/// <para>
-	/// On .NET Framework and .NET Standard targets, the method reads <see cref="PSObject"/>'s non-public fields through
-	/// reflection. If the loaded PowerShell version doesn't have those fields, the first call throws a
-	/// <see cref="TypeInitializationException"/>.
+	/// A <see cref="PSObject"/> has no base object when its <see cref="PSObject.ImmediateBaseObject"/> is a
+	/// <see cref="PSCustomObject"/>, the placeholder that PowerShell gives a <see cref="PSObject"/> it creates without one,
+	/// such as a custom object or a deserialized property bag.
 	/// </para>
 	/// </remarks>
 	/// <param name="obj">The object to unwrap. This value can be a <see cref="PSObject"/>, any other object, or <see langword="null"/>.</param>
@@ -43,15 +43,17 @@ public static class PSObjectExtensions
 	/// </returns>
 	public static object? GetBaseObject(this object? obj)
 	{
-		if (!TryGetPSObject(obj, out PSObject? mshObj) || Marshal.IsImmediateBaseObjectIsEmpty(mshObj))
+		if (!TryGetPSObject(obj, out PSObject? mshObj) || !HasBaseObject(mshObj))
+		{
 			return obj;
+		}
 
 		object? returnValue;
 		do
 		{
-			returnValue = Marshal.GetRawImmediateBaseObject(mshObj);
+			returnValue = mshObj.ImmediateBaseObject;
 			mshObj = returnValue as PSObject;
-		} while ((mshObj is not null) && !Marshal.IsImmediateBaseObjectIsEmpty(mshObj));
+		} while ((mshObj is not null) && HasBaseObject(mshObj));
 
 		return returnValue;
 	}
@@ -104,113 +106,21 @@ public static class PSObjectExtensions
 	}
 
 	/// <summary>
-	/// Reads the non-public state of a <see cref="PSObject"/> that holds its immediate base object.
+	/// Determines whether the specified <see cref="PSObject"/> has a base object.
 	/// </summary>
 	/// <remarks>
-	/// <para>
-	/// PowerShell exposes whether a <see cref="PSObject"/> has a base object only through non-public members, so this
-	/// class reads them directly.
-	/// </para>
-	/// <para>
-	/// On .NET 9 and later, the class uses <c>UnsafeAccessorAttribute</c>, which binds to the members when it first
-	/// calls them. On earlier targets, it looks up the fields once through reflection in its static constructor.
-	/// </para>
+	/// PowerShell also records that a <see cref="PSObject"/> has no base object in a non-public flag, which it sets when,
+	/// and only when, it stores a <see cref="PSCustomObject"/> as the immediate base object. The method tests the public
+	/// <see cref="PSObject.ImmediateBaseObject"/> property instead, so it doesn't depend on members that a PowerShell
+	/// release can rename or remove.
 	/// </remarks>
-	private static class Marshal
+	/// <param name="mshObj">The <see cref="PSObject"/> to test. This value must not be <see langword="null"/>.</param>
+	/// <returns>
+	/// <see langword="true"/> if the immediate base object of <paramref name="mshObj"/> isn't a
+	/// <see cref="PSCustomObject"/>; otherwise, <see langword="false"/>.
+	/// </returns>
+	private static bool HasBaseObject(PSObject mshObj)
 	{
-#if NET9_0_OR_GREATER
-		/// <summary>
-		/// Gets the raw value of the <see cref="PSObject"/>'s immediate base object field.
-		/// </summary>
-		/// <param name="psObject">The <see cref="PSObject"/> to read. This value must not be <see langword="null"/>.</param>
-		/// <returns>The value of the immediate base object field, which can be <see langword="null"/>.</returns>
-		/// <exception cref="MissingFieldException">Thrown when the loaded PowerShell version has no field named <c>_immediateBaseObject</c> on PSObject.</exception>
-		internal static object? GetRawImmediateBaseObject(PSObject psObject)
-		{
-			return GetImmediateBaseObject(psObject);
-		}
-		/// <summary>
-		/// Determines whether the <see cref="PSObject"/> has no immediate base object.
-		/// </summary>
-		/// <param name="psObject">The <see cref="PSObject"/> to read. This value must not be <see langword="null"/>.</param>
-		/// <returns><see langword="true"/> if <paramref name="psObject"/> has no immediate base object; otherwise, <see langword="false"/>.</returns>
-		/// <exception cref="MissingMethodException">Thrown when the loaded PowerShell version has no ImmediateBaseObjectIsEmpty property getter on PSObject.</exception>
-		internal static bool IsImmediateBaseObjectIsEmpty(PSObject psObject)
-		{
-			return ImmediateBaseObjectIsEmpty(psObject);
-		}
-
-		/// <summary>
-		/// Gets a reference to the <see cref="PSObject"/>'s non-public <c>_immediateBaseObject</c> field.
-		/// </summary>
-		/// <remarks>
-		/// The runtime supplies this method's body. The returned reference points into <paramref name="psObject"/>, so
-		/// writing through it changes that object's base object.
-		/// </remarks>
-		/// <param name="psObject">The <see cref="PSObject"/> whose field to access.</param>
-		/// <returns>A reference to the field.</returns>
-		/// <exception cref="MissingFieldException">Thrown when the field doesn't exist on PSObject.</exception>
-		[UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_immediateBaseObject")]
-		private static extern ref object? GetImmediateBaseObject(PSObject psObject);
-
-		/// <summary>
-		/// Calls the getter of the <see cref="PSObject"/>'s non-public <c>ImmediateBaseObjectIsEmpty</c> property.
-		/// </summary>
-		/// <remarks>
-		/// The runtime supplies this method's body.
-		/// </remarks>
-		/// <param name="psObject">The <see cref="PSObject"/> whose property to read.</param>
-		/// <returns>The value of the property.</returns>
-		/// <exception cref="MissingMethodException">Thrown when the property getter doesn't exist on PSObject.</exception>
-		[UnsafeAccessor(UnsafeAccessorKind.Method, Name = "get_ImmediateBaseObjectIsEmpty")]
-		private static extern bool ImmediateBaseObjectIsEmpty(PSObject psObject);
-
-#else
-		/// <summary>
-		/// The <see cref="PSObject"/>'s non-public <c>immediateBaseObject</c> field.
-		/// </summary>
-		private static readonly FieldInfo s_immediateBaseObjectField;
-		/// <summary>
-		/// The <see cref="PSObject"/>'s non-public <c>immediateBaseObjectIsEmpty</c> field.
-		/// </summary>
-		private static readonly FieldInfo s_immediateBaseObjectIsEmptyField;
-		/// <summary>
-		/// Initializes the <see cref="Marshal"/> class by looking up the <see cref="PSObject"/> fields it reads.
-		/// </summary>
-		/// <exception cref="InvalidOperationException">Thrown when either field doesn't exist on PSObject. The runtime wraps it in a TypeInitializationException.</exception>
-		static Marshal()
-		{
-			s_immediateBaseObjectIsEmptyField = typeof(PSObject).GetField("immediateBaseObjectIsEmpty", BindingFlags.NonPublic | BindingFlags.Instance)
-				?? throw new InvalidOperationException("Could not find field 'immediateBaseObjectIsEmpty' on type 'PSObject'.");
-
-			s_immediateBaseObjectField = typeof(PSObject).GetField("immediateBaseObject", BindingFlags.NonPublic | BindingFlags.Instance)
-				?? throw new InvalidOperationException("Could not find field 'immediateBaseObject' on type 'PSObject'.");
-		}
-
-		/// <summary>
-		/// Gets the raw value of the <see cref="PSObject"/>'s immediate base object field.
-		/// </summary>
-		/// <param name="psObject">The <see cref="PSObject"/> to read. This value must not be <see langword="null"/>.</param>
-		/// <returns>The value of the immediate base object field, which can be <see langword="null"/>.</returns>
-		/// <exception cref="TypeInitializationException">Thrown when the class's static constructor can't find the PSObject fields it reads.</exception>
-		internal static object? GetRawImmediateBaseObject(PSObject psObject)
-		{
-			return s_immediateBaseObjectField.GetValue(psObject);
-		}
-
-		/// <summary>
-		/// Determines whether the <see cref="PSObject"/> has no immediate base object.
-		/// </summary>
-		/// <remarks>
-		/// If the field's value isn't a <see cref="bool"/>, the method returns <see langword="false"/>.
-		/// </remarks>
-		/// <param name="psObject">The <see cref="PSObject"/> to read. This value must not be <see langword="null"/>.</param>
-		/// <returns><see langword="true"/> if <paramref name="psObject"/> has no immediate base object; otherwise, <see langword="false"/>.</returns>
-		/// <exception cref="TypeInitializationException">Thrown when the class's static constructor can't find the PSObject fields it reads.</exception>
-		internal static bool IsImmediateBaseObjectIsEmpty(PSObject psObject)
-		{
-			return s_immediateBaseObjectIsEmptyField.GetValue(psObject) as bool? ?? false;
-		}
-#endif
+		return mshObj.ImmediateBaseObject is not PSCustomObject;
 	}
 }

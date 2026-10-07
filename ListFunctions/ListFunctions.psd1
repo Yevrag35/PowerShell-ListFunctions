@@ -73,8 +73,8 @@
 
     # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
     CmdletsToExport   = @(
-		'Test-AllObject', 'Test-AnyObject', 'Find-IndexOf',
-        'Find-LastIndexOf', 'New-Dictionary', 'New-HashSet', 'New-List',
+		'Test-AllObject', 'Test-AnyObject', 'Find-Index',
+        'Find-LastIndex', 'New-Dictionary', 'New-HashSet', 'New-List',
         'New-SortedSet', 'ConvertTo-Dictionary'
 	)
 
@@ -85,7 +85,7 @@
     AliasesToExport   = @(
         'All', 'All-Object', 'All-Objects', 'Any', 'Any-Object', 'Assert-All',
         'Assert-AllObject', 'Assert-AllObjects', 'Assert-Any', 'Assert-AnyObject',
-        'Find-Index', 'Find-LastIndex', 'IndexOf', 'LastIndexOf'
+        'Find-IndexOf', 'Find-LastIndexOf', 'IndexOf', 'LastIndexOf'
     )
 
     # DSC resources to export from this module

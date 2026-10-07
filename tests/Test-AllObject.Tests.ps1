@@ -10,7 +10,7 @@ Describe 'Test-AllObject' {
 	}
 
 	Context 'Condition' {
-		# $null is the same as leaving -Condition out, which the command requires, so it's rejected the way Find-IndexOf
+		# $null is the same as leaving -Condition out, which the command requires, so it's rejected the way Find-Index
 		# rejects it. It used to be an error only when an element reached the condition, so empty input gave $true.
 		It 'rejects -Condition $null when it binds the parameter, even when there is no input' {
 			{ @() | Test-AllObject -Condition $null } | Should-Throw -FullyQualifiedErrorId 'ParameterArgumentValidationErrorNullNotAllowed,*'
