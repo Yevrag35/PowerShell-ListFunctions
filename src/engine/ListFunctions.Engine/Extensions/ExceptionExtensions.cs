@@ -7,6 +7,11 @@ public static class ExceptionExtensions
 {
 	extension(ArgumentNullException e)
 	{
+		/// <summary>
+		/// Throws an <see cref="ArgumentNullException"/> if the specified object is <see langword="null"/>.
+		/// </summary>
+		/// <param name="o">The object to check for <see langword="null"/>.</param>
+		/// <param name="paramName">The name of the parameter to include in the exception.</param>
 		public static void ThrowIfNull([NotNull] object? o, string? paramName)
 		{
 			Guard.NotNull(o, paramName);

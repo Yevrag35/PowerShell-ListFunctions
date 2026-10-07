@@ -1,8 +1,8 @@
 namespace ListFunctions.Engine.Tests.Validation;
 
-// On .NET 10, Engine forwards this attribute to PowerShell 7's own, so these tests run PowerShell's attribute and show
-// what Engine's polyfill has to do. On .NET Framework 4.8, they run the polyfill. They leave out collections: PowerShell
-// 7's attribute checks each element of a collection, and the polyfill checks the collection converted to a string.
+// On .NET 10, Engine has no polyfill, so these tests run PowerShell 7's own attribute and show what Engine's polyfill
+// has to do. On .NET Framework 4.8, they run the polyfill. They leave out collections: PowerShell 7's attribute checks
+// each element of a collection, and the polyfill checks the collection converted to a string.
 public sealed class ValidateNotNullOrWhiteSpaceAttributeTests
 {
 	[Theory]

@@ -37,7 +37,7 @@ Item numbers continue from `bugs.md`, so each number names one item in either fi
 
 - [x] 42 — Every cmdlet reads private members of PSObject, with no fallback
 - [x] 43 — The Windows PowerShell 5.1 assembly resolver answers for every module
-- [ ] 44 — Compatibility shims are public types in other projects' namespaces
+- [x] 44 — Compatibility shims are public types in other projects' namespaces
 
 **Public surface and dead code**
 
@@ -1036,6 +1036,16 @@ How the shims affect users:
 - Make the shims internal. Attributes don't need to be public to work on cmdlet parameters; `ArgumentToTypeTransformAttribute` is already internal.
 - Delete `ZLinq.SetExtensions`.
 
+**Fixed:** as the fix idea says. Measured on 2026-10-06 against the Debug build, in both editions.
+
+- **The code:** `IReadOnlySet<T>`, `ReadOnlySet<T>`, and `ValidateNotNullOrWhiteSpaceAttribute` are internal, and `SetExtensions.cs` is deleted. `Empty.Set<T>()` became internal too, because it returns `IReadOnlySet<T>`, and a public method can't return an internal type.
+- **The forwarders are gone:** the `net10.0` build no longer forwards the three types. A forwarder lets code compiled against the `netstandard2.0` build run against the `net10.0` build. Only the assemblies that see Engine's internals can name an internal type, and each of them runs with the build it's compiled against. The two forwarders left in the `net10.0` build, for `IsExternalInit` and `RequiresLocationAttribute`, come from PolySharp.
+- **Windows PowerShell 5.1:** after `New-List`, both type literals in the repro give "Unable to find type", as they do before the import. A script's own `[ValidateNotNullOrWhiteSpace()]` fails with `CustomAttributeTypeNotFound`, as it does without the module.
+- **The cmdlet keeps its validation:** ConvertTo-Dictionary still rejects `-KeyPropertyName ' '`, with the same message as in PowerShell 7. PowerShell reads a compiled cmdlet's parameter attributes through reflection, and Engine's internals are visible to the module's assemblies, the same as for `ArgumentToTypeTransformAttribute`.
+- **PowerShell 7:** `[ZLinq.SetExtensions]` gives "Unable to find type". The three shims' names still resolve to the runtime's and PowerShell's own types.
+- **Docs:** the shims' remarks say why they're internal. `CLAUDE.md` no longer says the attribute is forwarded, and it says to keep hand-written polyfills internal and unforwarded.
+- **Tests:** none added, because the change makes types internal and deletes dead code. No existing test passes `-KeyPropertyName` a white-space value, so only the repro checks that the internal attribute still applies. The 404 Engine tests and the 304 Pester tests in each edition passed.
+
 ## Public surface and dead code
 
 PowerShell users can name any public type in a loaded assembly, for example `[ListFunctions.Guard]`, so making a type internal after 4.0.0 is a breaking change.
@@ -1044,7 +1054,7 @@ PowerShell users can name any public type in a loaded assembly, for example `[Li
 
 `GetExportedTypes()` counts:
 
-- **Engine:** 50 public types in the `net10.0` build and 52 in the `netstandard2.0` build.
+- **Engine:** 50 public types in each build, counted again on 2026-10-06 after 44's fix. Two of them are the nested types that the compiler generates for the C# 14 `extension(ArgumentNullException)` block in `ExceptionExtensions`.
 - **Next:** 15, and 16 in the NETFramework build, which adds `ModuleInitializer`.
 
 About 7 to 17 of them need to be public, depending on the judgment calls below.
@@ -1076,7 +1086,7 @@ About 7 to 17 of them need to be public, depending on the judgment calls below.
 **Dead, with no reference outside their own files:**
 
 - `EqualityExtensions`, which is public.
-- `ZLinq.SetExtensions` (see 44).
+- `ZLinq.SetExtensions`. 44's fix deleted it.
 - `IHashCodeBlock`. `IHashBlock`, in the same file, is used.
 - `EqualityScriptException`, which nothing throws.
 - `System.Collections.ObjectModel.ReadOnlySet<T>`. The `IReadOnlySet<T>` shim serves only dead code: `Empty.Set<T>()` and `SingleValueReadOnlySet<T>`.

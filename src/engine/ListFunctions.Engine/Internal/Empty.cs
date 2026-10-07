@@ -14,9 +14,13 @@ public static class Empty
 	/// <summary>
 	/// Returns an empty read-only set.
 	/// </summary>
+	/// <remarks>
+	/// The method is internal because the <c>netstandard2.0</c> build's <see cref="IReadOnlySet{T}"/> is an internal
+	/// polyfill.
+	/// </remarks>
 	/// <typeparam name="T">The element type of the set.</typeparam>
 	/// <returns>A cached <see cref="IReadOnlySet{T}"/> that contains no elements.</returns>
-	public static IReadOnlySet<T> Set<T>() => EmptyHolder<object, T>.Default;
+	internal static IReadOnlySet<T> Set<T>() => EmptyHolder<object, T>.Default;
 	/// <summary>
 	/// Returns an empty read-only dictionary.
 	/// </summary>

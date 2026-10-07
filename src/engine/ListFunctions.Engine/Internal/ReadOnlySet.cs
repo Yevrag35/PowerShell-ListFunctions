@@ -1,8 +1,4 @@
-#if !NETSTANDARD2_0
-[assembly: System.Runtime.CompilerServices.TypeForwardedTo(typeof(System.Collections.Generic.IReadOnlySet<>))]
-[assembly: System.Runtime.CompilerServices.TypeForwardedTo(typeof(System.Collections.ObjectModel.ReadOnlySet<>))]
-
-#else
+#if NETSTANDARD2_0
 
 #pragma warning disable IDE0130 // Namespace does not match folder structure
 namespace System.Collections.Generic
@@ -13,10 +9,11 @@ namespace System.Collections.Generic
 	/// </summary>
 	/// <remarks>
 	/// This interface polyfills the <c>IReadOnlySet&lt;T&gt;</c> interface from .NET 5 for the .NET Standard 2.0 build. Other
-	/// targets forward the type to the runtime's own interface.
+	/// targets use the runtime's own interface. Like the module's other polyfills, it is internal, so PowerShell can't
+	/// resolve its name and it can't compete with a public copy in another module.
 	/// </remarks>
 	/// <typeparam name="T">The type of elements in the set.</typeparam>
-	public interface IReadOnlySet<T> : IReadOnlyCollection<T>
+	internal interface IReadOnlySet<T> : IReadOnlyCollection<T>
 	{
 		/// <summary>
 		/// Determines whether the set contains a specific item.
@@ -89,7 +86,8 @@ namespace System.Collections.ObjectModel
 	/// <remarks>
 	/// <para>
 	/// This class polyfills the <c>ReadOnlySet&lt;T&gt;</c> class from .NET 9 for the .NET Standard 2.0 build. Other targets
-	/// forward the type to the runtime's own class.
+	/// use the runtime's own class. Like the module's other polyfills, it is internal, so PowerShell can't resolve its name
+	/// and it can't compete with a public copy in another module.
 	/// </para>
 	/// <para>
 	/// Unlike the .NET 9 class, which wraps the set it is given, this polyfill copies the set into a new
@@ -106,7 +104,7 @@ namespace System.Collections.ObjectModel
 	/// </para>
 	/// </remarks>
 	/// <typeparam name="T">The type of elements in the set.</typeparam>
-	public sealed class ReadOnlySet<T> : IReadOnlySet<T>, ISet<T>
+	internal sealed class ReadOnlySet<T> : IReadOnlySet<T>, ISet<T>
 	{
 		private readonly HashSet<T> _set;
 		/// <summary>
