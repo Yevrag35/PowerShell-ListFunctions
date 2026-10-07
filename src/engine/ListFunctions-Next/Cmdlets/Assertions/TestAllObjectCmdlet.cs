@@ -7,7 +7,7 @@ using ListFunctions.Validation;
 namespace ListFunctions.Cmdlets.Assertions;
 
 /// <summary>
-/// Asserts that every input object satisfies a condition.
+/// Tests whether every input object satisfies a condition.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -40,10 +40,10 @@ namespace ListFunctions.Cmdlets.Assertions;
 /// script with either value, and <c>break</c> leaves the loop around the cmdlet with any value.
 /// </para>
 /// </remarks>
-[Cmdlet(VerbsLifecycle.Assert, "AllObject")]
-[Alias("Assert-AllObjects", "Assert-All", "All", "All-Object", "All-Objects")]
+[Cmdlet(VerbsDiagnostic.Test, "AllObject")]
+[Alias("Assert-AllObject", "Assert-AllObjects", "Assert-All", "All", "All-Object", "All-Objects")]
 [OutputType(typeof(bool))]
-public sealed class AssertAllObjectsCmdlet : AssertObjectCmdlet
+public sealed class TestAllObjectCmdlet : TestObjectCmdlet
 {
 	/// <summary>
 	/// Gets or sets the script block that tests each input object.
@@ -99,7 +99,7 @@ public sealed class AssertAllObjectsCmdlet : AssertObjectCmdlet
 	/// </remarks>
 	/// <param name="filter">The filter that tests objects with <see cref="Condition"/>.</param>
 	/// <returns>
-	/// <see langword="true"/> when an element fails the condition, so the assertion fails; otherwise,
+	/// <see langword="true"/> when an element fails the condition, so the test fails; otherwise,
 	/// <see langword="false"/>, including when <see cref="InputObject"/> supplies no elements.
 	/// </returns>
 	protected override bool Process(ScriptBlockFilter filter)
@@ -123,10 +123,10 @@ public sealed class AssertAllObjectsCmdlet : AssertObjectCmdlet
 	}
 
 	/// <summary>
-	/// Writes the result of the assertion to the pipeline.
+	/// Writes the result of the test to the pipeline.
 	/// </summary>
 	/// <param name="scriptResult">
-	/// <see langword="true"/> when a pipeline record failed the assertion; otherwise, <see langword="false"/>. The
+	/// <see langword="true"/> when a pipeline record failed the test; otherwise, <see langword="false"/>. The
 	/// method writes the opposite value.
 	/// </param>
 	protected override void End(bool scriptResult)

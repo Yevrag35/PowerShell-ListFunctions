@@ -15,6 +15,16 @@ Describe 'ListFunctions module' {
 		Should-BeCollection -Expected @($manifest.AliasesToExport | Sort-Object) -Actual $exported
 	}
 
+	# 3.x named these cmdlets with the Assert verb. 4.0 names them with Test, which PowerShell uses for commands that
+	# return a [bool], and keeps the old names as aliases so that scripts written for 3.x still run. The manifest tests
+	# don't catch a dropped alias, because it would be dropped from the manifest too.
+	It 'keeps the 3.x name <Alias> as an alias of <Name>' -ForEach @(
+		@{ Alias = 'Assert-AnyObject'; Name = 'Test-AnyObject' }
+		@{ Alias = 'Assert-AllObject'; Name = 'Test-AllObject' }
+	) {
+		$module.ExportedAliases[$Alias].Definition | Should-Be $Name
+	}
+
 	It 'runs every cmdlet from the build under test' {
 		# An installed ListFunctions 3.x exports the same cmdlet names.
 		foreach ($name in $manifest.CmdletsToExport) {
@@ -41,8 +51,8 @@ Describe 'ListFunctions module' {
 	# script runs in a new runspace so that the test can see that the error ends only the statement, before any piped
 	# object is bound, and that the command writes nothing.
 	It 'rejects pipeline input together with -InputObject in <Name>' -ForEach @(
-		@{ Name = 'Assert-AnyObject'; Command = "1, 2 | Assert-AnyObject { `$_ -eq 1 } -InputObject 1, 2" }
-		@{ Name = 'Assert-AllObject'; Command = "1, 2 | Assert-AllObject { `$_ -eq 1 } -InputObject 1, 2" }
+		@{ Name = 'Test-AnyObject'; Command = "1, 2 | Test-AnyObject { `$_ -eq 1 } -InputObject 1, 2" }
+		@{ Name = 'Test-AllObject'; Command = "1, 2 | Test-AllObject { `$_ -eq 1 } -InputObject 1, 2" }
 		@{ Name = 'Find-IndexOf'; Command = "'a', 'b' | Find-IndexOf { `$_ -eq 1 } -InputObject 1, 2" }
 		@{ Name = 'Find-IndexOf with an empty pipeline'; Command = "@() | Find-IndexOf { `$_ -eq 1 } -InputObject 1, 2" }
 		@{ Name = 'Find-LastIndexOf'; Command = "'a', 'b' | Find-LastIndexOf { `$_ -eq 1 } -InputObject 1, 2" }

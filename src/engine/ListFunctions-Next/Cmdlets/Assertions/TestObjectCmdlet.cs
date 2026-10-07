@@ -6,7 +6,7 @@ using ListFunctions.Modern;
 namespace ListFunctions.Cmdlets.Assertions;
 
 /// <summary>
-/// Provides the base class for cmdlets that assert a condition over their input objects.
+/// Provides the base class for cmdlets that test their input objects with a condition.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -17,11 +17,11 @@ namespace ListFunctions.Cmdlets.Assertions;
 /// </para>
 /// <para>
 /// When <see cref="Process(ScriptBlockFilter)"/> or <see cref="ProcessWhenNoCondition"/> returns
-/// <see langword="true"/>, the result of the assertion is decided. The cmdlet processes no more input and, when its
+/// <see langword="true"/>, the result of the test is decided. The cmdlet processes no more input and, when its
 /// input comes from the pipeline, stops the commands that send it.
 /// </para>
 /// </remarks>
-public abstract class AssertObjectCmdlet : ListFunctionCmdletBase
+public abstract class TestObjectCmdlet : ListFunctionCmdletBase
 {
 	/// <summary>
 	/// Gets or sets the script block that tests each input object.
@@ -132,7 +132,7 @@ public abstract class AssertObjectCmdlet : ListFunctionCmdletBase
 	/// </remarks>
 	/// <param name="filter">The filter that tests objects with <see cref="Condition"/>. This value isn't <see langword="null"/>.</param>
 	/// <returns>
-	/// <see langword="true"/> when the result of the assertion is decided and the cmdlet stops processing input;
+	/// <see langword="true"/> when the result of the test is decided and the cmdlet stops processing input;
 	/// otherwise, <see langword="false"/>.
 	/// </returns>
 	protected abstract bool Process(ScriptBlockFilter filter);
@@ -144,7 +144,7 @@ public abstract class AssertObjectCmdlet : ListFunctionCmdletBase
 	/// method becomes a terminating error.
 	/// </remarks>
 	/// <returns>
-	/// <see langword="true"/> when the result of the assertion is decided and the cmdlet stops processing input;
+	/// <see langword="true"/> when the result of the test is decided and the cmdlet stops processing input;
 	/// otherwise, <see langword="false"/>.
 	/// </returns>
 	protected abstract bool ProcessWhenNoCondition();
@@ -161,7 +161,7 @@ public abstract class AssertObjectCmdlet : ListFunctionCmdletBase
 		this.End(state.FoundMatch);
 	}
 	/// <summary>
-	/// When implemented in a derived class, writes the result of the assertion to the pipeline.
+	/// When implemented in a derived class, writes the result of the test to the pipeline.
 	/// </summary>
 	/// <param name="scriptResult">
 	/// <see langword="true"/> when <see cref="Process(ScriptBlockFilter)"/> or <see cref="ProcessWhenNoCondition"/>

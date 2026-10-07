@@ -21,7 +21,7 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// </para>
 /// </remarks>
 [Cmdlet(VerbsCommon.New, "List", DefaultParameterSetName = "None")]
-[OutputType(typeof(List<object>))]
+[OutputType(typeof(List<object>))] // The output type is List<object> because the cmdlet can create a list of any type, but PowerShell does not support generic output types.
 public sealed class NewListCmdlet : ListFunctionCmdletBase
 {
 	private ListWrapper? _list;

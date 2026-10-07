@@ -7,7 +7,7 @@ using ListFunctions.Validation;
 namespace ListFunctions.Cmdlets.Assertions;
 
 /// <summary>
-/// Asserts that at least one input object satisfies a condition.
+/// Tests whether at least one input object satisfies a condition.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -38,10 +38,10 @@ namespace ListFunctions.Cmdlets.Assertions;
 /// script with either value, and <c>break</c> leaves the loop around the cmdlet with any value.
 /// </para>
 /// </remarks>
-[Cmdlet(VerbsLifecycle.Assert, "AnyObject")]
-[Alias("Assert-Any", "Any-Object", "Any")]
+[Cmdlet(VerbsDiagnostic.Test, "AnyObject")]
+[Alias("Assert-AnyObject", "Assert-Any", "Any-Object", "Any")]
 [OutputType(typeof(bool))]
-public sealed class AssertAnyObjectCmdlet : AssertObjectCmdlet
+public sealed class TestAnyObjectCmdlet : TestObjectCmdlet
 {
 	/// <summary>
 	/// Gets or sets the objects to test. The value is accepted from the pipeline.
@@ -120,7 +120,7 @@ public sealed class AssertAnyObjectCmdlet : AssertObjectCmdlet
 		return false;
 	}
 	/// <summary>
-	/// Writes the result of the assertion to the pipeline.
+	/// Writes the result of the test to the pipeline.
 	/// </summary>
 	/// <param name="scriptResult"><see langword="true"/> when a pipeline record contained a matching element; otherwise, <see langword="false"/>.</param>
 	protected override void End(bool scriptResult)

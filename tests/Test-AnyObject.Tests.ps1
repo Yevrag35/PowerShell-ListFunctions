@@ -3,18 +3,18 @@ BeforeAll {
 	. "$PSScriptRoot/Invoke-InNewRunspace.ps1"
 }
 
-Describe 'Assert-AnyObject' {
+Describe 'Test-AnyObject' {
 	It 'passes each element to -Condition as $args[0]' -Tag 'Bug05' {
-		1, 2, 3 | Assert-AnyObject { $args[0] -gt 2 } | Should-BeTrue
-		1, 2, 3 | Assert-AnyObject { $args[0] -gt 5 } | Should-BeFalse
+		1, 2, 3 | Test-AnyObject { $args[0] -gt 2 } | Should-BeTrue
+		1, 2, 3 | Test-AnyObject { $args[0] -gt 5 } | Should-BeFalse
 	}
 
 	Context 'Condition' {
 		# $null is the same as leaving -Condition out, as for every script block parameter. The commands that require a
 		# condition reject it instead.
 		It 'tests for an element that is not $null when -Condition is $null' {
-			1, $null | Assert-AnyObject -Condition $null | Should-BeTrue
-			$null | Assert-AnyObject -Condition $null | Should-BeFalse
+			1, $null | Test-AnyObject -Condition $null | Should-BeTrue
+			$null | Test-AnyObject -Condition $null | Should-BeFalse
 		}
 	}
 
@@ -23,18 +23,18 @@ Describe 'Assert-AnyObject' {
 			@{ Name = '$null'; Items = @(1, $null); Condition = { $null -eq $_ } }
 			@{ Name = 'array'; Items = @(1, @(2, 3)); Condition = { $_ -is [array] } }
 		) {
-			$Items | Assert-AnyObject $Condition | Should-BeTrue
+			$Items | Test-AnyObject $Condition | Should-BeTrue
 		}
 
 		It 'tests each element of an array passed to -InputObject' -Tag 'Bug06' {
-			Assert-AnyObject -InputObject @(1, $null) { $null -eq $_ } | Should-BeTrue
+			Test-AnyObject -InputObject @(1, $null) { $null -eq $_ } | Should-BeTrue
 		}
 	}
 
 	Context 'ScriptBlockErrorAction' {
 		It 'accepts -ScriptErrorAction as an alias' -Tag 'Bug16' {
 			# Stop turns the error that the condition writes into a terminating error, so the alias reached the parameter.
-			{ 1 | Assert-AnyObject { if ($_) { Write-Error 'oops' } } -ScriptErrorAction Stop } | Should-Throw -ExceptionMessage '*oops*'
+			{ 1 | Test-AnyObject { if ($_) { Write-Error 'oops' } } -ScriptErrorAction Stop } | Should-Throw -ExceptionMessage '*oops*'
 		}
 	}
 
@@ -50,7 +50,7 @@ Describe 'Assert-AnyObject' {
 			@{ Label = 'throws'; Condition = { if ($_) { throw 'boom' }; $true }; Message = 'boom' }
 			@{ Label = 'calls a method on $null'; Condition = { if ($_) { $null.Foo() }; $true }; Message = 'You cannot call a method on a null-valued expression.' }
 		) {
-			1 | Assert-AnyObject $Condition -WarningVariable warnings -WarningAction SilentlyContinue | Should-BeFalse
+			1 | Test-AnyObject $Condition -WarningVariable warnings -WarningAction SilentlyContinue | Should-BeFalse
 			$warnings.Count | Should-Be 1
 			$warnings[0].Message | Should-Be $Message
 		}
@@ -58,7 +58,7 @@ Describe 'Assert-AnyObject' {
 		# Windows PowerShell 5.1 doesn't support Ignore as the value of $ErrorActionPreference, but the command runs the
 		# condition under Stop for it too.
 		It 'writes the error as a warning under -ScriptBlockErrorAction Ignore' {
-			1 | Assert-AnyObject { if ($_) { Write-Error 'oops' }; $true } -ScriptBlockErrorAction Ignore -WarningVariable warnings -WarningAction SilentlyContinue |
+			1 | Test-AnyObject { if ($_) { Write-Error 'oops' }; $true } -ScriptBlockErrorAction Ignore -WarningVariable warnings -WarningAction SilentlyContinue |
 				Should-BeFalse
 			$warnings.Count | Should-Be 1
 		}
@@ -70,7 +70,7 @@ Describe 'Assert-AnyObject' {
 			@{ Label = 'with -ErrorAction SilentlyContinue'; Condition = { $null -eq (Get-Item -LiteralPath $_ -ErrorAction SilentlyContinue) } }
 			@{ Label = 'with -ErrorAction Ignore'; Condition = { $null -eq (Get-Item -LiteralPath $_ -ErrorAction Ignore) } }
 		) {
-			"$TestDrive/missing.txt" | Assert-AnyObject $Condition -WarningVariable warnings -WarningAction SilentlyContinue | Should-BeTrue
+			"$TestDrive/missing.txt" | Test-AnyObject $Condition -WarningVariable warnings -WarningAction SilentlyContinue | Should-BeTrue
 			$warnings.Count | Should-Be 0
 		}
 
@@ -78,22 +78,22 @@ Describe 'Assert-AnyObject' {
 			@{ Label = 'writes an error under -ScriptBlockErrorAction Stop'; Condition = "{ if (`$_) { Write-Error 'oops' } }"; Action = 'Stop'; ErrorId = 'Microsoft.PowerShell.Commands.WriteErrorException' }
 			@{ Label = 'throws'; Condition = "{ if (`$_) { throw 'boom' } }"; Action = 'Continue'; ErrorId = 'boom' }
 		) {
-			$result = Invoke-InNewRunspace "1 | Assert-AnyObject $Condition -ScriptBlockErrorAction $Action; 'still running'"
+			$result = Invoke-InNewRunspace "1 | Test-AnyObject $Condition -ScriptBlockErrorAction $Action; 'still running'"
 			$result.StoppedBy.FullyQualifiedErrorId | Should-Be $ErrorId
 		}
 
 		It 'ends only the statement when a method call in -Condition fails' -Tag 'Bug21' {
-			$result = Invoke-InNewRunspace "1 | Assert-AnyObject { if (`$_) { `$null.Foo() } } -ScriptBlockErrorAction Stop; 'still running'"
+			$result = Invoke-InNewRunspace "1 | Test-AnyObject { if (`$_) { `$null.Foo() } } -ScriptBlockErrorAction Stop; 'still running'"
 			$result.StoppedBy | Should-BeNull
 			Should-BeCollection -Expected @('still running') -Actual $result.Output
 			$result.Errors.Count | Should-Be 1
 			# PowerShell keeps the error ID and category of the failed call, and adds the command.
-			$result.Errors[0].FullyQualifiedErrorId | Should-Be 'InvokeMethodOnNull,ListFunctions.Cmdlets.Assertions.AssertAnyObjectCmdlet'
+			$result.Errors[0].FullyQualifiedErrorId | Should-Be 'InvokeMethodOnNull,ListFunctions.Cmdlets.Assertions.TestAnyObjectCmdlet'
 			$result.Errors[0].CategoryInfo.Category | Should-Be ([System.Management.Automation.ErrorCategory]::InvalidOperation)
 		}
 
 		It 'leaves the enclosing loop when -Condition runs break' -Tag 'Bug21' {
-			$result = Invoke-InNewRunspace "foreach (`$i in 1..2) { `$i; 1 | Assert-AnyObject { if (`$_) { break } } }; 'after the loop'"
+			$result = Invoke-InNewRunspace "foreach (`$i in 1..2) { `$i; 1 | Test-AnyObject { if (`$_) { break } } }; 'after the loop'"
 			$result.Errors.Count | Should-Be 0
 			Should-BeCollection -Expected @(1, 'after the loop') -Actual $result.Output
 		}

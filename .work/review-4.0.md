@@ -31,7 +31,7 @@ Item numbers continue from `bugs.md`, so each number names one item in either fi
 - [x] 38 — Each cmdlet handles `$null` input differently
 - [x] 39 — `-InputObject` gives wrong answers in two cases
 - [x] 40 — Condition script blocks hide their errors by default
-- [ ] 41 — Command, alias, and class names
+- [x] 41 — Command, alias, and class names
 
 **Robustness**
 
@@ -931,15 +931,23 @@ What `SilentlyContinue` does today, measured on 2026-10-06 in both editions:
 ### 41 — Command, alias, and class names
 
 - **Assert vs. Test:** Assert-AnyObject and Assert-AllObject return a `[bool]` and don't throw when the answer is `$false`. `Test-*` is PowerShell's usual verb for that. `Get-Verb` describes Assert as "Affirms the state of a resource" and Test as "Verifies the operation or consistency of a resource".
-- **Aliases:** `All-Object`, `All-Objects`, and `Any-Object` read like commands with unapproved verbs, and only All has plural forms.
-- **Class names:** the C# class names show up in error IDs, such as `...,ListFunctions.Cmdlets.Finds.FindIndexCmdlet`. Three of them don't match their cmdlets' names:
-  - `AssertAllObjectsCmdlet` is Assert-AllObject.
-  - `FindIndexCmdlet` is Find-IndexOf.
-  - `FindLastIndexCmdlet` is Find-LastIndexOf.
 
   Renaming a class after 4.0.0 changes those IDs.
 
 **Decision made** - The cmdlets and PowerShell module cmdlet/functions will be renamed to `Test-*` while keeping the `Assert-*` variants as aliases. The `.cs` files will be renamed as well to their appropriate substituted cmdlet name (e.g. - `Assert-AnyObject` will become `Test-AnyObject` and its compiled `.cs` file will be renamed `TestAnyObjectCmdlet.cs`).
+
+**Fixed:** as decided, and the base class is renamed too. Measured on 2026-10-06 against the Debug build, in both editions.
+
+- **Cmdlets:** `[Cmdlet(VerbsDiagnostic.Test, ...)]` names them Test-AnyObject and Test-AllObject. Each one's old name is the first entry in its `[Alias]` list, and its other aliases don't change. In the manifest, the new names replace the old ones in `CmdletsToExport`, and the old names join `AliasesToExport`.
+- **Classes and files:** `AssertAnyObjectCmdlet`, `AssertAllObjectsCmdlet`, and their base class `AssertObjectCmdlet` are now `TestAnyObjectCmdlet`, `TestAllObjectCmdlet`, and `TestObjectCmdlet`, each in a file of the same name. The `Cmdlets/Assertions` folder and the `ListFunctions.Cmdlets.Assertions` namespace keep their names. So the error IDs end in `ListFunctions.Cmdlets.Assertions.TestAnyObjectCmdlet` and `ListFunctions.Cmdlets.Assertions.TestAllObjectCmdlet`, and Test-AllObject's class name is no longer plural.
+- **Results:** `Get-Command` finds Test-AnyObject and Test-AllObject as cmdlets, and Assert-AnyObject and Assert-AllObject as aliases of them. `1, 2 | Assert-AnyObject { $_ -eq 2 }` is `True`, and `1 | Test-AllObject { $_ } -Bogus` fails with `NamedParameterNotFound,ListFunctions.Cmdlets.Assertions.TestAllObjectCmdlet`.
+- **Docs:** the XML docs of the three classes say "Tests whether" and "the result of the test" where they said "Asserts that" and "the result of the assertion". In the README: the Commands table, the two cmdlets' sections and their alias lists, and the sentences that name them in `$null` input, Script blocks, Stopping early, and Errors in script blocks. The README's Assertions heading stays, like the namespace. `CLAUDE.md` names the new cmdlets.
+- **Not changed:**
+  - `TestAllObjectCmdlet.ProcessWhenNoCondition` still throws "Asserting an all-true condition requires a condition to be specified." PowerShell rejects a `$null` condition when it binds the parameter, so users never see the message.
+  - The legacy script functions `Assert-Any` and `Assert-All` in `src/public/`, which the module doesn't load (see 51).
+- **Tests:** `tests/Assert-AnyObject.Tests.ps1` and `tests/Assert-AllObject.Tests.ps1` are now `tests/Test-AnyObject.Tests.ps1` and `tests/Test-AllObject.Tests.ps1`. They and `tests/Module.Tests.ps1` call the cmdlets by their new names, and expect the new class names in error IDs.
+  - **New test:** in `tests/Module.Tests.ps1`, Assert-AnyObject and Assert-AllObject must be aliases of the Test cmdlets, because scripts written for 3.x use those names. The manifest tests don't catch a dropped alias, because it would be dropped from the manifest too.
+  - **A trap for tests that call an alias:** the first `& Import-ListFunctions.ps1` in a session leaves every alias of the module unresolvable, and a second import makes them resolvable. Measured with `Any`, `Assert-AnyObject`, and `Find-IndexOf`. So a call to an alias fails with `CommandNotFoundException` in `Invoke-InNewRunspace`, which imports once, and in a test file that runs alone or first. The new test reads `$module.ExportedAliases` instead of calling the aliases.
 
 ## Robustness
 

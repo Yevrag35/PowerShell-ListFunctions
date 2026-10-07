@@ -41,8 +41,8 @@ namespace ListFunctions.Cmdlets.Finds;
 /// script with either value, and <c>break</c> leaves the loop around the cmdlet with any value.
 /// </para>
 /// </remarks>
-[Cmdlet(VerbsCommon.Find, "IndexOf")]
-[Alias("Find-Index", "IndexOf")]
+[Cmdlet(VerbsCommon.Find, "Index")]
+[Alias("Find-IndexOf", "IndexOf")]
 [OutputType(typeof(int))]
 public sealed class FindIndexCmdlet : ListFunctionCmdletBase
 {

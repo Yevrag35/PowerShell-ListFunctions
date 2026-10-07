@@ -39,8 +39,8 @@ namespace ListFunctions.Cmdlets.Finds;
 /// with the size of the input. The condition runs only for the elements from the end of the sequence through the
 /// last match.</para>
 /// </remarks>
-[Cmdlet(VerbsCommon.Find, "LastIndexOf")]
-[Alias("Find-LastIndex", "LastIndexOf")]
+[Cmdlet(VerbsCommon.Find, "LastIndex")]
+[Alias("Find-LastIndexOf", "LastIndexOf")]
 [OutputType(typeof(int))]
 public sealed class FindLastIndexCmdlet : ListFunctionCmdletBase
 {

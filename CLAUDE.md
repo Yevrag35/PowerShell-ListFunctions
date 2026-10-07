@@ -33,7 +33,7 @@ There are four projects under `src/engine/`:
 
 - **`ListFunctions.Engine`** targets `netstandard2.0` and `net10.0`. It holds the reusable, non-cmdlet core:
 	- `Modern/EqualityBlock`, `HashBlock`, and `ComparingBlock` (base `ComparingBase`) turn user ScriptBlocks into `IEqualityComparer` and `IComparer` implementations.
-	- `ScriptBlockFilter` evaluates predicates for `Assert-Any`/`Assert-All`.
+	- `ScriptBlockFilter` evaluates predicates for `Test-AnyObject`/`Test-AllObject`.
 	- `Modern/Constructors/*Ctor` build closed generic collection types through reflection. `AddMethodInvoker` calls their `Add` method.
 	- `Modern/Variables` injects the per-item context variables into the ScriptBlocks: `$_`, `$this`, and `$psitem` for single items, and `$left`/`$right` or `$x`/`$y` for equality.
 	- `Validation/` holds the parameter transformation and validation attributes: `ArgumentToTypeTransform` and `ListTransform` convert arguments, and `IsScriptBlock` and `ValidateScriptVariable` check them. It also holds a `ValidateNotNullOrWhiteSpace` polyfill for Windows PowerShell 5.1. The `net10.0` build forwards that type to PowerShell 7's own attribute.
