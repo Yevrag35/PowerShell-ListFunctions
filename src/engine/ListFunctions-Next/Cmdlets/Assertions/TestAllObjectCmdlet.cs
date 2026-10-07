@@ -102,7 +102,7 @@ public sealed class TestAllObjectCmdlet : TestObjectCmdlet
 	/// <see langword="true"/> when an element fails the condition, so the test fails; otherwise,
 	/// <see langword="false"/>, including when <see cref="InputObject"/> supplies no elements.
 	/// </returns>
-	protected override bool Process(ScriptBlockFilter filter)
+	private protected override bool Process(ScriptBlockFilter filter)
 	{
 		return !filter.All(this.GetInputElements(this.InputObject));
 	}

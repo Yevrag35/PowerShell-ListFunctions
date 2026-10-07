@@ -10,7 +10,7 @@ namespace ListFunctions.Extensions;
 /// <see cref="PSObject"/>, <see cref="PSCustomObject"/>, and <see cref="PSMemberInfo"/>. Each object type decides how
 /// deep its own copy goes.
 /// </remarks>
-public static class ObjectCloningExtensions
+internal static class ObjectCloningExtensions
 {
 	/// <summary>
 	/// Creates a copy of the specified object if it supports copying; otherwise, returns the original object.

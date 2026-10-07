@@ -13,40 +13,40 @@ namespace ListFunctions.Modern.Variables;
 /// Only types in this assembly can derive from this class.
 /// </para>
 /// </remarks>
-public abstract class PSComparingVariable
+internal abstract class PSComparingVariable
 {
 	/// <summary>
 	/// The short name of the variable that holds the left operand, <c>$x</c>.
 	/// </summary>
-	public const string X = "x";
+	internal const string X = "x";
 	/// <summary>
 	/// The short name of the variable that holds the right operand, <c>$y</c>.
 	/// </summary>
-	public const string Y = "y";
+	internal const string Y = "y";
 	/// <summary>
 	/// The long name of the variable that holds the left operand, <c>$left</c>.
 	/// </summary>
-	public const string LEFT = "left";
+	internal const string LEFT = "left";
 	/// <summary>
 	/// The long name of the variable that holds the right operand, <c>$right</c>.
 	/// </summary>
-	public const string RIGHT = "right";
-	private static readonly string[] _left = [X, LEFT];
-	private static readonly string[] _right = [Y, RIGHT];
+	internal const string RIGHT = "right";
+	private static readonly string[] s_left = [X, LEFT];
+	private static readonly string[] s_right = [Y, RIGHT];
 	/// <summary>
 	/// The names of the variables that hold the left operand, <see cref="X"/> and <see cref="LEFT"/>.
 	/// </summary>
 	/// <remarks>
 	/// The array wraps a shared private array without copying it.
 	/// </remarks>
-	protected static readonly ImmutableArray<string> LeftNames = ImmutableCollectionsMarshal.AsImmutableArray(_left);
+	protected static readonly ImmutableArray<string> LeftNames = ImmutableCollectionsMarshal.AsImmutableArray(s_left);
 	/// <summary>
 	/// The names of the variables that hold the right operand, <see cref="Y"/> and <see cref="RIGHT"/>.
 	/// </summary>
 	/// <remarks>
 	/// The array wraps a shared private array without copying it.
 	/// </remarks>
-	protected static readonly ImmutableArray<string> RightNames = ImmutableCollectionsMarshal.AsImmutableArray(_right);
+	protected static readonly ImmutableArray<string> RightNames = ImmutableCollectionsMarshal.AsImmutableArray(s_right);
 
 	/// <summary>
 	/// Gets the operand value that this variable represents.
@@ -74,7 +74,7 @@ public abstract class PSComparingVariable
 	/// <returns>A new variable set named <see cref="X"/> and <see cref="LEFT"/>.</returns>
 	internal static PSComparingVariable<T> Left<T>()
 	{
-		return new PSComparingVariable<T>(_left);
+		return new PSComparingVariable<T>(s_left);
 	}
 	/// <summary>
 	/// Creates the variables for the right operand of a comparison.
@@ -83,7 +83,7 @@ public abstract class PSComparingVariable
 	/// <returns>A new variable set named <see cref="Y"/> and <see cref="RIGHT"/>.</returns>
 	internal static PSComparingVariable<T> Right<T>()
 	{
-		return new PSComparingVariable<T>(_right);
+		return new PSComparingVariable<T>(s_right);
 	}
 }
 /// <summary>

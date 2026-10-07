@@ -135,7 +135,7 @@ public abstract class TestObjectCmdlet : ListFunctionCmdletBase
 	/// <see langword="true"/> when the result of the test is decided and the cmdlet stops processing input;
 	/// otherwise, <see langword="false"/>.
 	/// </returns>
-	protected abstract bool Process(ScriptBlockFilter filter);
+	private protected abstract bool Process(ScriptBlockFilter filter);
 	/// <summary>
 	/// When implemented in a derived class, processes the current pipeline input when no condition is set.
 	/// </summary>

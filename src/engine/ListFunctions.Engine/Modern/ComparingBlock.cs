@@ -20,7 +20,7 @@ public interface IComparingBlock : IComparer
 /// <summary>
 /// Provides factory methods that create <see cref="ComparingBlock{T}"/> instances.
 /// </summary>
-public static class ComparingBlock
+internal static class ComparingBlock
 {
 	/// <summary>
 	/// Creates a <see cref="ComparingBlock{T}"/> for the specified element type from the specified script block.
@@ -98,7 +98,7 @@ public static class ComparingBlock
 /// </para>
 /// </remarks>
 /// <typeparam name="T">The type of the objects to compare.</typeparam>
-public sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparingBlock
+internal sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparingBlock
 {
 	private readonly PSVariable[] _additionalVariables;
 	private readonly ScriptBlock _compareScript;

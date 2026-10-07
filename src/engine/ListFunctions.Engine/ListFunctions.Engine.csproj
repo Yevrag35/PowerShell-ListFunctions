@@ -60,14 +60,6 @@
 		</Content>
 	</ItemGroup>
 
-	<ItemGroup>
-		<Compile Remove="Internal\VarList.cs" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<None Include="Internal\VarList.cs" />
-	</ItemGroup>
-
 	<ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
 		<PackageReference Include="PowerShellStandard.Library" PrivateAssets="all" ExcludeAssets="runtime" />
 		<PackageReference Include="Microsoft.Bcl.Memory" />

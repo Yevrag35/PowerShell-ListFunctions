@@ -33,7 +33,7 @@ public interface IEqualityBlock : IEqualityComparer, IEqualityComparer<object>
 /// Instances aren't thread-safe, because every comparison reuses the same list of script block variables.
 /// </para>
 /// </remarks>
-public sealed class EqualityBlock : ComparingBase, IEqualityBlock
+internal sealed class EqualityBlock : ComparingBase, IEqualityBlock
 {
 	private readonly PSVariable[] _additionalVariables;
 	private readonly List<PSVariable> _varList;

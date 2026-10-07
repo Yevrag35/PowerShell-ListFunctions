@@ -99,7 +99,7 @@ public sealed class TestAnyObjectCmdlet : TestObjectCmdlet
 	/// </remarks>
 	/// <param name="filter">The filter that tests objects with <see cref="Condition"/>.</param>
 	/// <returns><see langword="true"/> when an element satisfies the condition; otherwise, <see langword="false"/>.</returns>
-	protected override bool Process(ScriptBlockFilter filter)
+	private protected override bool Process(ScriptBlockFilter filter)
 	{
 		return filter.Any(this.GetInputElements(this.InputObject));
 	}

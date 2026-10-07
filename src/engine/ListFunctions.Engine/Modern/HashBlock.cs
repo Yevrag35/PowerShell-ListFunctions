@@ -20,7 +20,7 @@ namespace ListFunctions.Modern;
 /// Instances aren't thread-safe, because every call reuses the same list of script block variables.
 /// </para>
 /// </remarks>
-public sealed class HashBlock : ComparingBase, IHashBlock
+internal sealed class HashBlock : ComparingBase, IHashBlock
 {
 	private readonly PSThisVariable _thisVar;
 	private readonly List<PSVariable> _varList;

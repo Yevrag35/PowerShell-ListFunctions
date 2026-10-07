@@ -7,7 +7,7 @@ namespace ListFunctions.Extensions;
 /// On .NET 5 and later, this class has no members, because <see cref="Dictionary{TKey, TValue}"/> provides
 /// the same methods itself.
 /// </remarks>
-public static class DictionaryExtensions
+internal static class DictionaryExtensions
 {
 #if !NET5_0_OR_GREATER
 	/// <summary>

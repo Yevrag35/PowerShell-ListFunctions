@@ -5,7 +5,7 @@ namespace ListFunctions.Internal;
 /// <summary>
 /// Provides static factory methods for creating <see cref="ArraySlice{T}"/> instances.
 /// </summary>
-public static class ArraySlice
+internal static class ArraySlice
 {
 	/// <summary>
 	/// Creates a new <see cref="ArraySlice{T}"/> containing the specified values.
@@ -105,7 +105,7 @@ public static class ArraySlice
 /// <typeparam name="T">The type of elements contained in the array slice.</typeparam>
 [DebuggerDisplay("Length = {Length}")]
 [CollectionBuilder(typeof(ArraySlice), nameof(ArraySlice.Create))]
-public readonly struct ArraySlice<T> : IReadOnlyCollection<T>
+internal readonly struct ArraySlice<T> : IReadOnlyCollection<T>
 {
 	/// <summary>
 	/// Carries the offset and length for the unchecked <see cref="ArraySlice{T}"/> constructor.

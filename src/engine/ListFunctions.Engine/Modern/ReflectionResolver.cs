@@ -8,10 +8,10 @@ namespace ListFunctions.Modern;
 /// <see cref="ICollection{T}.Add(T)"/> or <see cref="IDictionary{TKey, TValue}.Add(TKey, TValue)"/>, so an explicit
 /// interface implementation can also be called.
 /// </remarks>
-public static class ReflectionResolver
+internal static class ReflectionResolver
 {
-	private static readonly MethodInfo _colAddMethod;
-	private static readonly MethodInfo _dictAddMethod;
+	private static readonly MethodInfo s_colAddMethod;
+	private static readonly MethodInfo s_dictAddMethod;
 
 	/// <summary>
 	/// Initializes the cached generic method definitions of <see cref="GetCollectionAdd{TCol, TItem}"/> and
@@ -21,9 +21,9 @@ public static class ReflectionResolver
 	static ReflectionResolver()
 	{
 		Type type = typeof(ReflectionResolver);
-		_colAddMethod = type.GetMethod(nameof(GetCollectionAdd))
+		s_colAddMethod = type.GetMethod(nameof(GetCollectionAdd))
 			?? throw new InvalidOperationException("Unable to find method definition for GetCollectionAdd.");
-		_dictAddMethod = type.GetMethod(nameof(GetDictionaryAdd))
+		s_dictAddMethod = type.GetMethod(nameof(GetDictionaryAdd))
 			?? throw new InvalidOperationException("Unable to find method definition for GetDictionaryAdd.");
 	}
 
@@ -60,14 +60,14 @@ public static class ReflectionResolver
 		MethodInfo getAdd;
 		if (typeof(IDictionary).IsAssignableFrom(collectionType) && types.Length == 2)
 		{
-			getAdd = _dictAddMethod.MakeGenericMethod(collectionType, types[0], types[1]);
+			getAdd = s_dictAddMethod.MakeGenericMethod(collectionType, types[0], types[1]);
 		}
 		else if ((typeof(ICollection).IsAssignableFrom(collectionType)
 			|| (collectionType.IsGenericType &&
 				typeof(HashSet<>).Equals(collectionType.GetGenericTypeDefinition())))
 			&& types.Length == 1)
 		{
-			getAdd = _colAddMethod.MakeGenericMethod(collectionType, types[0]);
+			getAdd = s_colAddMethod.MakeGenericMethod(collectionType, types[0]);
 		}
 		else
 		{

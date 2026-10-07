@@ -28,7 +28,7 @@ namespace ListFunctions.Validation;
 /// </para>
 /// </remarks>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = true, Inherited = false)]
-public sealed class ValidateScriptVariableAttribute : ValidateArgumentsAttribute
+internal sealed class ValidateScriptVariableAttribute : ValidateArgumentsAttribute
 {
 	/// <summary>
 	/// The name of PowerShell's automatic <c>$args</c> variable.

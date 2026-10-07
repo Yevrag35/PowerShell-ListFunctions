@@ -1,4 +1,3 @@
-using ListFunctions.Extensions;
 using ZLinq;
 
 namespace ListFunctions.Internal;

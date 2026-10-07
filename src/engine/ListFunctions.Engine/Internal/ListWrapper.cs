@@ -16,7 +16,7 @@ namespace ListFunctions.Internal;
 /// This type is not thread-safe. Synchronize access externally when multiple threads use the same instance.
 /// </para>
 /// </remarks>
-public abstract class ListWrapper
+internal abstract class ListWrapper
 {
 	/// <summary>
 	/// Gets the number of elements in the underlying list.
@@ -144,7 +144,7 @@ public abstract class ListWrapper
 /// </para>
 /// </remarks>
 /// <typeparam name="T">The element type of the underlying list.</typeparam>
-public sealed class ListWrapper<T> : ListWrapper
+internal sealed class ListWrapper<T> : ListWrapper
 {
 	[SuppressMessage("Style", "IDE0028", Justification = "Keeps an empty array on creation.")]
 	private readonly List<T> _list = new(0);

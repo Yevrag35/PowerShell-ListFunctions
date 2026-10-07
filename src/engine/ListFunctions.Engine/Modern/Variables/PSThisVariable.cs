@@ -16,20 +16,20 @@ namespace ListFunctions.Modern.Variables;
 /// <see cref="InsertIntoList(List{PSVariable})"/> put into other lists.
 /// </para>
 /// </remarks>
-public sealed class PSThisVariable : ICloneable
+internal sealed class PSThisVariable : ICloneable
 {
 	/// <summary>
 	/// The name of the <c>$_</c> variable.
 	/// </summary>
-	public const string Underscore = "_";
+	internal const string Underscore = "_";
 	/// <summary>
 	/// The name of the <c>$this</c> variable.
 	/// </summary>
-	public const string This = "this";
+	internal const string This = "this";
 	/// <summary>
 	/// The name of the <c>$PSItem</c> variable.
 	/// </summary>
-	public const string PSItem = "psitem";
+	internal const string PSItem = "psitem";
 	/// <summary>
 	/// The name that script block validation accepts for the first positional argument, <c>$args[0]</c>.
 	/// </summary>
@@ -37,7 +37,7 @@ public sealed class PSThisVariable : ICloneable
 	/// This class doesn't define a variable with this name. The name exists for validation attributes that list the
 	/// variables a script block may use.
 	/// </remarks>
-	public const string FirstArg = "args[0]";
+	internal const string FirstArg = "args[0]";
 	/// <summary>
 	/// The name that script block validation accepts for the second positional argument, <c>$args[1]</c>.
 	/// </summary>
@@ -45,7 +45,7 @@ public sealed class PSThisVariable : ICloneable
 	/// This class doesn't define a variable with this name. The name exists for validation attributes that list the
 	/// variables a script block may use.
 	/// </remarks>
-	public const string SecondArg = "args[1]";
+	internal const string SecondArg = "args[1]";
 
 #if NET10_0_OR_GREATER
 	private InlineArray3<PSVariable> _variables;

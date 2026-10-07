@@ -7,7 +7,7 @@ namespace ListFunctions.Extensions;
 /// <remarks>
 /// The methods never throw for a missing item or a failed conversion. They return a default value instead.
 /// </remarks>
-public static class PSVariableCollectionExtensions
+internal static class PSVariableCollectionExtensions
 {
 	/// <summary>
 	/// Converts the first item of the collection to <typeparamref name="T"/>, or returns a default value if it can't.

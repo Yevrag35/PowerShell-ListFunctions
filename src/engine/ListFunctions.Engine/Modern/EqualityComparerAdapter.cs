@@ -21,7 +21,7 @@ namespace ListFunctions.Modern;
 /// </para>
 /// </remarks>
 /// <typeparam name="T">The type of the objects to compare.</typeparam>
-public sealed class EqualityComparerAdapter<T> : IEqualityComparer<T>, IEqualityComparer
+internal sealed class EqualityComparerAdapter<T> : IEqualityComparer<T>, IEqualityComparer
 {
 	/// <summary>
 	/// Gets the comparer that the adapter passes every comparison to.

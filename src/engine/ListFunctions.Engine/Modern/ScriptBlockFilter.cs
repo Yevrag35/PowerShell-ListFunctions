@@ -25,7 +25,7 @@ namespace ListFunctions.Modern;
 /// Instances aren't thread-safe, because every test reuses the same list of script block variables.
 /// </para>
 /// </remarks>
-public sealed class ScriptBlockFilter
+internal sealed class ScriptBlockFilter
 {
 	private readonly PSThisVariable _constants;
 	private readonly Action<ErrorRecord>? _errorHandler;

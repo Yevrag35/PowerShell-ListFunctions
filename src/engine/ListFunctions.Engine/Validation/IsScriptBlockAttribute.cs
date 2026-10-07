@@ -25,7 +25,7 @@ namespace ListFunctions.Validation;
 /// </para>
 /// </remarks>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
-public sealed class IsScriptBlockAttribute : ValidateArgumentsAttribute
+internal sealed class IsScriptBlockAttribute : ValidateArgumentsAttribute
 {
 	/// <summary>
 	/// Validates that the specified argument, when it is a <see cref="ScriptBlock"/>, has a body that can be invoked.

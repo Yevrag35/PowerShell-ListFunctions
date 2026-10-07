@@ -8,7 +8,7 @@ namespace ListFunctions.Extensions;
 /// <see langword="null"/> values as equal, and a <see langword="null"/> value as unequal to any non-<see langword="null"/> value.
 /// </remarks>
 [DebuggerStepThrough]
-public static class EqualityExtensions
+internal static class EqualityExtensions
 {
 	/// <summary>
 	/// Determines whether a value equals a nullable value of the same type.

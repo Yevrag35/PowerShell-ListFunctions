@@ -3,7 +3,7 @@ namespace ListFunctions.Extensions;
 /// <summary>
 /// Provides extension methods for the <see cref="Type"/> class.
 /// </summary>
-public static class TypeExtensions
+internal static class TypeExtensions
 {
 	/// <summary>
 	/// Gets the full name of the type, or its simple name if it has no full name.

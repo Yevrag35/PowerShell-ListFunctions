@@ -25,7 +25,7 @@ namespace ListFunctions.Validation;
 /// </para>
 /// </remarks>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
-public sealed class ListTransformAttribute : ArgumentTransformationAttribute
+internal sealed class ListTransformAttribute : ArgumentTransformationAttribute
 {
 	/// <summary>
 	/// Converts the specified argument to a list of the items that it holds.

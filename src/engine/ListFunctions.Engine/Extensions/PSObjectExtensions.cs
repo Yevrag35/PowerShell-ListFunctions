@@ -15,7 +15,7 @@ namespace ListFunctions.Extensions;
 /// as one created with <c>[pscustomobject]@{}</c>, as itself.
 /// </para>
 /// </remarks>
-public static class PSObjectExtensions
+internal static class PSObjectExtensions
 {
 	/// <summary>
 	/// Gets the innermost base object of the specified object by unwrapping every nested <see cref="PSObject"/>.

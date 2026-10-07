@@ -9,7 +9,7 @@ namespace ListFunctions.Internal;
 /// Each method returns the same cached instance on every call for a given set of type arguments, so the methods do not
 /// allocate. The returned collections are thread-safe.
 /// </remarks>
-public static class Empty
+internal static class Empty
 {
 	/// <summary>
 	/// Returns an empty read-only set.

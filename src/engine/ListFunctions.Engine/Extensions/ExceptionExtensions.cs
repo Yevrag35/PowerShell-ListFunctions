@@ -3,7 +3,7 @@ namespace ListFunctions.Extensions;
 /// <summary>
 /// Provides extension methods that wrap an <see cref="Exception"/> in a PowerShell <see cref="ErrorRecord"/>.
 /// </summary>
-public static class ExceptionExtensions
+internal static class ExceptionExtensions
 {
 	/// <summary>
 	/// Creates an <see cref="ErrorRecord"/> for the exception, with the specified category and no target object.
