@@ -38,10 +38,42 @@ Describe 'Assert-AnyObject' {
 		}
 	}
 
-	# Errors from -Condition reach PowerShell unchanged, so each result is what ForEach-Object gives for the same script
-	# block in both editions. The scripts run in a new runspace, because Pester's try block would catch both kinds of
-	# error.
+	# With -ScriptBlockErrorAction Stop or Continue, errors from -Condition reach PowerShell unchanged, so each result is
+	# what ForEach-Object gives for the same script block in both editions. Those scripts run in a new runspace, because
+	# Pester's try block would catch both kinds of error. With SilentlyContinue, the default, or Ignore, the command writes
+	# each error as a warning instead, which no try block changes.
 	Context 'Errors in Condition' {
+		# The command runs -Condition under Stop, so the rest of the condition doesn't run, and the element doesn't match.
+		# Before, PowerShell hid the error, and the condition went on to output $true.
+		It 'writes the error as a warning, and the element does not match, when -Condition <Label>' -ForEach @(
+			@{ Label = 'writes an error'; Condition = { if ($_) { Write-Error 'oops' }; $true }; Message = 'oops' }
+			@{ Label = 'throws'; Condition = { if ($_) { throw 'boom' }; $true }; Message = 'boom' }
+			@{ Label = 'calls a method on $null'; Condition = { if ($_) { $null.Foo() }; $true }; Message = 'You cannot call a method on a null-valued expression.' }
+		) {
+			1 | Assert-AnyObject $Condition -WarningVariable warnings -WarningAction SilentlyContinue | Should-BeFalse
+			$warnings.Count | Should-Be 1
+			$warnings[0].Message | Should-Be $Message
+		}
+
+		# Windows PowerShell 5.1 doesn't support Ignore as the value of $ErrorActionPreference, but the command runs the
+		# condition under Stop for it too.
+		It 'writes the error as a warning under -ScriptBlockErrorAction Ignore' {
+			1 | Assert-AnyObject { if ($_) { Write-Error 'oops' }; $true } -ScriptBlockErrorAction Ignore -WarningVariable warnings -WarningAction SilentlyContinue |
+				Should-BeFalse
+			$warnings.Count | Should-Be 1
+		}
+
+		# Only an error that would go unseen becomes a warning. PowerShell records these handled errors in $Error too, so
+		# the warnings can't come from there.
+		It 'does not warn for an error that -Condition handles <Label>' -ForEach @(
+			@{ Label = 'in a try block'; Condition = { try { throw $_ } catch { $true } } }
+			@{ Label = 'with -ErrorAction SilentlyContinue'; Condition = { $null -eq (Get-Item -LiteralPath $_ -ErrorAction SilentlyContinue) } }
+			@{ Label = 'with -ErrorAction Ignore'; Condition = { $null -eq (Get-Item -LiteralPath $_ -ErrorAction Ignore) } }
+		) {
+			"$TestDrive/missing.txt" | Assert-AnyObject $Condition -WarningVariable warnings -WarningAction SilentlyContinue | Should-BeTrue
+			$warnings.Count | Should-Be 0
+		}
+
 		It 'ends the script when -Condition <Label>' -Tag 'Bug21' -ForEach @(
 			@{ Label = 'writes an error under -ScriptBlockErrorAction Stop'; Condition = "{ if (`$_) { Write-Error 'oops' } }"; Action = 'Stop'; ErrorId = 'Microsoft.PowerShell.Commands.WriteErrorException' }
 			@{ Label = 'throws'; Condition = "{ if (`$_) { throw 'boom' } }"; Action = 'Continue'; ErrorId = 'boom' }

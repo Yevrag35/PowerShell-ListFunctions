@@ -56,8 +56,8 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// Each pipeline object is one element, even when it's <see langword="null"/> or an array. An array passed to the
-	/// parameter supplies its elements, and <see langword="null"/> supplies none. <see langword="null"/> elements are
-	/// skipped unless <see cref="IncludeNullElements"/> is set.
+	/// parameter supplies its elements, and <see langword="null"/> supplies none. The parameter can't be combined with
+	/// pipeline input. <see langword="null"/> elements are skipped unless <see cref="IncludeNullElements"/> is set.
 	/// </remarks>
 	/// <value>The current pipeline object, or the argument of the parameter. The value can be <see langword="null"/>.</value>
 	[Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "InitialAdd")]

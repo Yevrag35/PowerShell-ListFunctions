@@ -57,10 +57,19 @@ Describe 'Assert-AllObject' {
 		}
 	}
 
-	# Errors from -Condition reach PowerShell unchanged, so each result is what ForEach-Object gives for the same script
-	# block in both editions. The scripts run in a new runspace, because Pester's try block would catch both kinds of
-	# error.
+	# With -ScriptBlockErrorAction Stop or Continue, errors from -Condition reach PowerShell unchanged, so each result is
+	# what ForEach-Object gives for the same script block in both editions. Those scripts run in a new runspace, because
+	# Pester's try block would catch both kinds of error. With SilentlyContinue, the default, the command writes each error
+	# as a warning instead, which no try block changes.
 	Context 'Errors in Condition' {
+		# The element whose condition fails with an error doesn't satisfy it, so the assertion fails.
+		It 'writes an error from -Condition as a warning, and returns $false' {
+			1, 2 | Assert-AllObject { if ($_ -eq 2) { throw 'boom' }; $true } -WarningVariable warnings -WarningAction SilentlyContinue |
+				Should-BeFalse
+			$warnings.Count | Should-Be 1
+			$warnings[0].Message | Should-Be 'boom'
+		}
+
 		It 'ends the script when -Condition <Label>' -Tag 'Bug21' -ForEach @(
 			@{ Label = 'writes an error under -ScriptBlockErrorAction Stop'; Condition = "{ if (`$_) { Write-Error 'oops' } }"; Action = 'Stop'; ErrorId = 'Microsoft.PowerShell.Commands.WriteErrorException' }
 			@{ Label = 'throws'; Condition = "{ if (`$_) { throw 'boom' } }"; Action = 'Continue'; ErrorId = 'boom' }

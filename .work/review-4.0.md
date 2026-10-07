@@ -29,8 +29,8 @@ Item numbers continue from `bugs.md`, so each number names one item in either fi
 - [x] 36 — New-HashSet can't combine `-GenericType` with script equality
 - [x] 37 — Parameter names, aliases, and positions differ between cmdlets
 - [x] 38 — Each cmdlet handles `$null` input differently
-- [ ] 39 — `-InputObject` gives wrong answers in two cases
-- [ ] 40 — Condition script blocks hide their errors by default
+- [x] 39 — `-InputObject` gives wrong answers in two cases
+- [x] 40 — Condition script blocks hide their errors by default
 - [ ] 41 — Command, alias, and class names
 
 **Robustness**
@@ -866,6 +866,26 @@ More about the first case, measured on 2026-10-04 in both editions:
 - **Strings and dictionaries:** a `[string]` or a dictionary passed to `-InputObject` stays one element, as it does in the pipeline, and the cmdlet writes a warning, not an error. A string isn't truly enumerable, and a dictionary such as a hashtable enumerates in a pseudo-random order.
 - **Both inputs:** this is a bug, not a decision. The cmdlet throws a terminating error and writes no result, so a `-1` never reaches the output. An error thrown from the begin block ends the statement before PowerShell binds any piped object, so it's the only error, without the `InputObjectNotBound` errors. That was measured with an advanced function in both editions.
 
+**Decided on 2026-10-06:**
+
+- **Scope:** the expansion and the warning apply only to Find-IndexOf and Find-LastIndexOf, as the examples show. Every other cmdlet keeps the old rule, under which only an array or a list passed to `-InputObject` supplies its elements, and nothing warns. The both-inputs error applies to every cmdlet, because they all had that bug.
+- **Which values warn:** a dictionary, and any other value that isn't a collection, except a string. PowerShell never enumerates a string, not in the pipeline, `foreach`, or its operators, so nobody expects one to supply its characters.
+
+**Fixed:** as decided. Measured on 2026-10-06 against the Debug build, in both editions.
+
+- **Expansion:** the new `ListFunctionCmdletBase.GetSearchElements`, which only Find-IndexOf and Find-LastIndexOf call, enumerates the argument of `-InputObject` with `LanguagePrimitives.GetEnumerator`. For pipeline input, it returns what `GetInputElements` returns. `GetInputElements`, which the other cmdlets call, didn't change.
+  - **Why not `GetEnumerable`:** both matched the pipeline for every value tried: arrays, lists, sets, queues, stacks, a `LinkedList`, LINQ iterators, a 2-D array, a `BitArray`, a `NameValueCollection`, a `DataTable`, whose rows are the elements, and a `PSObject` around an array, and as one element, strings, dictionaries, XML nodes, custom objects, and other single values. They differ for an enumerator, such as the one that `$hashtable.GetEnumerator()` returns. The pipeline sends its entries, and so does `GetEnumerator`, but `GetEnumerable` treats it as one element.
+  - **`$null`** still supplies no elements, unlike a piped `$null` (see 38), and gets no warning.
+  - **Each element loses its `PSObject`,** unless it's a custom object, as a piped object does.
+  - **Results:** the review's set repro gives 1, as piping the set does. A 2-D array, which failed with "Array was not a one-dimensional array.", supplies its elements, and `-InputObject $hashtable.GetEnumerator()` supplies the entries.
+- **Warnings:** a value that isn't a collection stays one element. For a dictionary, the cmdlet writes "The dictionary passed to -InputObject is one element, the same as when you pipe it. To pass its entries as elements, use its GetEnumerator() method, or pass its Keys or Values property." For any other value but a string, it writes "The value passed to -InputObject is one element, because a value of type 'System.Int32' isn't a collection." with the value's type, which for a custom object is `PSCustomObject`. A string, a value in an array, and piped input get no warning.
+- **Both inputs:** `ListFunctionCmdletBase.BeginProcessing` checks `MyInvocation.ExpectingInput` and whether `-InputObject` is bound before it calls `BeginCore`. When both are true, it throws an `ArgumentException`, which becomes a terminating error with the ID `System.ArgumentException,<class>`: "Cannot use -InputObject and pipeline input together, because both supply the command's input. Pipe the input, or pass it to -InputObject, but not both." All nine cmdlets, New-Dictionary included, now write that one error and no result, also when the pipeline sends nothing, as in `@() | Find-IndexOf { $_ -eq 1 } -InputObject 1, 2`. The check relies on every cmdlet's pipeline parameter being named `InputObject`.
+- **Docs:** the XML docs of `ListFunctionCmdletBase` and its `BeginProcessing`, the `InputObject` and class remarks of `FindIndexCmdlet` and `FindLastIndexCmdlet`, and the `InputObject` of the other seven cmdlets, which says that it can't be combined with pipeline input. In the README, the Input section has a paragraph on how the two Find commands search `-InputObject`, with the set example, and a paragraph and an example for the error when both inputs are given.
+- **Tests:** against commit `83a5a78`, 16 of the 18 new cases fail in each edition. The 2 that pass check that a string passed to `-InputObject`, a value in an array, and piped input get no warning, which didn't change.
+  - `tests/Module.Tests.ps1`: the both-inputs case for all nine cmdlets, and for Find-IndexOf with an empty pipeline. Each runs in a new runspace and checks for exactly one `System.ArgumentException` error and no output.
+  - `tests/Find-IndexOf.Tests.ps1`: a set and a dictionary's enumerator passed to `-InputObject` supply their elements, a number, a hashtable, and a custom object are one element with a warning, and the two no-warning cases. The enumerator test guards the choice of `GetEnumerator` over `GetEnumerable`.
+  - `tests/Find-LastIndexOf.Tests.ps1`: a queue passed to `-InputObject` supplies its elements, which also shows that the cmdlet uses the new method.
+
 ### 40 — Condition script blocks hide their errors by default
 
 `-ScriptBlockErrorAction` defaults to `SilentlyContinue` on Assert-AnyObject, Assert-AllObject, Find-IndexOf, and Find-LastIndexOf. The README documents this.
@@ -876,6 +896,37 @@ More about the first case, measured on 2026-10-04 in both editions:
 ```
 
 **Decision made:** - when the `ErrorActionPreference` value would suppress any exceptions (non & terminating), the exception's message should be written as a warning with `Write-Warning`/`this.WriteWarning()`.
+
+What `SilentlyContinue` does today, measured on 2026-10-06 in both editions:
+
+- **Every kind of error is hidden, and the condition goes on.** A written error, a `throw`, and a failed method call each leave no trace but `$Error`, so `1 | Assert-AnyObject { if ($_) { throw 'boom' }; $true }` is `True`.
+- **Except inside a `try` block.** When a `try` block encloses the command, a `throw` or a failed method call reaches that `try` block instead.
+- **`-ErrorAction Stop` on a command in the condition** still ends the whole script.
+- **`Ignore`:** Windows PowerShell 5.1 doesn't support it as the value of `$ErrorActionPreference`. Each error gives an extra error, "The value Ignore is not supported for an ActionPreference variable...", and PowerShell falls back to `Continue`. PowerShell 7.6 hides the errors, and doesn't record written errors in `$Error`.
+
+**Decided on 2026-10-06:** for `SilentlyContinue` and `Ignore`, the cmdlets run the condition under `Stop`. The first error that the condition doesn't handle itself ends the test of that element, its message becomes a warning, and the element doesn't satisfy the condition.
+
+- **The other way, rejected:** keep running the condition under `SilentlyContinue`, so no result changes, and warn for each error that `$Error` gained meanwhile. Measured on 2026-10-06 in both editions, `$Error` also gets the errors that the condition handles itself, in a `try` block, with `-ErrorAction SilentlyContinue`, or with `2>$null`, so those would warn. Because a caught error is recorded, so would an error that a command the condition calls catches in its own `try` block. Written errors under 7.6's `Ignore` couldn't warn at all.
+- **What changes for users:** results change when a condition relies on going on after an error. `{ -not (Get-Item $_) }` becomes `$false` for a missing file, with a warning. A `throw` no longer reaches a `try` block around the command, and `-ErrorAction Stop` on a command in the condition gives a warning instead of ending the script.
+
+**Fixed:** as decided. Measured on 2026-10-06 against the Debug build, in both editions.
+
+- **`ScriptBlockFilter`:** a new constructor takes an `Action<ErrorRecord>` error handler. With one, `IsTrue` catches a `RuntimeException` other than a `PipelineStoppedException`, passes its `ErrorRecord` to the handler, and returns `$false`, so `Any` goes on with the next element and `All` stops. For an `ActionPreferenceStopException`, that's the record of the error that stopped the script block, so the message is the error's own, not "The running command stopped because...". `break` and other `FlowControlException`s still pass through.
+- **The cmdlets:** the new `ListFunctionCmdletBase.CreateConditionFilter` creates the filter of all four condition cmdlets. For `SilentlyContinue` and `Ignore`, it defines `$ErrorActionPreference` as `Stop` and gives the filter a handler that writes the record's message with `WriteWarning`. Any other value is passed on as before, and the default stays `SilentlyContinue`.
+- **Results:**
+  - The repros give `False`, with the warnings "Cannot find path 'missing-1.txt' because it does not exist." and "boom".
+  - `1 | Assert-AnyObject { if ($_) { throw 'boom' }; $true }` is `False`, with a warning. `1, 2, 3 | Find-IndexOf { if ($_ -eq 2) { Write-Error 'oops' }; $_ -ge 2 }` is 2 instead of 1. Assert-AllObject returns `False` at the element that fails, and Find-LastIndexOf goes on with the element before it.
+  - A `try` block in the condition, or `-ErrorAction SilentlyContinue` or `-ErrorAction Ignore` on a command in it, gives no warning. `-ErrorAction Stop` on a command gives a warning.
+  - `Ignore` gives the same warnings in both editions, without 5.1's extra error.
+  - A `try` block around the command, and the caller's `$ErrorActionPreference`, change nothing.
+  - `-WarningAction SilentlyContinue` hides the warnings, and `-WarningAction Stop` makes the first one end the script. `break` still leaves the enclosing loop, and `Continue` and `Stop` behave as before.
+  - The condition sees `$ErrorActionPreference` as `Stop`.
+- **Not changed:** New-HashSet, New-SortedSet, and New-Dictionary still set `$ErrorActionPreference` to their `-ScriptBlockErrorAction` as it is. Their default is `Stop`, and a comparer that fails has no answer that a warning could stand in for.
+- **Docs:** the XML docs of `ScriptBlockFilter`, its constructors, `IsTrue`, `Any`, and `All`, of `CreateConditionFilter` and `WriteConditionWarning`, of `ScriptBlockErrorAction` on `AssertObjectCmdlet` and the four cmdlets, of the four cmdlets' class remarks, and of `AssertObjectCmdlet.BeginCore` and `Process` and the two Find cmdlets' `BeginCore`. In the README, the table in Errors in script blocks, and its new Warnings from conditions and Errors that reach PowerShell sections, which replace the advice to pass `-ScriptBlockErrorAction Stop` to see errors. The `-ScriptBlockErrorAction` rows of Assert-AnyObject, Assert-AllObject, and Find-IndexOf say what the default does, and all three link to the section.
+- **Tests:** against commit `83a5a78`, 7 of the 10 new Pester cases fail in each edition. The 3 that pass check that errors the condition handles itself give no warning, which didn't change, and which the rejected `$Error` approach would break.
+  - `tests/Assert-AnyObject.Tests.ps1`: a written error, a `throw`, and a failed method call each give one warning with the error's message, and `False`. So does a written error under `Ignore`. The 3 handled cases use a `try` block, `-ErrorAction SilentlyContinue`, and `-ErrorAction Ignore`.
+  - `tests/Assert-AllObject.Tests.ps1`, `tests/Find-IndexOf.Tests.ps1`, and `tests/Find-LastIndexOf.Tests.ps1`: one test each for what the failed element does to the result.
+  - Engine: four new tests in `ScriptBlockFilterTests` check that the handler gets the record of a `throw` and of an error written under `Stop`, that `break` passes it, that `Any` goes on, and that `All` stops. They use the new constructor, so they don't compile against `83a5a78`.
 
 ### 41 — Command, alias, and class names
 

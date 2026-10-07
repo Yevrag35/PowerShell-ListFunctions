@@ -118,11 +118,16 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// pipeline.
 	/// </summary>
 	/// <remarks>
+	/// <para>
 	/// Each key is converted to <see cref="KeyType"/>, and each value to <see cref="ValueType"/>. A
 	/// <see langword="null"/> value is converted too, so it's stored as what the dictionary's <c>Add</c> method stores
 	/// for it when PowerShell calls the method: <see langword="null"/> for <see cref="object"/>, an empty string for
 	/// <see cref="string"/>, and 0 for <see cref="int"/>. An entry whose key or value can't be converted, or that can't
 	/// be added, such as a duplicate key, produces a non-terminating error.
+	/// </para>
+	/// <para>
+	/// The hashtable comes from the pipeline or from the parameter. The parameter can't be combined with pipeline input.
+	/// </para>
 	/// </remarks>
 	/// <value>The source <see cref="Hashtable"/>.</value>
 	[Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = JUST_COPY)]

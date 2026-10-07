@@ -82,7 +82,8 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	/// <remarks>
 	/// <para>
 	/// Each pipeline object is one element, even when it's <see langword="null"/> or an array. An array passed to the
-	/// parameter supplies its elements, and <see langword="null"/> supplies none.
+	/// parameter supplies its elements, and <see langword="null"/> supplies none. The parameter can't be combined with
+	/// pipeline input.
 	/// </para>
 	/// <para>
 	/// For a typed set, each element is converted to <see cref="GenericType"/>. An element that cannot be converted

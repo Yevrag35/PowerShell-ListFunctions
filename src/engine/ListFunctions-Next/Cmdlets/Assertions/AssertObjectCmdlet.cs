@@ -43,14 +43,15 @@ public abstract class AssertObjectCmdlet : ListFunctionCmdletBase
 		}
 	}
 	/// <summary>
-	/// Gets or sets the error action preference applied while the condition script block runs.
+	/// Gets or sets the error action preference that decides what happens to errors in the condition script block.
 	/// </summary>
 	/// <remarks>
-	/// The value is assigned to <c>$ErrorActionPreference</c> in the script block's scope. It doesn't change the
-	/// cmdlet's own <c>-ErrorAction</c> behavior. Derived classes override the property to make it a parameter and
-	/// give it a default value.
+	/// <see cref="ActionPreference.SilentlyContinue"/> and <see cref="ActionPreference.Ignore"/> turn the errors into
+	/// warnings, and any other value is assigned to <c>$ErrorActionPreference</c> in the script block's scope. The value
+	/// doesn't change the cmdlet's own <c>-ErrorAction</c> behavior. Derived classes override the property to make it a
+	/// parameter and give it a default value.
 	/// </remarks>
-	/// <value>The error action preference for script block execution.</value>
+	/// <value>The error action preference for the condition script block.</value>
 	public abstract ActionPreference ScriptBlockErrorAction { get; set; }
 
 	/// <summary>
@@ -81,8 +82,10 @@ public abstract class AssertObjectCmdlet : ListFunctionCmdletBase
 	/// Creates the <see cref="ScriptBlockFilter"/> for <see cref="Condition"/> when a condition is set.
 	/// </summary>
 	/// <remarks>
-	/// The filter runs the condition with <c>$ErrorActionPreference</c> set to <see cref="ScriptBlockErrorAction"/>.
-	/// When no condition is set, the method creates nothing.
+	/// The filter runs the condition with <c>$ErrorActionPreference</c> set to <see cref="ScriptBlockErrorAction"/>, or,
+	/// when that value is <see cref="ActionPreference.SilentlyContinue"/> or <see cref="ActionPreference.Ignore"/>, set
+	/// to <see cref="ActionPreference.Stop"/>, so that the cmdlet can write each error as a warning. When no condition
+	/// is set, the method creates nothing.
 	/// </remarks>
 	protected sealed override void BeginCore()
 	{
@@ -90,7 +93,7 @@ public abstract class AssertObjectCmdlet : ListFunctionCmdletBase
 
 		if (this.HasCondition)
 		{
-			this.Filter = new ScriptBlockFilter(this.Condition, new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction));
+			this.Filter = this.CreateConditionFilter(this.Condition, this.ScriptBlockErrorAction);
 		}
 
 		// # Maybe in the future.
@@ -124,7 +127,8 @@ public abstract class AssertObjectCmdlet : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// The base class calls this method only when <see cref="Condition"/> is set. An error from the condition script
-	/// block reaches PowerShell unchanged, and any other exception from this method becomes a terminating error.
+	/// block becomes a warning or reaches PowerShell unchanged, as <see cref="ScriptBlockErrorAction"/> decides, and any
+	/// other exception from this method becomes a terminating error.
 	/// </remarks>
 	/// <param name="filter">The filter that tests objects with <see cref="Condition"/>. This value isn't <see langword="null"/>.</param>
 	/// <returns>

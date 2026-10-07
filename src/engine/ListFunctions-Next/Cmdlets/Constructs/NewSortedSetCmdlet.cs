@@ -114,9 +114,9 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase, IDynamicParamet
 	/// </summary>
 	/// <remarks>
 	/// Each pipeline object is one element, even when it's <see langword="null"/> or an array. An array passed to the
-	/// parameter supplies its elements, and <see langword="null"/> supplies none. Each element is converted to
-	/// <see cref="GenericType"/>. An element that cannot be converted produces a non-terminating error and is skipped,
-	/// and <see langword="null"/> elements are skipped without an error.
+	/// parameter supplies its elements, and <see langword="null"/> supplies none. The parameter can't be combined with
+	/// pipeline input. Each element is converted to <see cref="GenericType"/>. An element that cannot be converted
+	/// produces a non-terminating error and is skipped, and <see langword="null"/> elements are skipped without an error.
 	/// </remarks>
 	/// <value>The current pipeline object, or the argument of the parameter. The value can be <see langword="null"/>.</value>
 	[Parameter(ValueFromPipeline = true)]

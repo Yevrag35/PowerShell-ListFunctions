@@ -25,11 +25,17 @@ namespace ListFunctions.Cmdlets.Assertions;
 /// <c>Select-Object -First</c> does.
 /// </para>
 /// <para>
-/// Errors from the condition script block reach PowerShell unchanged, the way they do from a <c>ForEach-Object</c>
-/// script block. When <see cref="ScriptBlockErrorAction"/> is <see cref="ActionPreference.Stop"/>, an error that the
-/// script block writes ends the script that runs the cmdlet, as <c>-ErrorAction Stop</c> does. A <c>throw</c> does too
-/// unless the errors are suppressed. A failed method call ends only the statement, and <c>break</c> leaves the loop
-/// around the cmdlet.
+/// With the default <see cref="ScriptBlockErrorAction"/>, <see cref="ActionPreference.SilentlyContinue"/>, and with
+/// <see cref="ActionPreference.Ignore"/>, the cmdlet writes errors from the condition script block as warnings. The
+/// first error that the script block doesn't handle itself ends the test of an element, and the element doesn't satisfy
+/// the condition.
+/// </para>
+/// <para>
+/// With any other value, such as <see cref="ActionPreference.Stop"/> or <see cref="ActionPreference.Continue"/>, errors
+/// from the condition script block reach PowerShell unchanged, the way they do from a <c>ForEach-Object</c> script
+/// block. With <see cref="ActionPreference.Stop"/>, an error that the script block writes ends the script that runs the
+/// cmdlet, as <c>-ErrorAction Stop</c> does, and a failed method call ends only the statement. A <c>throw</c> ends the
+/// script with either value, and <c>break</c> leaves the loop around the cmdlet with any value.
 /// </para>
 /// </remarks>
 [Cmdlet(VerbsLifecycle.Assert, "AnyObject")]
@@ -42,8 +48,9 @@ public sealed class AssertAnyObjectCmdlet : AssertObjectCmdlet
 	/// </summary>
 	/// <remarks>
 	/// Each pipeline object is one element, even when it's <see langword="null"/> or an array. An array passed to the
-	/// parameter supplies its elements, and <see langword="null"/> supplies none. <see langword="null"/> and
-	/// empty-string elements are evaluated like any other element when a condition is set.
+	/// parameter supplies its elements, and <see langword="null"/> supplies none. The parameter can't be combined with
+	/// pipeline input. <see langword="null"/> and empty-string elements are evaluated like any other element when a
+	/// condition is set.
 	/// </remarks>
 	/// <value>The current pipeline object, or the argument of the parameter. The value can be <see langword="null"/>.</value>
 	[Parameter(Mandatory = true, ValueFromPipeline = true)]
@@ -71,14 +78,16 @@ public sealed class AssertAnyObjectCmdlet : AssertObjectCmdlet
 		set => base.Condition = value;
 	}
 	/// <summary>
-	/// Gets or sets the error action preference applied while the condition script block runs.
+	/// Gets or sets the error action preference that decides what happens to errors in the condition script block.
 	/// </summary>
 	/// <remarks>
-	/// The value is assigned to <c>$ErrorActionPreference</c> in the script block's scope. It controls how
-	/// non-terminating errors written by the script block are handled and doesn't change the cmdlet's own
-	/// <c>-ErrorAction</c> behavior.
+	/// <see cref="ActionPreference.SilentlyContinue"/> and <see cref="ActionPreference.Ignore"/> turn the errors into
+	/// warnings: the script block runs with <c>$ErrorActionPreference</c> set to <see cref="ActionPreference.Stop"/>, and
+	/// the cmdlet writes the message of the first error that the script block doesn't handle itself as a warning. Any
+	/// other value is assigned to <c>$ErrorActionPreference</c> in the script block's scope. The value doesn't change the
+	/// cmdlet's own <c>-ErrorAction</c> behavior.
 	/// </remarks>
-	/// <value>The error action preference for script block execution. Defaults to <see cref="ActionPreference.SilentlyContinue"/>.</value>
+	/// <value>The error action preference for the condition script block. Defaults to <see cref="ActionPreference.SilentlyContinue"/>.</value>
 	[Parameter, Alias("ScriptErrorAction")]
 	public override ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.SilentlyContinue;
 

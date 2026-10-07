@@ -134,4 +134,55 @@ public sealed class ScriptBlockFilterTests : IClassFixture<RunspaceFixture>
 
 		Assert.True(filter.All(collection: null));
 	}
+
+	// The condition cmdlets write these errors as warnings. Under Stop, an error that the script writes reaches the filter
+	// as an ActionPreferenceStopException, whose own message starts with "The running command stopped because", so the
+	// handler has to get the record of the error that the script wrote.
+	[Theory]
+	[InlineData("throw 'boom'; $true", "boom")]
+	[InlineData("Write-Error 'oops'; $true", "oops")]
+	public void IsTrue_ReturnsFalseAndPassesTheErrorToTheHandler(string condition, string expected)
+	{
+		using RunspaceScope scope = _runspace.Enter();
+		List<ErrorRecord> errors = [];
+		var filter = new ScriptBlockFilter(ScriptBlock.Create(condition), errors.Add, new PSVariable("ErrorActionPreference", ActionPreference.Stop));
+
+		Assert.False(filter.IsTrue(1));
+		ErrorRecord error = Assert.Single(errors);
+		Assert.Equal(expected, error.ToString());
+	}
+
+	[Fact]
+	public void IsTrue_LetsBreakPastTheHandler()
+	{
+		using RunspaceScope scope = _runspace.Enter();
+		List<ErrorRecord> errors = [];
+		var filter = new ScriptBlockFilter(ScriptBlock.Create("break"), errors.Add);
+
+		Assert.Throws<BreakException>(() => filter.IsTrue(1));
+		Assert.Empty(errors);
+	}
+
+	[Fact]
+	public void Any_GoesOnAfterAnErrorThatTheHandlerReceives()
+	{
+		using RunspaceScope scope = _runspace.Enter();
+		List<ErrorRecord> errors = [];
+		var filter = new ScriptBlockFilter(ScriptBlock.Create("if ($_ -eq 1) { throw 'first' }; $true"), errors.Add);
+
+		Assert.True(filter.Any(new[] { 1, 2 }));
+		Assert.Single(errors);
+	}
+
+	[Fact]
+	public void All_StopsAtAnErrorThatTheHandlerReceives()
+	{
+		using RunspaceScope scope = _runspace.Enter();
+		List<ErrorRecord> errors = [];
+		var filter = new ScriptBlockFilter(ScriptBlock.Create("if ($_ -ge 2) { throw \"failed $_\" }; $true"), errors.Add);
+
+		Assert.False(filter.All(new[] { 1, 2, 3 }));
+		ErrorRecord error = Assert.Single(errors);
+		Assert.Equal("failed 2", error.ToString());
+	}
 }

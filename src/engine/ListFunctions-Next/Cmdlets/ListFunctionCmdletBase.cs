@@ -1,6 +1,7 @@
 using ListFunctions.Components;
 using ListFunctions.Exceptions;
 using ListFunctions.Extensions;
+using ListFunctions.Modern;
 using System.Management.Automation.Internal;
 using System.Runtime.ExceptionServices;
 
@@ -24,8 +25,12 @@ namespace ListFunctions.Cmdlets;
 /// <see cref="ProcessCore"/> returns <see langword="false"/>, the cmdlet processes no more pipeline input.
 /// </para>
 /// <para>
-/// The class also provides helpers that get the error action preference and convert items with PowerShell's
-/// conversion rules. Like other cmdlets, an instance isn't thread-safe.
+/// A derived cmdlet takes its input from the pipeline or from its <c>-InputObject</c> parameter, not both, and the
+/// class rejects both together before <see cref="BeginCore"/> runs.
+/// </para>
+/// <para>
+/// The class also provides helpers that create the filter for a condition script block, get the error action
+/// preference, and convert items with PowerShell's conversion rules. Like other cmdlets, an instance isn't thread-safe.
 /// </para>
 /// </remarks>
 public abstract class ListFunctionCmdletBase : PSCmdlet
@@ -39,6 +44,10 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	/// The name of the dynamic <c>-CaseSensitive</c> parameter.
 	/// </summary>
 	private protected const string CASE_SENSE = "CaseSensitive";
+	/// <summary>
+	/// The name of the parameter that takes pipeline input, which every cmdlet in the module calls <c>InputObject</c>.
+	/// </summary>
+	private const string INPUT_OBJECT = "InputObject";
 	/// <summary>
 	/// The suffix that turns the name of a common parameter into the name of its preference variable.
 	/// </summary>
@@ -108,15 +117,26 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	/// Runs the begin phase by calling <see cref="BeginCore"/>.
 	/// </summary>
 	/// <remarks>
-	/// When <see cref="BeginCore"/> throws, the method records <see cref="CmdletRunFlags.BeginFailed"/> and calls
-	/// <see cref="Cleanup"/>. It then passes a <see cref="RuntimeException"/> or a <see cref="FlowControlException"/> to
-	/// PowerShell unchanged, and reports any other exception as a terminating error in the
+	/// <para>
+	/// Before it calls <see cref="BeginCore"/>, the method makes sure that the cmdlet's input comes from one place. When
+	/// the cmdlet receives pipeline input and its <c>-InputObject</c> parameter is bound on the command line too, the
+	/// method throws an <see cref="ArgumentException"/>. PowerShell can't bind a pipeline object to a parameter that the
+	/// command line already bound, so it would skip every pipeline object with an error, and the cmdlet would write its
+	/// result for no input. The error ends the statement in the begin phase, before PowerShell binds any pipeline object,
+	/// so it's the only error. The check applies even when the pipeline sends no objects.
+	/// </para>
+	/// <para>
+	/// When the check or <see cref="BeginCore"/> throws, the method records <see cref="CmdletRunFlags.BeginFailed"/> and
+	/// calls <see cref="Cleanup"/>. It then passes a <see cref="RuntimeException"/> or a <see cref="FlowControlException"/>
+	/// to PowerShell unchanged, and reports any other exception as a terminating error in the
 	/// <see cref="ErrorCategory.InvalidArgument"/> category, whose error ID is the full name of the exception's type.
+	/// </para>
 	/// </remarks>
 	protected sealed override void BeginProcessing()
 	{
 		try
 		{
+			this.ThrowIfInputHasTwoSources();
 			this.BeginCore();
 		}
 		catch (Exception e)
@@ -473,6 +493,69 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 			? actionPref
 			: ActionPreference.Continue;
 	}
+	/// <summary>
+	/// Creates the filter that tests elements with the specified condition script block and error action preference.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// <see cref="ActionPreference.SilentlyContinue"/> and <see cref="ActionPreference.Ignore"/> would hide the errors of
+	/// the condition, so for them the filter runs the condition with <c>$ErrorActionPreference</c> set to
+	/// <see cref="ActionPreference.Stop"/> instead. The first error that the condition doesn't handle itself then ends the
+	/// test of that element: the cmdlet writes the error's message as a warning, and the element doesn't satisfy the
+	/// condition. An error that the condition handles, in a <c>try</c> block or with a command's own
+	/// <c>-ErrorAction SilentlyContinue</c> or <c>-ErrorAction Ignore</c>, isn't a warning.
+	/// </para>
+	/// <para>
+	/// For any other value, the filter runs the condition with <c>$ErrorActionPreference</c> set to that value, and the
+	/// errors of the condition reach PowerShell unchanged.
+	/// </para>
+	/// </remarks>
+	/// <param name="condition">The condition script block. This value must not be <see langword="null"/>.</param>
+	/// <param name="errorAction">The value of the cmdlet's <c>-ScriptBlockErrorAction</c> parameter.</param>
+	/// <returns>The new filter.</returns>
+	/// <exception cref="ArgumentNullException">Thrown when <paramref name="condition"/> is null.</exception>
+	private protected ScriptBlockFilter CreateConditionFilter(ScriptBlock condition, ActionPreference errorAction)
+	{
+		if (errorAction is ActionPreference.SilentlyContinue or ActionPreference.Ignore)
+		{
+			return new ScriptBlockFilter(condition, this.WriteConditionWarning, new PSVariable(ERROR_ACTION_PREFERENCE, ActionPreference.Stop));
+		}
+
+		return new ScriptBlockFilter(condition, new PSVariable(ERROR_ACTION_PREFERENCE, errorAction));
+	}
+	/// <summary>
+	/// Writes the message of an error from a condition script block as a warning.
+	/// </summary>
+	/// <remarks>
+	/// The message is the one that PowerShell shows for the error record, and the warning follows the cmdlet's
+	/// <c>-WarningAction</c>. So <c>-WarningAction SilentlyContinue</c> hides it, and <c>-WarningAction Stop</c> turns it
+	/// into an error that ends the script.
+	/// </remarks>
+	/// <param name="error">The error record of the error. This value must not be <see langword="null"/>.</param>
+	private void WriteConditionWarning(ErrorRecord error)
+	{
+		this.WriteWarning(error.ToString());
+	}
+
+	/// <summary>
+	/// Throws when the cmdlet receives pipeline input and its <c>-InputObject</c> parameter is bound on the command line
+	/// too.
+	/// </summary>
+	/// <remarks>
+	/// Both are known in the begin phase. <see cref="InvocationInfo.ExpectingInput"/> is <see langword="true"/> whenever
+	/// the cmdlet isn't first in its pipeline, and <see cref="InvocationInfo.BoundParameters"/> already holds the
+	/// parameters that the command line bound.
+	/// </remarks>
+	/// <exception cref="ArgumentException">Thrown when the cmdlet receives pipeline input and <c>-InputObject</c> is bound.</exception>
+	private void ThrowIfInputHasTwoSources()
+	{
+		if (this.MyInvocation.ExpectingInput && this.MyInvocation.BoundParameters.ContainsKey(INPUT_OBJECT))
+		{
+			throw new ArgumentException(
+				$"Cannot use -{INPUT_OBJECT} and pipeline input together, because both supply the command's input. Pipe "
+				+ $"the input, or pass it to -{INPUT_OBJECT}, but not both.");
+		}
+	}
 
 	/// <summary>
 	/// Returns the elements of the specified input object, which is the value of a derived cmdlet's pipeline input
@@ -528,6 +611,110 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 		}
 
 		return array;
+	}
+	/// <summary>
+	/// Returns the elements to search in the specified input object, which is the value of the pipeline input parameter
+	/// of Find-IndexOf or Find-LastIndexOf.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// When the cmdlet receives pipeline input, the method returns what <see cref="GetInputElements(object)"/> returns,
+	/// so each pipeline object is one element.
+	/// </para>
+	/// <para>
+	/// Otherwise, the input object is the argument of the parameter, and unlike in
+	/// <see cref="GetInputElements(object)"/>, it supplies the elements that piping it would send. The method enumerates
+	/// it with <see cref="LanguagePrimitives.GetEnumerator(object)"/>, so a collection, such as an array, a list, or a set,
+	/// supplies its elements, and so does an enumerator. <see langword="null"/> supplies none. Any other argument is one
+	/// element, as it is in the pipeline, and the method writes a warning that says so. A dictionary's warning suggests the
+	/// dictionary's <c>GetEnumerator()</c> method. A string is one element without a warning, because PowerShell never
+	/// treats a string as a collection.
+	/// </para>
+	/// <para>
+	/// The method removes the <see cref="PSObject"/> that PowerShell wraps around each element, unless the element is a
+	/// custom object such as one that <c>[pscustomobject]@{}</c> creates. For the argument of the parameter, it returns a
+	/// new array.
+	/// </para>
+	/// </remarks>
+	/// <param name="inputObject">The value of the cmdlet's pipeline input parameter, or <see langword="null"/>.</param>
+	/// <returns>The elements of <paramref name="inputObject"/>. The array can be empty.</returns>
+	private protected object?[] GetSearchElements(object? inputObject)
+	{
+		if (this.MyInvocation.ExpectingInput)
+		{
+			return this.GetInputElements(inputObject);
+		}
+
+		object? baseObject = inputObject.GetBaseObject();
+		if (baseObject is null)
+		{
+			return [];
+		}
+
+		IEnumerator? enumerator = LanguagePrimitives.GetEnumerator(baseObject);
+		if (enumerator is null)
+		{
+			if (baseObject is not string)
+			{
+				this.WriteOneElementWarning(baseObject);
+			}
+
+			return [baseObject];
+		}
+
+		try
+		{
+			return CopyElements(enumerator, (baseObject as ICollection)?.Count ?? 0);
+		}
+		finally
+		{
+			// An enumerator passed as the argument belongs to the caller, so only one created for a collection is disposed.
+			if (!ReferenceEquals(enumerator, baseObject))
+			{
+				(enumerator as IDisposable)?.Dispose();
+			}
+		}
+	}
+	/// <summary>
+	/// Copies the elements that the specified enumerator supplies into a new array, without the <see cref="PSObject"/>
+	/// that PowerShell wraps around them.
+	/// </summary>
+	/// <remarks>
+	/// A custom object, such as one that <c>[pscustomobject]@{}</c> creates, keeps its <see cref="PSObject"/>.
+	/// </remarks>
+	/// <param name="enumerator">The enumerator to read to its end. This value must not be <see langword="null"/>.</param>
+	/// <param name="capacity">The number of elements to expect, or 0 when it isn't known.</param>
+	/// <returns>A new array that holds the elements in the order that <paramref name="enumerator"/> supplies them.</returns>
+	private static object?[] CopyElements(IEnumerator enumerator, int capacity)
+	{
+		List<object?> elements = new(capacity);
+		while (enumerator.MoveNext())
+		{
+			elements.Add(enumerator.Current.GetBaseObject());
+		}
+
+		return elements.ToArray();
+	}
+	/// <summary>
+	/// Writes a warning that the argument of <c>-InputObject</c> is one element, because it isn't a collection.
+	/// </summary>
+	/// <remarks>
+	/// For a dictionary, the warning suggests the dictionary's <c>GetEnumerator()</c> method, whose enumerator supplies the
+	/// entries. For any other value, it names the value's type, or for a custom object, the type of its base object.
+	/// </remarks>
+	/// <param name="argument">The argument that <c>-InputObject</c> received. This value must not be <see langword="null"/>.</param>
+	private void WriteOneElementWarning(object argument)
+	{
+		if (argument is IDictionary)
+		{
+			this.WriteWarning($"The dictionary passed to -{INPUT_OBJECT} is one element, the same as when you pipe it. To pass "
+				+ "its entries as elements, use its GetEnumerator() method, or pass its Keys or Values property.");
+			return;
+		}
+
+		Type type = (argument is PSObject wrapper ? wrapper.BaseObject : argument).GetType();
+		this.WriteWarning($"The value passed to -{INPUT_OBJECT} is one element, because a value of type '{type.GetTypeName()}' "
+			+ "isn't a collection.");
 	}
 
 	/// <summary>

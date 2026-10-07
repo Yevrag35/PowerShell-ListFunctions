@@ -37,10 +37,23 @@ Every command except `New-Dictionary` takes its elements from the pipeline or fr
 - Each object that comes through the pipeline is one element, even when it's `$null` or an array, the same as with `ForEach-Object`.
 - An array or a list that you pass to `-InputObject` supplies its elements, and `$null` supplies none. Any other value, such as a string or a hashtable, is one element.
 
+`Find-IndexOf` and `Find-LastIndexOf` search what you pass to `-InputObject` the same way they'd search it piped, so a set, a queue, or any other collection supplies its elements too. A value that isn't a collection is one element, and they write a warning for it, unless it's a string, which PowerShell never treats as a collection. For a dictionary, such as a hashtable, the warning suggests `$dict.GetEnumerator()`, which supplies the entries.
+
 ```powershell
 1, $null, 3 | Find-IndexOf { $_ -eq 3 }              # 2
 @(1, @(2, 3), 4) | Find-IndexOf { $_ -is [array] }   # 1
 Find-IndexOf -InputObject 1, 2, 3 { $_ -eq 3 }       # 2
+
+$set = 1, 2, 3 | New-HashSet [int]
+Find-IndexOf -InputObject $set { $_ -eq 2 }          # 1, the same as $set | Find-IndexOf { $_ -eq 2 }
+```
+
+A command takes its input from the pipeline or from `-InputObject`, not from both. When it gets both, it writes an error before it reads any input, and no result:
+
+```powershell
+'a', 'b' | Find-IndexOf { $_ -eq 1 } -InputObject 1, 2
+# Error: Cannot use -InputObject and pipeline input together, because both supply the command's input. Pipe the input,
+# or pass it to -InputObject, but not both.
 ```
 
 ### `$null` input
@@ -116,7 +129,7 @@ if (Get-ChildItem -File | Any { $_.Length -gt 1GB }) {
 | --- | --- |
 | `-Condition` | Position 0. Aliases: `ScriptBlock`, `FilterScript`. Optional. The test to run on each element. `$null` is the same as no condition. |
 | `-InputObject` | The elements to test. Accepts pipeline input. |
-| `-ScriptBlockErrorAction` | Alias: `ScriptErrorAction`. The `$ErrorActionPreference` inside `-Condition`. Default: `SilentlyContinue`. See [Errors in script blocks](#errors-in-script-blocks). |
+| `-ScriptBlockErrorAction` | Alias: `ScriptErrorAction`. What happens to errors in `-Condition`. Default: `SilentlyContinue`, which writes each error as a warning. See [Errors in script blocks](#errors-in-script-blocks). |
 
 ### Assert-AllObject
 
@@ -139,7 +152,7 @@ if (-not ($array | All { $_ -is [int] })) {
 | --- | --- |
 | `-Condition` | Position 0. Aliases: `ScriptBlock`, `FilterScript`. Required. The test to run on each element. |
 | `-InputObject` | The elements to test. Accepts pipeline input. |
-| `-ScriptBlockErrorAction` | Alias: `ScriptErrorAction`. The `$ErrorActionPreference` inside `-Condition`. Default: `SilentlyContinue`. |
+| `-ScriptBlockErrorAction` | Alias: `ScriptErrorAction`. What happens to errors in `-Condition`. Default: `SilentlyContinue`, which writes each error as a warning. See [Errors in script blocks](#errors-in-script-blocks). |
 
 ## Searching
 
@@ -161,7 +174,7 @@ Find-IndexOf -InputObject $names -Condition { $_ -like 'C*' }   # 2
 | --- | --- |
 | `-Condition` | Position 0. Aliases: `ScriptBlock`, `FilterScript`. Required. The test to run on each element. |
 | `-InputObject` | Alias: `List`. The elements to search. Accepts pipeline input. |
-| `-ScriptBlockErrorAction` | Alias: `ScriptErrorAction`. The `$ErrorActionPreference` inside `-Condition`. Default: `SilentlyContinue`. |
+| `-ScriptBlockErrorAction` | Alias: `ScriptErrorAction`. What happens to errors in `-Condition`. Default: `SilentlyContinue`, which writes each error as a warning. See [Errors in script blocks](#errors-in-script-blocks). |
 
 ### Find-LastIndexOf
 
@@ -472,26 +485,38 @@ Get-ChildItem -Path $HOME -File -Recurse | Any { $_.Length -gt 1GB }
 
 ## Errors in script blocks
 
-`-ScriptBlockErrorAction` sets `$ErrorActionPreference` inside a command's script blocks. Its default depends on the command:
+`-ScriptBlockErrorAction` decides what happens to errors in a command's script blocks. Its default depends on the command:
 
 | Commands | Default | Effect |
 | --- | --- | --- |
-| `Assert-AnyObject`, `Assert-AllObject`, `Find-IndexOf`, `Find-LastIndexOf` | `SilentlyContinue` | Errors in `-Condition` are suppressed. |
+| `Assert-AnyObject`, `Assert-AllObject`, `Find-IndexOf`, `Find-LastIndexOf` | `SilentlyContinue` | An error in `-Condition` becomes a warning, and the element doesn't satisfy the condition. |
 | `New-HashSet`, `New-SortedSet`, `New-Dictionary` | `Stop` | An error that `-EqualityScript`, `-HashCodeScript`, or `-ComparingScript` writes ends the whole script. |
 
-Because of the `SilentlyContinue` default, an error in a condition can go unnoticed. To see it, pass `-ScriptBlockErrorAction Stop`:
+### Warnings from conditions
+
+`Assert-AnyObject`, `Assert-AllObject`, `Find-IndexOf`, and `Find-LastIndexOf` turn errors in `-Condition` into warnings when `-ScriptBlockErrorAction` is `SilentlyContinue`, the default, or `Ignore`. They run `-Condition` with `$ErrorActionPreference` set to `Stop`, so the first error that the condition doesn't handle itself, such as an error that a command writes, a failed method call, or a `throw`, ends the condition for that element. The command writes the error's message as a warning, and the element doesn't satisfy the condition, so `Assert-AllObject` returns `$false`, and the other commands go on with the next element.
 
 ```powershell
 $files = 'missing-1.txt', 'missing-2.txt'
 
 $files | Any { (Get-Item -Path $_).Length -gt 0 }
-# False, and no error appears
-
-$files | Any { (Get-Item -Path $_).Length -gt 0 } -ScriptBlockErrorAction Stop
-# Error: Cannot find path '...\missing-1.txt' because it does not exist.
+# WARNING: Cannot find path '...\missing-1.txt' because it does not exist.
+# WARNING: Cannot find path '...\missing-2.txt' because it does not exist.
+# False
 ```
 
-Errors in every script block reach PowerShell unchanged, the same as errors in a `ForEach-Object` script block. With `-ScriptBlockErrorAction Stop`:
+An error that the condition handles itself isn't a warning. So handle the errors that you expect, in a `try` block or with a command's `-ErrorAction SilentlyContinue` or `-ErrorAction Ignore`, and the condition goes on the way you wrote it:
+
+```powershell
+$files | Any { $null -ne (Get-Item -Path $_ -ErrorAction Ignore) }
+# False, and no warnings
+```
+
+The warnings follow the command's `-WarningAction`, so `-WarningAction SilentlyContinue` hides them, and `-WarningAction Stop` makes the first one end the script. To have an error in the condition end the script instead, pass `-ScriptBlockErrorAction Stop`.
+
+### Errors that reach PowerShell
+
+In every other case, errors in script blocks reach PowerShell unchanged, the same as errors in a `ForEach-Object` script block. That includes every script block of `New-HashSet`, `New-SortedSet`, and `New-Dictionary`. With `-ScriptBlockErrorAction Stop`:
 
 - An error that the script block writes, such as the one from `Get-Item` above, ends the whole script, as `-ErrorAction Stop` would. To handle it, run the command in a `try` block.
 - A failed method call, such as `$null.Foo()`, ends only the statement that runs the command.

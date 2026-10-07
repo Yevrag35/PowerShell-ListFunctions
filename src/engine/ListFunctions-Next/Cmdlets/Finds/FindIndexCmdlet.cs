@@ -19,8 +19,8 @@ namespace ListFunctions.Cmdlets.Finds;
 /// </para>
 /// <para>
 /// The index counts every element of the input, so it's the position of the match in the full input sequence. Each
-/// pipeline object is one element, even when it's <see langword="null"/> or an array, and an array passed to
-/// <see cref="InputObject"/> supplies its elements.
+/// pipeline object is one element, even when it's <see langword="null"/> or an array, and a collection passed to
+/// <see cref="InputObject"/>, such as an array or a set, supplies its elements.
 /// </para>
 /// <para>
 /// After the first match, the cmdlet writes the index and stops evaluating the condition. When its input comes from
@@ -28,11 +28,17 @@ namespace ListFunctions.Cmdlets.Finds;
 /// commands don't run their end blocks.
 /// </para>
 /// <para>
-/// Errors from the condition script block reach PowerShell unchanged, the way they do from a <c>ForEach-Object</c>
-/// script block. When <see cref="ScriptBlockErrorAction"/> is <see cref="ActionPreference.Stop"/>, an error that the
-/// script block writes ends the script that runs the cmdlet, as <c>-ErrorAction Stop</c> does. A <c>throw</c> does too
-/// unless the errors are suppressed. A failed method call ends only the statement, and <c>break</c> leaves the loop
-/// around the cmdlet.
+/// With the default <see cref="ScriptBlockErrorAction"/>, <see cref="ActionPreference.SilentlyContinue"/>, and with
+/// <see cref="ActionPreference.Ignore"/>, the cmdlet writes errors from the condition script block as warnings. The
+/// first error that the script block doesn't handle itself ends the test of an element, and the element doesn't match,
+/// so the search goes on with the next one.
+/// </para>
+/// <para>
+/// With any other value, such as <see cref="ActionPreference.Stop"/> or <see cref="ActionPreference.Continue"/>, errors
+/// from the condition script block reach PowerShell unchanged, the way they do from a <c>ForEach-Object</c> script
+/// block. With <see cref="ActionPreference.Stop"/>, an error that the script block writes ends the script that runs the
+/// cmdlet, as <c>-ErrorAction Stop</c> does, and a failed method call ends only the statement. A <c>throw</c> ends the
+/// script with either value, and <c>break</c> leaves the loop around the cmdlet with any value.
 /// </para>
 /// </remarks>
 [Cmdlet(VerbsCommon.Find, "IndexOf")]
@@ -63,9 +69,11 @@ public sealed class FindIndexCmdlet : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// Each pipeline object is one element, even when it's <see langword="null"/> or an array, and continues the
-	/// sequence from the previous objects. An array passed to the parameter supplies its elements, and
-	/// <see langword="null"/> supplies none. <see langword="null"/> and empty-string elements are evaluated like any
-	/// other element.
+	/// sequence from the previous objects. A value passed to the parameter supplies the elements that piping it sends: a
+	/// collection, such as an array or a set, supplies its elements, and <see langword="null"/> supplies none. Any other
+	/// value is one element, and for one that isn't a string, such as a number or a dictionary, the cmdlet writes a
+	/// warning. The parameter can't be combined with pipeline input. <see langword="null"/> and empty-string elements are
+	/// evaluated like any other element.
 	/// </remarks>
 	/// <value>The current pipeline object, or the argument of the parameter. The value can be <see langword="null"/>.</value>
 	[Parameter(Mandatory = true, ValueFromPipeline = true)]
@@ -74,23 +82,30 @@ public sealed class FindIndexCmdlet : ListFunctionCmdletBase
 	public object? InputObject { get; set; }
 
 	/// <summary>
-	/// Gets or sets the error action preference applied while the condition script block runs.
+	/// Gets or sets the error action preference that decides what happens to errors in the condition script block.
 	/// </summary>
 	/// <remarks>
-	/// The value is assigned to <c>$ErrorActionPreference</c> in the script block's scope. It controls how
-	/// non-terminating errors written by the script block are handled and does not change the cmdlet's own
-	/// <c>-ErrorAction</c> behavior.
+	/// <see cref="ActionPreference.SilentlyContinue"/> and <see cref="ActionPreference.Ignore"/> turn the errors into
+	/// warnings: the script block runs with <c>$ErrorActionPreference</c> set to <see cref="ActionPreference.Stop"/>, and
+	/// the cmdlet writes the message of the first error that the script block doesn't handle itself as a warning. Any
+	/// other value is assigned to <c>$ErrorActionPreference</c> in the script block's scope. The value doesn't change the
+	/// cmdlet's own <c>-ErrorAction</c> behavior.
 	/// </remarks>
-	/// <value>The error action preference for script block execution. Defaults to <see cref="ActionPreference.SilentlyContinue"/>.</value>
+	/// <value>The error action preference for the condition script block. Defaults to <see cref="ActionPreference.SilentlyContinue"/>.</value>
 	[Parameter, Alias("ScriptErrorAction")]
 	public ActionPreference ScriptBlockErrorAction { get; set; } = ActionPreference.SilentlyContinue;
 
 	/// <summary>
 	/// Creates the filter that evaluates <see cref="Condition"/> with the configured <see cref="ScriptBlockErrorAction"/>.
 	/// </summary>
+	/// <remarks>
+	/// When <see cref="ScriptBlockErrorAction"/> is <see cref="ActionPreference.SilentlyContinue"/> or
+	/// <see cref="ActionPreference.Ignore"/>, the filter runs the condition with <c>$ErrorActionPreference</c> set to
+	/// <see cref="ActionPreference.Stop"/>, so that the cmdlet can write each error as a warning.
+	/// </remarks>
 	protected override void BeginCore()
 	{
-		_filter = new ScriptBlockFilter(this.Condition, new PSVariable(ERROR_ACTION_PREFERENCE, this.ScriptBlockErrorAction));
+		_filter = this.CreateConditionFilter(this.Condition, this.ScriptBlockErrorAction);
 	}
 	/// <summary>
 	/// Evaluates the elements of the current <see cref="InputObject"/> and advances the running index.
@@ -102,7 +117,7 @@ public sealed class FindIndexCmdlet : ListFunctionCmdletBase
 	/// <returns><see langword="false"/> when an element matches and processing stops; otherwise <see langword="true"/>.</returns>
 	protected override bool ProcessCore()
 	{
-		object?[] elements = this.GetInputElements(this.InputObject);
+		object?[] elements = this.GetSearchElements(this.InputObject);
 		for (int i = 0; i < elements.Length; i++)
 		{
 			if (_filter.IsTrue(elements[i]))
