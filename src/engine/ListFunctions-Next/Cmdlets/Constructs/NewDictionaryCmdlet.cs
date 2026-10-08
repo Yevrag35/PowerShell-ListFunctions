@@ -1,3 +1,4 @@
+using ListFunctions.Completion;
 using ListFunctions.Modern;
 using ListFunctions.Modern.Constructors;
 using ListFunctions.Modern.Variables;
@@ -97,6 +98,7 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// <value>The key type. When not specified, the cmdlet uses <see cref="object"/>.</value>
 	[Parameter(Position = 0)]
 	[ArgumentToTypeTransform]
+	[ArgumentCompleter(typeof(TypeNameCompleter))]
 	public Type? KeyType { get; set; } = null!;
 
 	/// <summary>
@@ -110,6 +112,7 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// <value>The value type. Defaults to <see cref="object"/>.</value>
 	[Parameter(Position = 1)]
 	[ArgumentToTypeTransform]
+	[ArgumentCompleter(typeof(TypeNameCompleter))]
 	[PSDefaultValue(Value = typeof(object))]
 	public Type? ValueType { get; set; } = null!;
 

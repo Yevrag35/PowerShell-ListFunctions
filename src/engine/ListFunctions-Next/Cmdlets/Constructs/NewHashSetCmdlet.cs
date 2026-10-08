@@ -1,3 +1,4 @@
+using ListFunctions.Completion;
 using ListFunctions.Extensions;
 using ListFunctions.Modern;
 using ListFunctions.Modern.Constructors;
@@ -73,6 +74,7 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	[Parameter(Mandatory = false, Position = 0, ParameterSetName = DYN_PSET_NAME)]
 	[Parameter(Mandatory = false, Position = 0, ParameterSetName = WITH_CUSTOM_EQUALITY)]
 	[ArgumentToTypeTransform, Alias("Type")]
+	[ArgumentCompleter(typeof(TypeNameCompleter))]
 	[PSDefaultValue(Value = typeof(object))]
 	public Type GenericType { get; set; } = null!;
 

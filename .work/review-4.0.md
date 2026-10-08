@@ -49,7 +49,7 @@ Item numbers continue from `bugs.md`, so each number names one item in either fi
 
 - [x] 48 — `[ValidateScriptVariable]` rejects script blocks that have a `param()` block
 - [x] 49 — New-Dictionary's `-InputObject` takes only a hashtable
-- [ ] 50 — There's no completion for type names and no help content
+- [/] 50 — There's no completion for type names and no help content
 - [x] 51 — The legacy script implementation is still in the repo
 
 ## Running the repros
@@ -1269,6 +1269,19 @@ Fixing these after 4.0.0 doesn't break anyone.
 - **No help files:** the repo has no `*-help.xml`, so `Get-Help` shows only the syntax. The manifest's `HelpInfoURI` points at the GitHub issues page.
 
 **Fix idea:** Add an `ArgumentCompleter` that completes type names. Generate MAML help from the cmdlets' XML docs or from the README.
+
+**Fixed (completion only):** on 2026-10-07. The type parameters complete type names. The help content isn't part of this fix.
+
+- **The completer:** Engine's new `Completion/TypeNameCompleter` is the `[ArgumentCompleter]` of `-GenericType` on New-List, New-HashSet, and New-SortedSet, and of `-KeyType` and `-ValueType` on New-Dictionary and ConvertTo-Dictionary. It's internal, like the parameter attributes. The repro's `New-List -GenericType Sys` now gets the namespace `System` and the types whose names start with `Sys`, 18 completions in PowerShell 7.6.6 and 13 in Windows PowerShell 5.1, and with nothing typed, it gets no completions instead of file names.
+- **How it completes:** it writes the argument as a type literal and asks PowerShell to complete it through `CommandCompletion.CompleteInput`, so it offers what PowerShell offers after `[`: type accelerators, types, namespaces, and the type arguments of a generic type. `CompletionCompleters.CompleteType` would be the direct call, but it throws a `NullReferenceException` in Windows PowerShell 5.1.
+- **The argument keeps its form:** with or without brackets, in quotes or not. A type closes the brackets and the quote that are still open, so `[gu` completes to `[guid]`, `'gu` to `'guid'`, and `[System.Collections.Generic.List[gu` to `[System.Collections.Generic.List[guid]]`. A namespace, and a generic type without its type arguments, leave them open. PowerShell passes a quoted argument between straight quotes, even when it's written with typographic ones, so the completions have straight quotes.
+- **Left out:** names that PowerShell can't parse as a type name, although its own completion offers them. In PowerShell 7.6.6, `[System.` offers four compiler-generated nested types of `System.ExceptionPolyfills`, such as `System.ExceptionPolyfills+<G>$3F30F31B33543D5FB8E174FB4FD780B9`, ahead of every other name, and they'd break the command.
+- **Not handled:** PowerShell passes only the part of an unquoted argument after its last comma, so after a comma, the completer completes the name on its own and doesn't close the brackets that the earlier part opened. The README says to close them.
+- **Docs:** the README's Generic types section describes Tab completion, `CLAUDE.md` lists the completer under Engine, and the `lf-pwsh-internals` skill has a new `references/completion.md` with the measurements.
+- **Tests:**
+  - Engine, `Completion/TypeNameCompleterTests.cs`: each form of the argument, a type argument that closes every bracket, a namespace and a generic type left open, no completions when there's no name to complete, and the names left out. `Completion/GeneratedNestedTypes.cs` gives the test assembly a C# 14 extension block, whose nested types PowerShell offers in both editions.
+  - Pester, `tests/Module.Tests.ps1`: each of the seven parameters completes `[gu` to `[guid]`, by name or by position, and `New-List ` with nothing typed gets no file names.
+- **Not changed:** the help content, the item's second half. The manifest's `HelpInfoURI` still points at the GitHub issues page.
 
 ### 51 — The legacy script implementation is still in the repo
 

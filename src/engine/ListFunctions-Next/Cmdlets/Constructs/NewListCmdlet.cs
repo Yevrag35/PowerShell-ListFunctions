@@ -1,3 +1,4 @@
+using ListFunctions.Completion;
 using ListFunctions.Components;
 using ListFunctions.Extensions;
 using ListFunctions.Internal;
@@ -48,6 +49,7 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 	/// <value>The element type. Defaults to <see cref="object"/>.</value>
 	[Parameter(Position = 0)]
 	[Alias("Type"), ArgumentToTypeTransform, PSDefaultValue(Value = typeof(object))]
+	[ArgumentCompleter(typeof(TypeNameCompleter))]
 	[AllowsNull, PSAllowNull]
 	public Type GenericType { get => field ??= typeof(object); set; }
 

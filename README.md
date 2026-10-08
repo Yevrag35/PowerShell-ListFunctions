@@ -118,6 +118,16 @@ New-List [System.Collections.Generic.KeyValuePair[string, int]]
 
 The parts have to make up a single type, so `New-Dictionary [string],[int]` fails. To pass a key type and a value type, separate them with a space: `New-Dictionary [string] [int]`.
 
+Press Tab to complete a type name, with or without its brackets and quotes. A completed type closes the brackets and the quote, and a type argument of a generic type completes too:
+
+```powershell
+New-List [gu<Tab>                                   # New-List [guid]
+New-List 'gu<Tab>                                   # New-List 'guid'
+New-List [System.Collections.Generic.List[gu<Tab>   # New-List [System.Collections.Generic.List[guid]]
+```
+
+A namespace, or a generic type without its type arguments, such as `[System.Collections.Generic.List`, stays open, so you can keep typing the name. In an argument that isn't in quotes, Tab completes only the name after the last comma, because PowerShell splits the argument there, so close the earlier brackets yourself. Tab offers nothing until you type the first character of the name.
+
 ## Assertions
 
 ### Test-AnyObject

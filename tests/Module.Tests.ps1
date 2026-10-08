@@ -72,4 +72,35 @@ Describe 'ListFunctions module' {
 		$result.Errors[0].FullyQualifiedErrorId | Should-BeLikeString -Expected 'System.ArgumentException,ListFunctions.Cmdlets.*'
 		$result.Errors[0].Exception.Message | Should-BeLikeString -Expected 'Cannot use -InputObject and pipeline input together*'
 	}
+
+	# Every parameter that takes a type completes type names with the same completer, which the Engine tests cover. These
+	# tests check that each parameter has it, including when PowerShell has to work out which parameter a positional
+	# argument binds to.
+	It 'completes a type name for <Label>' -ForEach @(
+		@{ Label = 'New-List -GenericType'; Line = 'New-List -GenericType [gu' }
+		@{ Label = 'New-List -GenericType by position'; Line = 'New-List [gu' }
+		@{ Label = 'New-HashSet -GenericType by position'; Line = 'New-HashSet [gu' }
+		@{ Label = 'New-SortedSet -GenericType by position'; Line = 'New-SortedSet [gu' }
+		@{ Label = 'New-Dictionary -KeyType by position'; Line = 'New-Dictionary [gu' }
+		@{ Label = 'New-Dictionary -ValueType by position'; Line = 'New-Dictionary [string] [gu' }
+		@{ Label = 'ConvertTo-Dictionary -KeyType'; Line = 'ConvertTo-Dictionary Id -KeyType [gu' }
+		@{ Label = 'ConvertTo-Dictionary -ValueType'; Line = 'ConvertTo-Dictionary Id -ValueType [gu' }
+	) {
+		$completion = TabExpansion2 -inputScript $Line -cursorColumn $Line.Length
+		Should-ContainCollection -Expected '[guid]' -Actual $completion.CompletionMatches.CompletionText
+	}
+
+	# PowerShell offers file names for an argument that has no completer, or whose completer returns $null. The tests folder
+	# has files, so the test would see them.
+	It 'offers nothing, instead of file names, when nothing is typed for a type' {
+		Push-Location -LiteralPath $PSScriptRoot
+		try {
+			$completion = TabExpansion2 -inputScript 'New-List ' -cursorColumn 9
+		}
+		finally {
+			Pop-Location
+		}
+
+		$completion.CompletionMatches.Count | Should-Be 0
+	}
 }

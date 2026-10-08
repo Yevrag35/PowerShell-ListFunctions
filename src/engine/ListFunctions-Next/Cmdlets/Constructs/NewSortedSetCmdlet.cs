@@ -1,3 +1,4 @@
+using ListFunctions.Completion;
 using ListFunctions.Components;
 using ListFunctions.Extensions;
 using ListFunctions.Modern;
@@ -82,6 +83,7 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase, IDynamicParamet
 	/// </value>
 	[Parameter(Mandatory = false, Position = 0)]
 	[ArgumentToTypeTransform]
+	[ArgumentCompleter(typeof(TypeNameCompleter))]
 	[PSDefaultValue(Help = "[string], or [object] with -ComparingScript")]
 	[Alias("Type")]
 	public Type GenericType { get; set; } = null!;

@@ -1,3 +1,4 @@
+using ListFunctions.Completion;
 using ListFunctions.Components;
 using ListFunctions.Extensions;
 using ListFunctions.Modern;
@@ -155,6 +156,7 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// <value>The key type, or <see langword="null"/> for <see cref="object"/>.</value>
 	[Parameter]
 	[ArgumentToTypeTransform]
+	[ArgumentCompleter(typeof(TypeNameCompleter))]
 	[PSDefaultValue(Value = typeof(object))]
 	public Type? KeyType { get; set; }
 
@@ -217,6 +219,7 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// <value>The value type, or <see langword="null"/> for <see cref="object"/>.</value>
 	[Parameter]
 	[ArgumentToTypeTransform]
+	[ArgumentCompleter(typeof(TypeNameCompleter))]
 	[PSDefaultValue(Value = typeof(object))]
 	public Type? ValueType { get; set; }
 
