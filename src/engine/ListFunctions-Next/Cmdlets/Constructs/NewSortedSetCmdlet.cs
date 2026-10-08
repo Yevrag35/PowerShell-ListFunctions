@@ -282,7 +282,7 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase, IDynamicParamet
 	/// Writes the set to the pipeline as a single object.
 	/// </summary>
 	/// <param name="state">The run state of the cmdlet. When <see cref="CmdletRunState.FoundMatch"/> is <see langword="true"/>, nothing is written.</param>
-	protected override void EndCore(CmdletRunState state)
+	private protected override void EndCore(CmdletRunState state)
 	{
 		if (!state.FoundMatch)
 		{

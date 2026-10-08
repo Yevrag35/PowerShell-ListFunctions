@@ -15,8 +15,8 @@ namespace ListFunctions.Cmdlets;
 /// <remarks>
 /// <para>
 /// The class seals <see cref="BeginProcessing"/>, <see cref="ProcessRecord"/>, and <see cref="EndProcessing"/>. A
-/// derived class overrides <see cref="BeginCore"/>, <see cref="ProcessCore"/>, <see cref="EndCore(CmdletRunState)"/>,
-/// and <see cref="Cleanup"/> instead.
+/// derived class overrides <see cref="BeginCore"/>, <see cref="ProcessCore"/>, and <see cref="Cleanup"/> instead. Only
+/// classes in this assembly can override the end phase.
 /// </para>
 /// <para>
 /// When <see cref="BeginCore"/> or <see cref="ProcessCore"/> throws, <see cref="Cleanup"/> runs, and the cmdlet ends.
@@ -126,8 +126,8 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	/// so it's the only error. The check applies even when the pipeline sends no objects.
 	/// </para>
 	/// <para>
-	/// When the check or <see cref="BeginCore"/> throws, the method records <see cref="CmdletRunFlags.BeginFailed"/> and
-	/// calls <see cref="Cleanup"/>. It then passes a <see cref="RuntimeException"/> or a <see cref="FlowControlException"/>
+	/// When the check or <see cref="BeginCore"/> throws, the method records that the begin phase failed and calls
+	/// <see cref="Cleanup"/>. It then passes a <see cref="RuntimeException"/> or a <see cref="FlowControlException"/>
 	/// to PowerShell unchanged, and reports any other exception as a terminating error in the
 	/// <see cref="ErrorCategory.InvalidArgument"/> category, whose error ID is the full name of the exception's type.
 	/// </para>
@@ -157,17 +157,17 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	/// <remarks>
 	/// <para>
 	/// The method skips the input object when PowerShell is stopping the pipeline, or when an earlier call failed or
-	/// ended processing. When <see cref="ProcessCore"/> throws, the method records
-	/// <see cref="CmdletRunFlags.ProcessFailed"/> and calls <see cref="Cleanup"/>. It then passes a
-	/// <see cref="RuntimeException"/> or a <see cref="FlowControlException"/> to PowerShell unchanged, and reports any
-	/// other exception as a terminating error in the <see cref="ErrorCategory.NotSpecified"/> category.
+	/// ended processing. When <see cref="ProcessCore"/> throws, the method records that the process phase failed and
+	/// calls <see cref="Cleanup"/>. It then passes a <see cref="RuntimeException"/> or a <see cref="FlowControlException"/>
+	/// to PowerShell unchanged, and reports any other exception as a terminating error in the
+	/// <see cref="ErrorCategory.NotSpecified"/> category.
 	/// </para>
 	/// <para>
 	/// When <see cref="ProcessCore"/> returns <see langword="false"/>, processing is complete. If the cmdlet receives
-	/// pipeline input, the method runs <see cref="EndCore(CmdletRunState)"/> and <see cref="Cleanup"/> right away and
-	/// then stops the commands that send the input, the way <c>Select-Object -First</c> does. Those commands don't run
-	/// their end blocks. When the running PowerShell can't stop them, the cmdlet ignores its remaining input and runs
-	/// <see cref="EndCore(CmdletRunState)"/> from <see cref="EndProcessing"/> as usual.
+	/// pipeline input, the method runs the end phase and <see cref="Cleanup"/> right away and then stops the commands
+	/// that send the input, the way <c>Select-Object -First</c> does. Those commands don't run their end blocks. When the
+	/// running PowerShell can't stop them, the cmdlet ignores its remaining input and runs the end phase from
+	/// <see cref="EndProcessing"/> as usual.
 	/// </para>
 	/// </remarks>
 	protected sealed override void ProcessRecord()
@@ -208,11 +208,11 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 		}
 	}
 	/// <summary>
-	/// Runs the end phase by calling <see cref="EndCore(CmdletRunState)"/>, and then calls <see cref="Cleanup"/>.
+	/// Runs the end phase, and then calls <see cref="Cleanup"/>.
 	/// </summary>
 	/// <remarks>
-	/// <see cref="Cleanup"/> runs even when <see cref="EndCore(CmdletRunState)"/> throws. The method does nothing when
-	/// the end phase already ran because the cmdlet stopped the commands that send it pipeline input.
+	/// <see cref="Cleanup"/> runs even when the end phase throws. The method does nothing when the end phase already ran
+	/// because the cmdlet stopped the commands that send it pipeline input.
 	/// </remarks>
 	protected sealed override void EndProcessing()
 	{
@@ -263,10 +263,7 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	/// error.
 	/// </para>
 	/// </remarks>
-	/// <returns>
-	/// <see langword="true"/> to keep processing input; <see langword="false"/> to stop. Returning
-	/// <see langword="false"/> records <see cref="CmdletRunFlags.FoundMatch"/>.
-	/// </returns>
+	/// <returns><see langword="true"/> to keep processing input; <see langword="false"/> to stop.</returns>
 	protected abstract bool ProcessCore();
 	/// <summary>
 	/// When overridden in a derived class, finishes the cmdlet's work, for example by writing the collection it built.
@@ -288,7 +285,7 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 	/// <see cref="CmdletRunState.FoundMatch"/> is <see langword="true"/> when <see cref="ProcessCore"/> returned
 	/// <see langword="false"/>.
 	/// </param>
-	protected virtual void EndCore(CmdletRunState state)
+	private protected virtual void EndCore(CmdletRunState state)
 	{
 	}
 

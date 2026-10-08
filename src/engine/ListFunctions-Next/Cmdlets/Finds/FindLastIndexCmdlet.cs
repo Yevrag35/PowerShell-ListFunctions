@@ -107,8 +107,7 @@ public sealed class FindLastIndexCmdlet : ListFunctionCmdletBase
 	/// Appends the elements of the current <see cref="InputObject"/> to the input buffer.
 	/// </summary>
 	/// <remarks>
-	/// The condition is not evaluated here. Evaluation happens in <see cref="EndCore(CmdletRunState)"/> after all
-	/// input is received.
+	/// The condition is not evaluated here. Evaluation happens in the end phase, after all input is received.
 	/// </remarks>
 	/// <returns>Always <see langword="true"/>, so that all pipeline input is collected.</returns>
 	protected override bool ProcessCore()
@@ -123,7 +122,7 @@ public sealed class FindLastIndexCmdlet : ListFunctionCmdletBase
 	/// The method writes nothing when <paramref name="state"/> reports that a match was already found.
 	/// </remarks>
 	/// <param name="state">The run state of the cmdlet.</param>
-	protected override void EndCore(CmdletRunState state)
+	private protected override void EndCore(CmdletRunState state)
 	{
 		if (state.FoundMatch)
 			return;

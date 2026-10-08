@@ -11,7 +11,7 @@ namespace ListFunctions.Modern;
 /// The interface extends both <see cref="IEqualityComparer"/> and <see cref="IEqualityComparer{T}"/> of
 /// <see cref="object"/>, so an implementation works with generic and non-generic collections.
 /// </remarks>
-public interface IEqualityBlock : IEqualityComparer, IEqualityComparer<object>
+internal interface IEqualityBlock : IEqualityComparer, IEqualityComparer<object>
 {
 	/// <summary>
 	/// Gets the hash code provider that the comparer uses.

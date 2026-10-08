@@ -10,15 +10,14 @@ namespace ListFunctions.Cmdlets.Assertions;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The begin, process, and end phases are sealed. The begin phase creates a <see cref="ScriptBlockFilter"/> from
-/// <see cref="Condition"/>. For each pipeline record, the class calls <see cref="Process(ScriptBlockFilter)"/>, or
-/// <see cref="ProcessWhenNoCondition"/> when no condition is set, and the end phase passes the outcome to
-/// <see cref="End(bool)"/>.
+/// The begin, process, and end phases are sealed. The begin phase creates a filter from <see cref="Condition"/>. For
+/// each pipeline record, the class tests the input with that filter, or calls <see cref="ProcessWhenNoCondition"/> when
+/// no condition is set, and the end phase passes the outcome to <see cref="End(bool)"/>. Only classes in this assembly
+/// can derive from this class.
 /// </para>
 /// <para>
-/// When <see cref="Process(ScriptBlockFilter)"/> or <see cref="ProcessWhenNoCondition"/> returns
-/// <see langword="true"/>, the result of the test is decided. The cmdlet processes no more input and, when its
-/// input comes from the pipeline, stops the commands that send it.
+/// When a pipeline record decides the result of the test, the cmdlet processes no more input and, when its input comes
+/// from the pipeline, stops the commands that send it.
 /// </para>
 /// </remarks>
 public abstract class TestObjectCmdlet : ListFunctionCmdletBase
@@ -79,7 +78,7 @@ public abstract class TestObjectCmdlet : ListFunctionCmdletBase
 	private protected bool HasCondition { get; set; }
 
 	/// <summary>
-	/// Creates the <see cref="ScriptBlockFilter"/> for <see cref="Condition"/> when a condition is set.
+	/// Creates the filter for <see cref="Condition"/> when a condition is set.
 	/// </summary>
 	/// <remarks>
 	/// The filter runs the condition with <c>$ErrorActionPreference</c> set to <see cref="ScriptBlockErrorAction"/>, or,
@@ -109,12 +108,12 @@ public abstract class TestObjectCmdlet : ListFunctionCmdletBase
 	}
 
 	/// <summary>
-	/// Tests the current pipeline input by calling <see cref="Process(ScriptBlockFilter)"/>, or
-	/// <see cref="ProcessWhenNoCondition"/> when no condition is set.
+	/// Tests the current pipeline input with the condition filter, or calls <see cref="ProcessWhenNoCondition"/> when no
+	/// condition is set.
 	/// </summary>
 	/// <returns>
-	/// <see langword="false"/> when the called method returns <see langword="true"/> and the cmdlet stops processing
-	/// input; otherwise, <see langword="true"/>.
+	/// <see langword="false"/> when the result of the test is decided and the cmdlet stops processing input; otherwise,
+	/// <see langword="true"/>.
 	/// </returns>
 	protected sealed override bool ProcessCore()
 	{
@@ -156,7 +155,7 @@ public abstract class TestObjectCmdlet : ListFunctionCmdletBase
 	/// The run state of the cmdlet. Its <see cref="CmdletRunState.FoundMatch"/> value indicates whether
 	/// <see cref="Process(ScriptBlockFilter)"/> or <see cref="ProcessWhenNoCondition"/> returned <see langword="true"/>.
 	/// </param>
-	protected sealed override void EndCore(CmdletRunState state)
+	private protected sealed override void EndCore(CmdletRunState state)
 	{
 		this.End(state.FoundMatch);
 	}
@@ -164,8 +163,7 @@ public abstract class TestObjectCmdlet : ListFunctionCmdletBase
 	/// When implemented in a derived class, writes the result of the test to the pipeline.
 	/// </summary>
 	/// <param name="scriptResult">
-	/// <see langword="true"/> when <see cref="Process(ScriptBlockFilter)"/> or <see cref="ProcessWhenNoCondition"/>
-	/// returned <see langword="true"/> for a pipeline record; otherwise, <see langword="false"/>.
+	/// <see langword="true"/> when a pipeline record decided the result of the test; otherwise, <see langword="false"/>.
 	/// </param>
 	protected abstract void End(bool scriptResult);
 }

@@ -1,6 +1,6 @@
 # ListFunctions 4.0 review list
 
-Found in a code review on 2026-10-04, after every item in `bugs.md` except the release item, 15, was fixed. At that point the build had no warnings and every test passed: 195 Pester tests in each edition and 364 Engine tests. None of these items shows up as a failing test.
+Found in a code review on 2026-10-04, after every item in `bugs.md` except the release item, 15, was fixed.
 
 Each item is code or behavior that's wrong, inconsistent, or expensive to change after 4.0.0 ships. Most fixes change behavior that users can see, so they'd be breaking changes after the release. The items under **Can wait** are the exception.
 
@@ -41,7 +41,7 @@ Item numbers continue from `bugs.md`, so each number names one item in either fi
 
 **Public surface and dead code**
 
-- [ ] 45 — Engine and Next have more public types than they need
+- [x] 45 — Engine and Next have more public types than they need
 - [x] 46 — About 1,600 lines of code are dead or used only by tests
 - [ ] 47 — Leftover members, unused extension points, and TODOs in the XML docs
 
@@ -326,7 +326,7 @@ $name = [psobject]'Name'      # The way Get-Content delivers each line
   - that both shapes of the `-ValueSelector` conflict are rejected before any input is read.
   - that `$null` and `''` work with `-ValueSelector`.
 
-  Against commit `984e386`, before 27 and 28, the 10 new tests for the two items' fixes fail, and the 3 that guard unchanged behavior pass. The two attributes have no Engine tests, because what they do matters only inside PowerShell's binder, which the Pester tests go through.
+  The two attributes have no Engine tests, because what they do matters only inside PowerShell's binder, which the Pester tests go through.
 
 ### 29 — Open generic `[OutputType]` types break member completion
 
@@ -414,7 +414,7 @@ What changes for users, measured on 2026-10-04 in both editions:
 - **Tests:**
   - `tests/New-HashSet.Tests.ps1` has a new `Object elements` context, for `1` with `'1'`, `[long]1`, and `1.0`, the soft hyphen pair, `'a'` and `'A'`, and the two `é`s with `-CaseSensitive`. `tests/New-SortedSet.Tests.ps1` has a new `String order` context, for the order of `'b', '_x', 'a', 'é', 'Z'` and for `'a'` and `'A'`.
   - In Engine, `HashSetCtorTests.Construct_CreatesAnObjectSetThatComparesLikeTheEqOperator` became `Construct_CreatesAnObjectSetThatComparesOnlyStringsAsStrings`. The new `Construct_ComparesStringsInAnObjectSetOrdinally` checks the soft hyphen and `é` pairs with and without `IsCaseSensitive`.
-  - **Pester 6.2's `Should-BeCollection` ignores order.** It passes for `3, 1, 2` against `1, 2, 3` in both editions, and so does `Should-BeEquivalent`. The order test compares the joined elements instead, and it fails against commit `94a9c5b`. The older New-SortedSet tests that expected an order with `Should-BeCollection`, the two `Bug05` tests and the three order tests that 24 added, didn't check it. They compare the joined elements now too. With every expected order reversed, all nine order cases in the file fail in both editions, and the other twelve pass. The `lf-testing` skill describes the trap.
+  - **Pester 6.2's `Should-BeCollection` ignores order.** It passes for `3, 1, 2` against `1, 2, 3` in both editions, and so does `Should-BeEquivalent`. The order test compares the joined elements instead. The older New-SortedSet tests that expected an order with `Should-BeCollection`, the two `Bug05` tests and the three order tests that 24 added, didn't check it. They compare the joined elements now too. The `lf-testing` skill describes the trap.
 
 ### 31 — ConvertTo-Dictionary converts every key and value to the first object's types
 
@@ -495,9 +495,7 @@ Get-Item "$env:windir", "$env:windir\notepad.exe" | ConvertTo-Dictionary Name
 - **Docs:** the XML docs of the class, `InputObject`, `KeyComparer`, `KeyType`, `ValueType`, `BeginCore`, `CreateDictionary`, `AddToDictionary`, `WriteNullKeyError`, and `EndCore`. In the README, ConvertTo-Dictionary's description, examples, and parameter rows. The examples use the indexer, and the description says that dot notation doesn't read `[object]` keys.
 - **Tests:** in `tests/ConvertTo-Dictionary.Tests.ps1`:
   - New `Key and value types`, `Key comparison`, and `Null keys` contexts, for the repro's `2.5` without `-KeyType` and `-ValueType`, both parameters, the empty dictionary when there's no input, `Ann` and `ann`, `1` and `'1'`, `-KeyComparer` with `[object]` and `[int]` keys, and the `$null` key error from `-KeyPropertyName` and `-KeySelector`.
-  - The tests that expected inferred types now pass `-KeyType` or `-ValueType`, or no longer check the type. The test of inference past a `$null` first key is gone, because the `Null keys` context covers that key. The `Bug06` test that inferred the key type past a `$null` input object now checks that the object is skipped without an error. The test of `-InputObject` with `Get-Item` passes `-ValueType ([System.IO.DirectoryInfo])`, so that the conversion still has to unwrap.
-  - Against commit `94a9c5b`, 10 cases of the new and changed tests fail in each edition. The others pass, because they check behavior that didn't change, such as `Ann` and `ann`.
-- **Related items:** 37's `-KeyType` is done, and the rest of 37 is open. 38's ConvertTo-Dictionary bullet now holds, but the README doesn't give the reasons that 38 asks for.
+  - The tests that expected inferred types now pass `-KeyType` or `-ValueType`, or no longer check the type. The test of inference past a `$null` first key is gone, because the `Null keys` context covers that key. The `Bug06` test that inferred the key type past a `$null` input object now checks that the object is skipped without an error. The test of `-InputObject` with `Get-Item` passes `-ValueType ([System.IO.DirectoryInfo])`, so that the conversion still has to unwrap.- **Related items:** 37's `-KeyType` is done, and the rest of 37 is open. 38's ConvertTo-Dictionary bullet now holds, but the README doesn't give the reasons that 38 asks for.
 
 ### 32 — New-Dictionary drops entries whose value is `$null`
 
@@ -521,7 +519,7 @@ $h = @{}; $h.Add('x', $null)
 - **The skip:** `EqualityConstructingCmdlet.AddToCollection(T, object[], bool)` became `AddToCollection(T, object[])`, which calls `Add` even when an argument is `$null`, through `AddMethodInvoker.TryInvoke` with `addIfNull: true`. Its `addIfNull` parameter, which 47 lists as doing nothing, and its TODO are gone. New-Dictionary is the only caller. A key that converts to `$null`, such as a `[NullString]::Value` key with `[string]` keys, now gets the dictionary's `ArgumentNullException`, "Value cannot be null. (Parameter 'key')", as a non-terminating error instead of a silent skip.
 - **Results, in both editions:** `(@{ a = $null; b = 1 } | New-Dictionary).Count` is 2, and the second repro holds `x = 0`. A `[string]` dictionary stores `''`, and a `[Nullable[int]]` dictionary `$null`. A `[datetime]` dictionary writes an `LFInvalidCastException` error for the entry and skips it.
 - **Docs:** the XML docs of `InputObject`, `Process`, and `AddToCollection`, and the README's `-InputObject` row.
-- **Tests:** `tests/New-Dictionary.Tests.ps1` checks that an entry whose value is `$null` is copied as `$null`, `''`, `0`, and `$null` for `[object]`, `[string]`, `[int]`, and `[Nullable[int]]` values. All four cases fail against commit `94a9c5b`.
+- **Tests:** `tests/New-Dictionary.Tests.ps1` checks that an entry whose value is `$null` is copied as `$null`, `''`, `0`, and `$null` for `[object]`, `[string]`, `[int]`, and `[Nullable[int]]` values.
 - **Related items:** 38's New-Dictionary bullet now holds.
 
 ### 33 — A failing comparison script has a different effect in each collection cmdlet
@@ -603,7 +601,7 @@ foreach ($i in 1..2) { 5, 3 | New-SortedSet [int] -ComparingScript { if ($x -or 
   - The `Stop` row of the table in Errors in script blocks says that an error the script block writes ends the whole script.
   - The section's paragraphs describe every script block instead of only `-Condition`. They add what `Continue` does, that `-ErrorAction` doesn't change any of it, that output a comparer can't use ends the statement, and that the commands write no collection, with an example.
   - The `-ScriptBlockErrorAction` rows of the three commands link to the section.
-- **Tests:** against commit `b563e31`, before these changes, 23 cases of the new and changed Pester tests fail in each edition, and so do all 6 cases of the new Engine test. The 2 Pester cases that pass check behavior that didn't change.
+- **Tests:** new and changed tests in three Pester files and in Engine:
   - `tests/New-HashSet.Tests.ps1`: the test that expected a stop and no set is gone. Its `ThrowingHashCode` case joined the test of the errors that `-InputObject` gets, which now runs for piped input too and checks that an empty set is written. A new `Errors in script blocks` context has the `Bug21` shape for `-EqualityScript`, a case for an error that `-HashCodeScript` writes, and a test for output that isn't a hash code. That test passes `-ErrorAction SilentlyContinue`: one error and no set was also the old result, but the old error was non-terminating, and that switch hid it.
   - `tests/New-SortedSet.Tests.ps1`: the `Bug10` test checks that the output ends the statement with one `ComparingScriptException` error and no set. A new `Errors in ComparingScript` context has the `Bug21` shape. The `Bug14` test no longer passes `-ErrorAction SilentlyContinue`, which can't hide the error anymore.
   - `tests/New-Dictionary.Tests.ps1`: a new `Errors in script blocks` context has the `Bug21` shape, with its `Write-Error` and `throw` cases in `-HashCodeScript`.
@@ -646,7 +644,7 @@ New-Dictionary -EqualityScript { begin {} process { $x -eq $y } } -HashCodeScrip
   - This item's four shape repros end the statement with a `ParameterArgumentValidationError` for their parameter, with the new message, before any input is read. So does the same `begin`/`process` script block passed to Assert-AllObject, Find-IndexOf, Find-LastIndexOf, and ConvertTo-Dictionary's three parameters. `$people | ConvertTo-Dictionary Id Name` still works.
   - `1 | Assert-AllObject -Condition $null` and `@() | Assert-AllObject -Condition $null` give the `ParameterArgumentValidationErrorNullNotAllowed` error that `1 | Find-IndexOf -Condition $null` gives. `1, $null | Assert-AnyObject -Condition $null` is `True`, and `$null | Assert-AnyObject -Condition $null` is `False`.
 - **Docs:** the XML docs of `IsScriptBlockAttribute`, of every parameter that got the attribute, of `AssertObjectCmdlet.Condition`, `HasCondition`, `Process`, and `ProcessWhenNoCondition`, and of `AssertAllObjectsCmdlet` and its `ProcessWhenNoCondition`. In the README, the Script blocks section states the shape rule and the `$null` rule, and Assert-AnyObject's `-Condition` row says that `$null` is the same as no condition.
-- **Tests:** all fail against commit `b563e31`, except Assert-AnyObject's, which records behavior that didn't change.
+- **Tests:** new and changed tests in four Pester files:
   - `tests/New-Dictionary.Tests.ps1`: the test that rejects a `begin` block expects `ParameterArgumentValidationError`, as New-HashSet's does, instead of `System.ArgumentException`.
   - `tests/New-SortedSet.Tests.ps1`: a new test checks that `-ComparingScript` rejects a `begin` block. It has merit because the command accepted one before, and wrote an error for each comparison and a set without those elements.
   - `tests/Assert-AnyObject.Tests.ps1` and `tests/Assert-AllObject.Tests.ps1`: a new `Condition` context records the decision: `$null` as no condition for Assert-AnyObject, and the binding error for Assert-AllObject, with the empty input that used to give `$true`.
@@ -707,7 +705,7 @@ $d.Bob = 2    # An error: "The property 'Bob' cannot be found on this object. Ve
 - **Results, in both editions:** the first three lines of the repro give ``Dictionary`2``. `TabExpansion2 -inputScript '$l = New-Dictionary; $l.Ad' -cursorColumn 26` completes `Add(`. Measured on 2026-10-05 with `New-Dictionary`, what changes for users happens as described above: `$d.Ann` is `$null`, `$d.Bob = 2` fails, `$d -is [hashtable]` is `$false`, `$d + @{ q = 1 }` is a `Hashtable`, `$d['missing']` is `$null` under `Set-StrictMode -Version Latest`, and `z`, `y`, `x`, `w`, `v` enumerate in that order.
 - **Unchanged:** with `-DuplicateKeyBehavior Concatenate`, a key with one value still holds the value itself, and a key with more holds an `ObjectList`, so the repro's last two lines still give `System.String` and `ListFunctions.Modern.ObjectList`.
 - **Docs:** the XML docs of `DictionaryCtor`, `EqualityCollectionCtor`, and `NewDictionaryCmdlet`, and in the README, the command table and New-Dictionary's section. Its examples use the indexer, and the section says that dot notation doesn't read or set `[object]` keys.
-- **Tests:** `tests/New-Dictionary.Tests.ps1` has a new `Dictionary type` context, which checks the type with no input and with a piped hashtable, and the `Capacity` case for the `Hashtable` is now one for `Dictionary[object, object]`. In Engine, `DictionaryCtorTests.Construct_PassesTheCapacityToTheDictionary` expects a `Dictionary<object, object>`, and the new `Construct_UsesAStringComparerForObjectKeys` checks that `StringComparer.Ordinal` keeps `"a"` and `"A"`, and `1` and `"1"`, apart. Both fail against commit `94a9c5b`.
+- **Tests:** `tests/New-Dictionary.Tests.ps1` has a new `Dictionary type` context, which checks the type with no input and with a piped hashtable, and the `Capacity` case for the `Hashtable` is now one for `Dictionary[object, object]`. In Engine, `DictionaryCtorTests.Construct_PassesTheCapacityToTheDictionary` expects a `Dictionary<object, object>`, and the new `Construct_UsesAStringComparerForObjectKeys` checks that `StringComparer.Ordinal` keeps `"a"` and `"A"`, and `1` and `"1"`, apart.
 - **Left for other items:** `ReflectionResolver.GetAddMethod`, which is public, still handles a `Hashtable`, which no cmdlet creates anymore (see 45). `GenericCollectionCtor` still has the fallback hooks that `EqualityCollectionCtor` and `SortingCollectorCtor` now stub out (see 47).
 
 ### 36 — New-HashSet can't combine `-GenericType` with script equality
@@ -733,7 +731,7 @@ The README says that the element type is always `[object]` in this mode. New-Dic
   - `Get-Command New-HashSet -Syntax` lists `[[-GenericType] <type>]` in the syntax with the script blocks, as 3.1.0's did.
 - **Unchanged:** `New-HashSet [int]` without script blocks still gets the `SpecifiedType` set and `EqualityComparer<int>.Default`. `-CaseSensitive` still can't be combined with the script blocks: `New-HashSet [string] -CaseSensitive -EqualityScript { $x -eq $y } -HashCodeScript { $_.GetHashCode() }` gives "Parameter 'CaseSensitive' cannot be specified in parameter set 'WithCustomEquality'."
 - **Docs:** the XML docs of `GenericType`. In the README, New-HashSet's script block section says that `T` can be any type and has an `[int]` example, and the `-GenericType` row no longer says that the parameter can't be used with the script blocks.
-- **Tests:** two new tests in the `Script block equality` context of `tests/New-HashSet.Tests.ps1` pipe elements into sets of `[int]` and `[Nullable[int]]`, and of `[string]`, which is also offered `-CaseSensitive`. All 3 cases fail against commit `df27654` in both editions, with the repro's binding error. They have merit because the decision reverses 03's, and a later change to the parameter sets, such as 37's, could undo it. Engine gets no test: `HashSetCtor` adapts a comparer with the code it shares with `DictionaryCtor`, which the `Bug09` tests in `DictionaryCtorTests` cover.
+- **Tests:** two new tests in the `Script block equality` context of `tests/New-HashSet.Tests.ps1` pipe elements into sets of `[int]` and `[Nullable[int]]`, and of `[string]`, which is also offered `-CaseSensitive`. They have merit because the decision reverses 03's, and a later change to the parameter sets, such as 37's, could undo it. Engine gets no test: `HashSetCtor` adapts a comparer with the code it shares with `DictionaryCtor`, which the `Bug09` tests in `DictionaryCtorTests` cover.
 
 ### 37 — Parameter names, aliases, and positions differ between cmdlets
 
@@ -786,7 +784,7 @@ The README says that the element type is always `[object]` in this mode. New-Dic
   - **The switch before a positional type:** PowerShell takes a positional argument that follows an unknown parameter for that parameter's value, so it asks for the dynamic parameters before it binds the type. `New-SortedSet -CaseSensitive [int]` was offered the switch, and gave a `SortedSet[int]` that ignored it. `BeginCore` rejects that case with an `ArgumentException`, a terminating error whose ID is `System.ArgumentException,ListFunctions.Cmdlets.Constructs.NewSortedSetCmdlet`: 'Cannot sort elements of type "System.Int32" with -CaseSensitive, because the switch applies only to [string] elements.'
 - **Not changed:** New-HashSet and New-Dictionary have the same gap. `New-HashSet -CaseSensitive [int]` gives a `HashSet[int]`, and `New-Dictionary -CaseSensitive [int]` a `Dictionary[int, object]`, without an error, while the same commands with the switch after `[int]` fail with `NamedParameterNotFound`. The same check in `EqualityConstructingCmdlet<T>.BeginCore` would close it.
 - **Docs:** the XML docs of New-List's `Capacity`, of `NewSortedSetCmdlet` and its `GetDynamicParameters` and `BeginCore`, and of `ListFunctionCmdletBase.WITH_CUSTOM_EQUALITY`, which now describes only equality script blocks. In the README: New-List's `-Capacity` row, Find-IndexOf's `-Condition` row, New-HashSet's `-Capacity` row, the three `-ScriptBlockErrorAction` rows, and New-SortedSet's description, examples, and table, which has a `-CaseSensitive` row. The example that sorted with `-ComparingScript { [string]::CompareOrdinal($x, $y) }` now uses `-CaseSensitive`.
-- **Tests:** a new `CaseSensitive` context in `tests/New-SortedSet.Tests.ps1` checks that `'a'` and `'A'` stay apart in ordinal order, with no element type and with `[string]`, and that the switch is rejected after `[int]`, before `[int]`, and with `-ComparingScript`. Against commit `d0637d3`, 4 of the 5 cases fail in each edition. The fifth, the switch after `[int]`, passes, because that error didn't change.
+- **Tests:** a new `CaseSensitive` context in `tests/New-SortedSet.Tests.ps1` checks that `'a'` and `'A'` stay apart in ordinal order, with no element type and with `[string]`, and that the switch is rejected after `[int]`, before `[int]`, and with `-ComparingScript`.
 
 ### 38 — Each cmdlet handles `$null` input differently
 
@@ -837,7 +835,7 @@ After 31's decision, this happens only when `-ValueType` names such a type. `[ob
 - **Results, in both editions:** measured on 2026-10-06 against the Debug build. The repro gives what the item shows, except that `$null | New-Dictionary` writes an empty `Dictionary[object, object]` since 35, with the same binding error. `New-Dictionary -InputObject $null` ends the statement with that error and writes nothing. Every claim in the new section holds: for example, `$s.Add($null)` on an `[object]` set from `New-SortedSet -ComparingScript { throw "ran $x $y" }` puts `$null` first without running the script block.
   - **The reasons cover the common types only.** New-HashSet and New-SortedSet also skip `$null` for `[Nullable[int]]` and `[version]`, in which it would stay `$null`. They skip an element that converts to `$null` too, such as `[NullString]::Value` in a `[string]` set.
   - **A variable that holds no output sends no `$null`.** After `$files = Get-ChildItem -Path $env:TEMP -Filter 'no-such-file-*.xyz'`, `$files | New-HashSet` gives an empty set, and `$files | ForEach-Object { 'ran' }` outputs nothing, because the variable holds `AutomationNull.Value`. Only a real `$null`, such as one in an array or one assigned to a variable, reaches the commands.
-- **Tests:** two rules that the decision keeps had no test, and each got one. Both pass against commit `d0637d3`, because the behavior didn't change. Each of the other rules already had a test.
+- **Tests:** two rules that the decision keeps had no test, and each got one. Each of the other rules already had a test.
   - `tests/New-HashSet.Tests.ps1`: a typed set skips a piped `$null` without an error, for `[int]` and `[string]`. It's the other half of the existing test for an `[object]` set, which adds it.
   - `tests/New-Dictionary.Tests.ps1`: a piped `$null` gets a `ParameterArgumentValidationErrorNullNotAllowed` error, and the command still writes an empty dictionary. A later change that gives `-InputObject` `[AllowNull()]`, like the other commands' `-InputObject`, would skip it silently instead.
 
@@ -881,7 +879,7 @@ More about the first case, measured on 2026-10-04 in both editions:
 - **Warnings:** a value that isn't a collection stays one element. For a dictionary, the cmdlet writes "The dictionary passed to -InputObject is one element, the same as when you pipe it. To pass its entries as elements, use its GetEnumerator() method, or pass its Keys or Values property." For any other value but a string, it writes "The value passed to -InputObject is one element, because a value of type 'System.Int32' isn't a collection." with the value's type, which for a custom object is `PSCustomObject`. A string, a value in an array, and piped input get no warning.
 - **Both inputs:** `ListFunctionCmdletBase.BeginProcessing` checks `MyInvocation.ExpectingInput` and whether `-InputObject` is bound before it calls `BeginCore`. When both are true, it throws an `ArgumentException`, which becomes a terminating error with the ID `System.ArgumentException,<class>`: "Cannot use -InputObject and pipeline input together, because both supply the command's input. Pipe the input, or pass it to -InputObject, but not both." All nine cmdlets, New-Dictionary included, now write that one error and no result, also when the pipeline sends nothing, as in `@() | Find-IndexOf { $_ -eq 1 } -InputObject 1, 2`. The check relies on every cmdlet's pipeline parameter being named `InputObject`.
 - **Docs:** the XML docs of `ListFunctionCmdletBase` and its `BeginProcessing`, the `InputObject` and class remarks of `FindIndexCmdlet` and `FindLastIndexCmdlet`, and the `InputObject` of the other seven cmdlets, which says that it can't be combined with pipeline input. In the README, the Input section has a paragraph on how the two Find commands search `-InputObject`, with the set example, and a paragraph and an example for the error when both inputs are given.
-- **Tests:** against commit `83a5a78`, 16 of the 18 new cases fail in each edition. The 2 that pass check that a string passed to `-InputObject`, a value in an array, and piped input get no warning, which didn't change.
+- **Tests:** 18 new cases. The two no-warning cases check that a string passed to `-InputObject`, a value in an array, and piped input get no warning.
   - `tests/Module.Tests.ps1`: the both-inputs case for all nine cmdlets, and for Find-IndexOf with an empty pipeline. Each runs in a new runspace and checks for exactly one `System.ArgumentException` error and no output.
   - `tests/Find-IndexOf.Tests.ps1`: a set and a dictionary's enumerator passed to `-InputObject` supply their elements, a number, a hashtable, and a custom object are one element with a warning, and the two no-warning cases. The enumerator test guards the choice of `GetEnumerator` over `GetEnumerable`.
   - `tests/Find-LastIndexOf.Tests.ps1`: a queue passed to `-InputObject` supplies its elements, which also shows that the cmdlet uses the new method.
@@ -923,10 +921,10 @@ What `SilentlyContinue` does today, measured on 2026-10-06 in both editions:
   - The condition sees `$ErrorActionPreference` as `Stop`.
 - **Not changed:** New-HashSet, New-SortedSet, and New-Dictionary still set `$ErrorActionPreference` to their `-ScriptBlockErrorAction` as it is. Their default is `Stop`, and a comparer that fails has no answer that a warning could stand in for.
 - **Docs:** the XML docs of `ScriptBlockFilter`, its constructors, `IsTrue`, `Any`, and `All`, of `CreateConditionFilter` and `WriteConditionWarning`, of `ScriptBlockErrorAction` on `AssertObjectCmdlet` and the four cmdlets, of the four cmdlets' class remarks, and of `AssertObjectCmdlet.BeginCore` and `Process` and the two Find cmdlets' `BeginCore`. In the README, the table in Errors in script blocks, and its new Warnings from conditions and Errors that reach PowerShell sections, which replace the advice to pass `-ScriptBlockErrorAction Stop` to see errors. The `-ScriptBlockErrorAction` rows of Assert-AnyObject, Assert-AllObject, and Find-IndexOf say what the default does, and all three link to the section.
-- **Tests:** against commit `83a5a78`, 7 of the 10 new Pester cases fail in each edition. The 3 that pass check that errors the condition handles itself give no warning, which didn't change, and which the rejected `$Error` approach would break.
+- **Tests:** 10 new Pester cases and four Engine tests. The 3 handled cases check that errors the condition handles itself give no warning, which the rejected `$Error` approach would break.
   - `tests/Assert-AnyObject.Tests.ps1`: a written error, a `throw`, and a failed method call each give one warning with the error's message, and `False`. So does a written error under `Ignore`. The 3 handled cases use a `try` block, `-ErrorAction SilentlyContinue`, and `-ErrorAction Ignore`.
   - `tests/Assert-AllObject.Tests.ps1`, `tests/Find-IndexOf.Tests.ps1`, and `tests/Find-LastIndexOf.Tests.ps1`: one test each for what the failed element does to the result.
-  - Engine: four new tests in `ScriptBlockFilterTests` check that the handler gets the record of a `throw` and of an error written under `Stop`, that `break` passes it, that `Any` goes on, and that `All` stops. They use the new constructor, so they don't compile against `83a5a78`.
+  - Engine: four new tests in `ScriptBlockFilterTests` check that the handler gets the record of a `throw` and of an error written under `Stop`, that `break` passes it, that `Any` goes on, and that `All` stops.
 
 ### 41 — Command, alias, and class names
 
@@ -948,12 +946,10 @@ What `SilentlyContinue` does today, measured on 2026-10-06 in both editions:
 - **Tests:** `tests/Assert-AnyObject.Tests.ps1` and `tests/Assert-AllObject.Tests.ps1` are now `tests/Test-AnyObject.Tests.ps1` and `tests/Test-AllObject.Tests.ps1`. They and `tests/Module.Tests.ps1` call the cmdlets by their new names, and expect the new class names in error IDs.
   - **New test:** in `tests/Module.Tests.ps1`, Assert-AnyObject and Assert-AllObject must be aliases of the Test cmdlets, because scripts written for 3.x use those names. The manifest tests don't catch a dropped alias, because it would be dropped from the manifest too.
   - **A trap for tests that call an alias:** the first `& Import-ListFunctions.ps1` in a session leaves every alias of the module unresolvable, and a second import makes them resolvable. Measured with `Any`, `Assert-AnyObject`, and `Find-IndexOf`. So a call to an alias fails with `CommandNotFoundException` in `Invoke-InNewRunspace`, which imports once, and in a test file that runs alone or first. The new test reads `$module.ExportedAliases` instead of calling the aliases.
-- **Find cmdlets:** the same commit, `f33805f`, also renamed Find-IndexOf and Find-LastIndexOf to Find-Index and Find-LastIndex, the names of their classes `FindIndexCmdlet` and `FindLastIndexCmdlet`. The old names became aliases, and Find-Index and Find-LastIndex, which were 3.x aliases, became the cmdlet names. The commit changed only the `[Cmdlet]` and `[Alias]` attributes, so 13 Pester tests failed in each edition. Finished on 2026-10-06:
+- **Find cmdlets:** the same commit, `f33805f`, also renamed Find-IndexOf and Find-LastIndexOf to Find-Index and Find-LastIndex, the names of their classes `FindIndexCmdlet` and `FindLastIndexCmdlet`. The old names became aliases, and Find-Index and Find-LastIndex, which were 3.x aliases, became the cmdlet names. The commit changed only the `[Cmdlet]` and `[Alias]` attributes. Finished on 2026-10-06:
   - **Manifest:** the two names swap places between `CmdletsToExport` and `AliasesToExport`. `ReleaseNotes` still names Find-IndexOf, because it's the 3.x text, which `bugs.md` item 15 replaces.
   - **Tests:** `tests/Find-IndexOf.Tests.ps1` and `tests/Find-LastIndexOf.Tests.ps1` are now `tests/Find-Index.Tests.ps1` and `tests/Find-LastIndex.Tests.ps1`. They, `tests/Module.Tests.ps1`, and a comment in `tests/Test-AllObject.Tests.ps1` use the new names. The alias test in `tests/Module.Tests.ps1` now also checks Find-IndexOf and Find-LastIndexOf.
   - **Docs:** in the README, the Commands table, the two cmdlets' sections, their anchors and alias lists, and every sentence and example that names them. The examples that call the `IndexOf` alias keep it. The XML docs of `ListFunctionCmdletBase.GetSearchElements` name the new cmdlets.
-  - **Results:** all 304 Pester tests pass in each edition, PowerShell 7.6.6 and Windows PowerShell 5.1.26100.9444.
-
 ## Robustness
 
 ### 42 — Every cmdlet reads private members of PSObject, with no fallback
@@ -978,7 +974,7 @@ Every cmdlet calls it for every input object (`src/engine/ListFunctions-Next/Cmd
 - **Why the test matches the flag:** in PowerShell 7.6.6's source, only `PSObject` itself writes the flag: its constructors, `Copy`, and `SetCoreOnDeserialization`. Each write sets the flag exactly when the immediate base object is a `PSCustomObject`. The deserializer creates each `<Obj>` as `new PSObject()`, and gives the value of a known type to `SetCoreOnDeserialization`. PowerShell's own `RehydrateCimInstance` finds a property bag by testing `BaseObject is not PSCustomObject`.
 - **Deserialized objects:** a scratch script made two comparisons on every `PSObject` it could reach: the private flag against the `PSCustomObject` test, and the old algorithm's result against the built `GetBaseObject`'s. It started from live objects and from their round trips through `PSSerializer`, `Export-Clixml` and `Import-Clixml`, and `Start-Job`. It reached 166 PSObjects in each edition, 80 to 86 of them without a base object, and every comparison agreed.
 - **Docs:** in `GetBaseObject`'s remarks, a paragraph that says what "no base object" means replaces the one about reflection and `TypeInitializationException`.
-- **Tests:** the new `src/engine/ListFunctions.Engine.Tests/Extensions/PSObjectExtensionsTests.cs` checks four behaviors. `GetBaseObject` unwraps every layer, and unwraps a deserialized string. It returns a custom object, AutomationNull, and a deserialized property bag as themselves. It stops at a custom object that another PSObject wraps. Its 8 tests passed in both targets before and after the change. They run against real PowerShell, so they'd catch a release that breaks the `PSCustomObject` test.
+- **Tests:** the new `src/engine/ListFunctions.Engine.Tests/Extensions/PSObjectExtensionsTests.cs` checks four behaviors. `GetBaseObject` unwraps every layer, and unwraps a deserialized string. It returns a custom object, AutomationNull, and a deserialized property bag as themselves. It stops at a custom object that another PSObject wraps. The tests run against real PowerShell, so they'd catch a release that breaks the `PSCustomObject` test.
 
 ### 43 — The Windows PowerShell 5.1 assembly resolver answers for every module
 
@@ -1044,7 +1040,7 @@ How the shims affect users:
 - **The cmdlet keeps its validation:** ConvertTo-Dictionary still rejects `-KeyPropertyName ' '`, with the same message as in PowerShell 7. PowerShell reads a compiled cmdlet's parameter attributes through reflection, and Engine's internals are visible to the module's assemblies, the same as for `ArgumentToTypeTransformAttribute`.
 - **PowerShell 7:** `[ZLinq.SetExtensions]` gives "Unable to find type". The three shims' names still resolve to the runtime's and PowerShell's own types.
 - **Docs:** the shims' remarks say why they're internal. `CLAUDE.md` no longer says the attribute is forwarded, and it says to keep hand-written polyfills internal and unforwarded.
-- **Tests:** none added, because the change makes types internal and deletes dead code. No existing test passes `-KeyPropertyName` a white-space value, so only the repro checks that the internal attribute still applies. The 404 Engine tests and the 304 Pester tests in each edition passed.
+- **Tests:** none added, because the change makes types internal and deletes dead code. No existing test passes `-KeyPropertyName` a white-space value, so only the repro checks that the internal attribute still applies.
 
 ## Public surface and dead code
 
@@ -1081,6 +1077,15 @@ About 7 to 17 of them need to be public, depending on the judgment calls below.
   - `ObjectList` (see 35)
   - the comparers that users reach through a collection's `.Comparer` property: `EqualityBlock`, `HashBlock`, `ComparingBlock<T>`, and `EqualityComparerAdapter<T>`
 
+**Fixed:** on 2026-10-07, both Engine builds export 7 types: the six exceptions and `ObjectList`. Next exports 13, and the NETFramework build exports 14, because it adds `ModuleInitializer`.
+
+- **Earlier commits:** `84d2efa` and `d84b256` made internal everything in the no-caveat list except `IEqualityBlock`. They also made `EqualityConstructingCmdlet<T>.GetConstructor` and `TestObjectCmdlet.Process` `private protected`, so `EqualityCollectionCtor`, `GenericCollectionCtor`, `CreateConstructingType`, and `ScriptBlockFilter` became internal. Of the judgment calls, the exceptions and `ObjectList` stayed public, and the four comparers became internal. `TestObjectCmdlet` is the item's `AssertObjectCmdlet`, which `f33805f` renamed.
+- **`EndCore`:** `ListFunctionCmdletBase.EndCore` and its seven overrides are `private protected`, so `CmdletRunState` and `CmdletRunFlags` are internal.
+- **The comparers' base types:** `IEqualityBlock` is internal, and so are `ComparingBase` and `IHashBlock`, which the item doesn't list. They were public only because the comparers were: `ComparingBase` is the comparers' base class, and `IHashBlock` is the type of `EqualityBlock.HashCodeBlock`.
+- **What users see:** measured against the Debug build in PowerShell 7.6.6 and Windows PowerShell 5.1. The five type names no longer resolve. A set's `.Comparer` shows the same members as before, including `Script` and `HashCodeBlock`, and `Equals`, `GetHashCode`, `Compare`, and `HashCodeBlock.GetHashCode` return the same results. The comparers were already internal, so PowerShell finds those members on the comparer's own type, whatever the visibility of the types that declare them.
+- **Docs:** the docs of public and protected members no longer name these types or `EndCore`, as `.github/copilot-instructions.md` requires. The names that the earlier commits had left in such docs are gone too: `ScriptBlockFilter`, `Process(ScriptBlockFilter)`, `EqualityCollectionCtor`, and `GetConstructor` in the docs of `TestObjectCmdlet` and `EqualityConstructingCmdlet<T>`, and `ComparingBlock<T>` in `ComparingScriptException`'s remarks. Those two base classes' remarks now say that only classes in the assembly can derive from them, and `ListFunctionCmdletBase`'s say that only those classes can override the end phase. `ComparingBase`'s remarks no longer say that.
+- **Tests:** none added, because the change only makes types and members internal.
+
 ### 46 — About 1,600 lines of code are dead or used only by tests
 
 **Dead, with no reference outside their own files:**
@@ -1111,7 +1116,6 @@ Removing a type that only tests use means removing its tests too. Keep `ScriptBl
 
 - **Dead code:**
   - The files that held `EqualityExtensions`, `EqualityScriptException`, `ReadOnlySet<T>` and the `IReadOnlySet<T>` shim, `PSVariableNameEquality`, `SingleValueReadOnlySet`, `DoubleBool`, `EnumerableExtensions`, and `InternalFinder` are deleted, along with Next's empty `Build/` folder. Commit `d84b256` had already deleted `VarList.cs` and Engine's two csproj items for it.
-  - Deleting `SingleValueReadOnlySet.cs` also fixes the `netstandard2.0` build, which fails at `d84b256` with CS0411. That commit removed the file's `using ListFunctions.Extensions;`, which brings in the `TryGetNonEnumeratedCount` polyfill.
   - `IHashCodeBlock` is gone from its file, which is renamed `IHashBlock.cs` after the interface it still holds.
   - `ArraySlice<T>` loses `CtorArgs` and the constructor that takes it.
 - **The shim's users:** without `IReadOnlySet<T>`, `Empty.Set<T>()` (47) is deleted, and `ReadOnlyEmpty<TKey, TValue>` is no longer a set. It still backs `Empty.Dictionary`, which `ScriptBlockInvocationException` uses.
@@ -1127,7 +1131,6 @@ Removing a type that only tests use means removing its tests too. Keep `ScriptBl
   - The 9 tests in `ListTransformAttributeTests.cs` are deleted with the attribute, and so are the 2 cases of `ComparingBlockTests`' constructor-validation theory.
   - The `EqualityBlock` tests in three files pass `additionalVariables: null` to the three-argument constructor. `ComparingBlockTests` calls the internal constructor, whose parameters match the deleted one's.
   - `Create_ReturnsAComparingBlockOfTheSpecifiedType` and `Construct_WrapsAnEqualityBlockForValueTypeKeys` check only the comparer's type. `Construct_UsesAnEqualityBlockWithValueTypeKeys` still shows that the adapter passes keys to the block.
-  - The build has no warnings. The 382 Engine tests, 191 in each target, and the 304 Pester tests in each edition passed.
 
 ### 47 — Leftover members, unused extension points, and TODOs in the XML docs
 

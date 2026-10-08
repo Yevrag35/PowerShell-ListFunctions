@@ -135,7 +135,7 @@ public sealed class FindIndexCmdlet : ListFunctionCmdletBase
 	/// Writes the index of the first matching element, or -1 when no element matches.
 	/// </summary>
 	/// <param name="state">The run state of the cmdlet. Its <see cref="CmdletRunState.FoundMatch"/> value indicates whether an element matched.</param>
-	protected override void EndCore(CmdletRunState state)
+	private protected override void EndCore(CmdletRunState state)
 	{
 		int index = state.FoundMatch ? _currentIndex : -1;
 

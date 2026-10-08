@@ -3,7 +3,7 @@ namespace ListFunctions.Modern;
 /// <summary>
 /// Defines a method that computes the hash code of an object by running a PowerShell script block.
 /// </summary>
-public interface IHashBlock
+internal interface IHashBlock
 {
 	/// <summary>
 	/// Computes the hash code of the specified object by running the script block.

@@ -11,7 +11,7 @@ namespace ListFunctions.Components;
 /// as a <see cref="bool"/> property.
 /// </remarks>
 [Flags]
-public enum CmdletRunFlags : uint
+internal enum CmdletRunFlags : uint
 {
 	/// <summary>No outcome is recorded.</summary>
 	None = 0,
@@ -48,7 +48,7 @@ public enum CmdletRunFlags : uint
 /// </para>
 /// </remarks>
 [StructLayout(LayoutKind.Sequential)]
-public readonly struct CmdletRunState
+internal readonly struct CmdletRunState
 {
 	private readonly uint _flags;
 

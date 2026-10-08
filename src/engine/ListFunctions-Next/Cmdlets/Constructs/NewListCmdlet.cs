@@ -140,7 +140,7 @@ public sealed class NewListCmdlet : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>Nothing is written when the list could not be created.</remarks>
 	/// <param name="state">The run state of the cmdlet. When <see cref="CmdletRunState.FoundMatch"/> is <see langword="true"/>, nothing is written.</param>
-	protected override void EndCore(CmdletRunState state)
+	private protected override void EndCore(CmdletRunState state)
 	{
 		if (!state.FoundMatch && _list is not null)
 		{

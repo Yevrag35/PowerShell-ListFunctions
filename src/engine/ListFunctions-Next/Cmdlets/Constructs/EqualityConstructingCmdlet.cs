@@ -14,9 +14,9 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// <remarks>
 /// <para>
 /// The begin phase is sealed. It resolves the collection's generic type arguments, chooses an equality comparer,
-/// constructs the collection through an <see cref="EqualityCollectionCtor"/>, and then calls
-/// <see cref="Begin(T, Type)"/>. Derived classes add pipeline input in <see cref="Process(T, Type)"/> and write the
-/// finished collection in <see cref="End(T, bool)"/>.
+/// constructs the collection, and then calls <see cref="Begin(T, Type)"/>. Derived classes add pipeline input in
+/// <see cref="Process(T, Type)"/> and write the finished collection in <see cref="End(T, bool)"/>. Only classes in this
+/// assembly can derive from this class.
 /// </para>
 /// <para>
 /// When the type used for equality is <see cref="string"/> or <see cref="object"/>, the cmdlet exposes a mandatory
@@ -114,10 +114,10 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// The method resolves the generic type arguments from <see cref="GetGenericTypes"/>, gets the equality comparer
-	/// from <see cref="GetCustomEqualityComparer(Type)"/>, and gets an <see cref="EqualityCollectionCtor"/> from
-	/// <see cref="GetConstructor(IEqualityComparer, Type[])"/>. It passes <see cref="Capacity"/> to that object and
-	/// constructs the collection with it. It also prepares the invoker that <see cref="AddToCollection(T, object[])"/> and
-	/// <see cref="AddToCollection(T, object)"/> use to call the collection's <c>Add</c> method.
+	/// from <see cref="GetCustomEqualityComparer(Type)"/>, and constructs the collection with them, with
+	/// <see cref="Capacity"/> as its initial capacity. It also prepares the invoker that
+	/// <see cref="AddToCollection(T, object[])"/> and <see cref="AddToCollection(T, object)"/> use to call the
+	/// collection's <c>Add</c> method.
 	/// </remarks>
 	protected sealed override void BeginCore()
 	{
@@ -165,7 +165,7 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// Passes the constructed collection to <see cref="End(T, bool)"/>.
 	/// </summary>
 	/// <param name="state">The run state of the cmdlet. Its <see cref="CmdletRunState.FoundMatch"/> value indicates whether <see cref="Process(T, Type)"/> requested a stop.</param>
-	protected sealed override void EndCore(CmdletRunState state)
+	private protected sealed override void EndCore(CmdletRunState state)
 	{
 		this.End(_collection, state.FoundMatch);
 	}

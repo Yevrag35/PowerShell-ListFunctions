@@ -44,33 +44,5 @@ internal static class ObjectCloningExtensions
 			_ => obj,
 		};
 	}
-
-	/// <summary>
-	/// Creates a new array that contains a copy of each element of the specified array.
-	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// Despite the method's name, the copy goes only one level deep. The method copies each element once, the same way
-	/// that <see cref="ICloneable.Clone"/>, <see cref="PSObject.Copy"/>, or <see cref="PSMemberInfo.Copy"/> does for
-	/// that element's type. It does not copy the objects that an element refers to unless the element's own copy
-	/// mechanism does.
-	/// </para>
-	/// <para>
-	/// An element that doesn't support copying, such as a <see cref="string"/> or a boxed value type, appears in the new
-	/// array as the same reference as in <paramref name="source"/>.
-	/// </para>
-	/// </remarks>
-	/// <param name="source">The array to copy. This value can be <see langword="null"/> or empty.</param>
-	/// <returns>
-	/// A new array, of the same length as <paramref name="source"/>, that contains the copied elements in the same order.
-	/// An empty array if <paramref name="source"/> is <see langword="null"/> or empty.
-	/// </returns>
-	public static object?[] Clone(this object?[]? source)
-	{
-		if (source is null || source.Length == 0)
-			return [];
-
-		return Array.ConvertAll(source, CloneIf);
-	}
 }
 

@@ -5,8 +5,8 @@ namespace ListFunctions.Modern.Exceptions;
 /// </summary>
 /// <remarks>
 /// <para>
-/// A comparing script block must return an <see cref="int"/>, or a value that PowerShell can convert to one. A
-/// <see cref="ComparingBlock{T}"/> throws this exception when the script block returns no value, returns
+/// A comparing script block must return an <see cref="int"/>, or a value that PowerShell can convert to one. The
+/// comparer that runs the script block throws this exception when the script block returns no value, returns
 /// <see langword="null"/>, or returns a value that can't be converted to an <see cref="int"/>.
 /// </para>
 /// <para>
