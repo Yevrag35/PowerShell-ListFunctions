@@ -385,7 +385,7 @@ The others guard cleanup and reflection fallbacks: `ListFunctionCmdletBase.Clean
 - [ ] The 4.0.0 `net48` Release output also contains `ZLinq.dll`, `System.Memory.dll`, `System.Collections.Immutable.dll`, `Microsoft.Bcl.Memory.dll`, `System.Buffers.dll`, `System.Numerics.Vectors.dll`, and `System.Runtime.CompilerServices.Unsafe.dll`. `Desk/` doesn't ship them, and `FileList` doesn't list them.
 - [ ] `DotNetFrameworkVersion = '4.7.1'` in `ListFunctions/ListFunctions.psd1` doesn't match the `net48` target.
 - [ ] Nothing enforces PowerShell 7.6 or later, which the README states. `ListFunctions/ListFunctions.psm1` imports `Core\ListFunctions.Next.dll` on any 7.x, but a `net10.0` assembly can't load on PowerShell 7.5 (.NET 9) or earlier.
-- [ ] `Tags` includes `Remove` and `Modify`, but `Remove-All` and `Remove-At` exist only in the legacy scripts under `src/public`.
+- [ ] `Tags` includes `Remove` and `Modify`, but no command removes or modifies anything. `Remove-All` and `Remove-At` existed only in the legacy scripts under `src/public`, which `review-4.0.md` item 51 deleted.
 - [ ] `ReleaseNotes` is still the 3.x text.
 
 **Tests:** None. This is a release checklist, and the Pester tests import the build output, not the DLLs shipped under `ListFunctions/`. `tests/Module.Tests.ps1` already checks the build's exports against the manifest's `CmdletsToExport` and `AliasesToExport`.

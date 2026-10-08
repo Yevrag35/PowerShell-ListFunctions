@@ -17,7 +17,6 @@ dotnet build src/engine/ListFunctions-Next/ListFunctions-Next.csproj -c Debug   
 - `ListFunctions-NETFramework` gets its runtime dependencies (ZLinq, System.Memory, System.Collections.Immutable, and so on) from Engine's `netstandard2.0` package references. Its only direct package references are `Microsoft.PowerShell.5.ReferenceAssemblies`, with `ExcludeAssets="runtime"`, and `PolySharp`. As of PolySharp 1.16.0, Engine's generated polyfills (the nullable attributes and others) are not visible to it through InternalsVisibleTo, so it generates its own.
 - `Directory.Build.props` sets `CopyLocalLockFileAssemblies` to `true`, so every Debug and Release output folder contains its NuGet runtime dependencies, such as `ZLinq.dll`. By default the SDK copies them only for `net48`.
 - Keep PowerShell itself out of the build outputs. `System.Management.Automation` is referenced with `ExcludeAssets="runtime;native"`. Without `native`, PowerShell's native binaries still land under `runtimes/`. Engine's `PowerShellStandard.Library` uses `ExcludeAssets="runtime"`, and `PrivateAssets="all"` so that it doesn't flow to `ListFunctions-NETFramework`. `ListFunctions.Engine.Tests` is the exception: it hosts PowerShell to run its tests.
-- `.build/build.ps1` and `.debug/debug.ps1` are left over from the old script-based module. They build `src/ListFunctions.psm1` and read from `src/assemblies`, and neither path exists anymore. Don't use them to build the current module.
 
 ## Tests
 
@@ -77,8 +76,6 @@ The `ListFunctions/` directory is the publishable module, and it contains commit
 - `Directory.Build.props` also holds the shared authorship and repository metadata and the common compiler settings (`RootNamespace`, `LangVersion`, `ImplicitUsings`, `AllowUnsafeBlocks`), plus `CopyLocalLockFileAssemblies`.
 	- It declares the global usings as `<Using>` items: `System`, `System.Collections`, `System.Collections.Generic`, `System.Collections.Immutable`, `System.Collections.ObjectModel`, `System.Diagnostics`, `System.Diagnostics.CodeAnalysis`, `System.Globalization`, `System.Linq`, `System.Linq.Expressions`, `System.Management.Automation`, `System.Management.Automation.Language`, `System.Reflection`, `System.Runtime.CompilerServices`, `System.Runtime.InteropServices`, `System.Runtime.Serialization`, and `System.Text`. It also declares the `AllowsNull` and `PSAllowNull` aliases (see Code style). `ImplicitUsings` stays disabled. The `<Using>` items are not conditioned on target framework, so every target gets the same set, and they sit in this shared file because `ListFunctions-NETFramework` compiles Next's files but doesn't inherit Next's MSBuild items.
 - Each csproj keeps only what differs between projects: target frameworks, `Nullable`, assembly name, and title/product.
-
-`src/public/*.ps1` and `src/private/*.ps1` contain the legacy script implementation. The module does not load them. `Remove-All` and `Remove-At` exist only there and have not been ported to cmdlets.
 
 ## Code style
 

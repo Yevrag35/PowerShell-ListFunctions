@@ -16,9 +16,19 @@
 		"tasks": [
 			{
 				"label": "Build",
-				"type": "shell",
-				"command": "& ${workspaceFolder:ListFunctions}\\.build\\build.ps1",
-				"problemMatcher": [],
+				"detail": "Builds every project in the solution in Debug, which the Test task runs against.",
+				"type": "process",
+				"command": "dotnet",
+				"args": [
+					"build",
+					"${workspaceFolder:ListFunctions}\\src\\engine\\ListFunctions.Engine.slnx",
+					"-c",
+					"Debug"
+				],
+				"options": {
+					"cwd": "${workspaceFolder:ListFunctions}"
+				},
+				"problemMatcher": "$msCompile",
 				"promptOnClose": true,
 				"presentation": {
 					"echo": true,
@@ -64,18 +74,6 @@
 					"kind": "test",
 					"isDefault": true
 				}
-			}
-		]
-	},
-	"launch": {
-		"version": "0.2.0",
-		"configurations": [
-			{
-				"name": "PowerShell: Launch Script",
-				"type": "PowerShell",
-				"request": "launch",
-				"script": "${workspaceFolder:ListFunctions}\\.debug\\debug.ps1",
-				"cwd": "${workspaceFolder:ListFunctions}"
 			}
 		]
 	}

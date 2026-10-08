@@ -48,9 +48,9 @@ Item numbers continue from `bugs.md`, so each number names one item in either fi
 **Can wait**
 
 - [x] 48 — `[ValidateScriptVariable]` rejects script blocks that have a `param()` block
-- [ ] 49 — New-Dictionary's `-InputObject` takes only a hashtable
+- [x] 49 — New-Dictionary's `-InputObject` takes only a hashtable
 - [ ] 50 — There's no completion for type names and no help content
-- [ ] 51 — The legacy script implementation is still in the repo
+- [x] 51 — The legacy script implementation is still in the repo
 
 ## Running the repros
 
@@ -942,7 +942,7 @@ What `SilentlyContinue` does today, measured on 2026-10-06 in both editions:
 - **Docs:** the XML docs of the three classes say "Tests whether" and "the result of the test" where they said "Asserts that" and "the result of the assertion". In the README: the Commands table, the two cmdlets' sections and their alias lists, and the sentences that name them in `$null` input, Script blocks, Stopping early, and Errors in script blocks. The README's Assertions heading stays, like the namespace. `CLAUDE.md` names the new cmdlets.
 - **Not changed:**
   - `TestAllObjectCmdlet.ProcessWhenNoCondition` still throws "Asserting an all-true condition requires a condition to be specified." PowerShell rejects a `$null` condition when it binds the parameter, so users never see the message.
-  - The legacy script functions `Assert-Any` and `Assert-All` in `src/public/`, which the module doesn't load (see 51).
+  - The legacy script functions `Assert-Any` and `Assert-All` in `src/public/`, which the module didn't load. 51's fix deleted them.
 - **Tests:** `tests/Assert-AnyObject.Tests.ps1` and `tests/Assert-AllObject.Tests.ps1` are now `tests/Test-AnyObject.Tests.ps1` and `tests/Test-AllObject.Tests.ps1`. They and `tests/Module.Tests.ps1` call the cmdlets by their new names, and expect the new class names in error IDs.
   - **New test:** in `tests/Module.Tests.ps1`, Assert-AnyObject and Assert-AllObject must be aliases of the Test cmdlets, because scripts written for 3.x use those names. The manifest tests don't catch a dropped alias, because it would be dropped from the manifest too.
   - **A trap for tests that call an alias:** the first `& Import-ListFunctions.ps1` in a session leaves every alias of the module unresolvable, and a second import makes them resolvable. Measured with `Any`, `Assert-AnyObject`, and `Find-IndexOf`. So a call to an alias fails with `CommandNotFoundException` in `Invoke-InNewRunspace`, which imports once, and in a test file that runs alone or first. The new test reads `$module.ExportedAliases` instead of calling the aliases.
@@ -1261,6 +1261,8 @@ Fixing these after 4.0.0 doesn't break anyone.
 
 **Fix idea:** Type the parameter as `IDictionary`, and copy the entries in the order they're enumerated.
 
+**Fixed 2026-10-07** Changed parameter type to `IDictionary`.
+
 ### 50 — There's no completion for type names and no help content
 
 - **No completer for type parameters:** `-GenericType`, `-KeyType`, and `-ValueType` have no argument completer. `TabExpansion2 -inputScript 'New-List -GenericType Sys' -cursorColumn 25` finds 0 matches, and with nothing typed, completion offers file names.
@@ -1278,6 +1280,15 @@ Fixing these after 4.0.0 doesn't break anyone.
 `Remove-All` and `Remove-At` exist only in the legacy scripts. The manifest's `Tags` still include `Remove` and `Modify`, which `bugs.md` item 15 covers.
 
 **Decision made** `Remove-All` and `Remove-At` will be removed.
+
+**Fixed:** on 2026-10-07, as decided. The legacy scripts are deleted, which removes `Remove-All` and `Remove-At`, and so is everything that only built or loaded them.
+
+- **Scripts:** the 10 files in `src/public/`, which defined the legacy functions, the 4 helpers in `src/private/`, and `.build/build.ps1` and `.debug/debug.ps1`.
+- **The workspace:** in `listfunctions.code-workspace`, the Build task, which ran `.build\build.ps1`, now runs `dotnet build` on `src/engine/ListFunctions.Engine.slnx` in Debug with the `$msCompile` problem matcher, so it's still the default build task. The "PowerShell: Launch Script" configuration, which ran `.debug\debug.ps1`, is gone, and so is the `launch` section, which held only that configuration. Each project's launch profile still starts its `Debug.ps1`.
+- **`.gitignore`:** it loses `src/**/*.psd1`, `src/**/*.psm1`, and `src/assemblies/ListFunctions.Engine.dll`, which ignored what the legacy build wrote under `src/`. They never matched the shipped `ListFunctions/ListFunctions.psd1` and `ListFunctions/ListFunctions.psm1`, and no file under `src/` outside `bin/` and `obj/` matches them now.
+- **Docs:** `CLAUDE.md` no longer describes the legacy scripts or the two build scripts.
+- **Not changed:** the manifest. Its `Tags` still include `Remove` and `Modify`, which `bugs.md` item 15 covers, and its `Description` still says that the module provides functions to manipulate collections, which item 15 doesn't list.
+- **Tests:** none added, because the change only deletes files that neither the module nor the tests load, and changes the workspace's tasks.
 
 ## Outside this list
 
