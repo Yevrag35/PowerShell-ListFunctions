@@ -12,7 +12,7 @@ namespace ListFunctions.Validation;
 /// That block is the <c>process</c> block when there is one, and otherwise the <c>end</c> block, which holds the
 /// statements of a script block without named blocks. An empty script block, such as <c>{ }</c>, fails, and so does a
 /// script block that has a <c>begin</c> block, a <c>clean</c> block, or both a <c>process</c> block and an <c>end</c>
-/// block.
+/// block. A function's script block, such as <c>${function:Test-It}</c>, is checked by the function's body.
 /// </para>
 /// <para>
 /// The attribute checks only <see cref="ScriptBlock"/> arguments. An argument of any other type, including

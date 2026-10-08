@@ -103,7 +103,7 @@ internal static class ArraySlice
 /// <typeparam name="T">The type of elements contained in the array slice.</typeparam>
 [DebuggerDisplay("Length = {Length}")]
 [CollectionBuilder(typeof(ArraySlice), nameof(ArraySlice.Create))]
-internal readonly struct ArraySlice<T> : IEnumerable<T>
+internal readonly struct ArraySlice<T>
 {
 	private readonly T[]? _array;
 	private readonly int _length;
@@ -177,18 +177,6 @@ internal readonly struct ArraySlice<T> : IEnumerable<T>
 	public Enumerator GetEnumerator()
 	{
 		return new Enumerator(this);
-	}
-	/// <inheritdoc/>
-	[DebuggerStepThrough]
-	IEnumerator<T> IEnumerable<T>.GetEnumerator()
-	{
-		return this.GetEnumerator();
-	}
-	/// <inheritdoc/>
-	[DebuggerStepThrough]
-	IEnumerator IEnumerable.GetEnumerator()
-	{
-		return this.GetEnumerator();
 	}
 
 	/// <summary>

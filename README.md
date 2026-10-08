@@ -78,6 +78,21 @@ Most commands take script blocks, which they run once for each element or once f
 
 A script block has to use at least one of these variables for each element it receives. Otherwise, the command fails with a parameter validation error. A variable that appears only inside a nested script block doesn't count.
 
+A script block can also take the elements as parameters. The command passes the elements to it as arguments, in order, so the first parameter of a `param()` block receives the first element, and the second parameter receives the second. A parameter counts as a variable for the element it receives, and the variables in the table hold the elements too. `$args` holds only the elements that no parameter receives, so with `param($a)`, the second element is `$args[0]`.
+
+```powershell
+1, 2, 3 | Test-AnyObject { param($n) $n -gt 2 }                                     # True
+5, 3, 1 | New-SortedSet [int] -ComparingScript { param($a, $b) $b.CompareTo($a) }   # 5, 3, 1
+```
+
+You can pass a function's script block too. The command checks only the script block that you pass, not the functions that it calls, so a variable that appears only in a called function doesn't count. Pass the element to the function instead:
+
+```powershell
+function Test-Big { param($n) $n -gt 2 }
+1, 2, 3 | Test-AnyObject ${function:Test-Big}   # True
+1, 2, 3 | Test-AnyObject { Test-Big $_ }        # True
+```
+
 The commands run one block of a script block: its `process` block if it has one, and otherwise its `end` block, which holds the statements of a script block without named blocks. So a script block can't have a `begin` block, a `clean` block, or both a `process` block and an `end` block, and the block that runs has to contain at least one statement. A script block that breaks this rule fails with a parameter validation error too, before the command reads any input.
 
 Passing `$null` to a script block parameter is the same as leaving the parameter out. So when the command requires the parameter, as `Test-AllObject`, `Find-Index`, and `Find-LastIndex` require `-Condition`, PowerShell rejects `$null` with a parameter binding error. `Test-AnyObject -Condition $null` tests for elements that aren't `$null`, the same as `Test-AnyObject` without a condition.

@@ -47,7 +47,7 @@ Item numbers continue from `bugs.md`, so each number names one item in either fi
 
 **Can wait**
 
-- [ ] 48 — `[ValidateScriptVariable]` rejects script blocks that have a `param()` block
+- [x] 48 — `[ValidateScriptVariable]` rejects script blocks that have a `param()` block
 - [ ] 49 — New-Dictionary's `-InputObject` takes only a hashtable
 - [ ] 50 — There's no completion for type names and no help content
 - [ ] 51 — The legacy script implementation is still in the repo
@@ -1231,6 +1231,24 @@ Fixing these after 4.0.0 doesn't break anyone.
 - **The message is incomplete:** it leaves out `$args[0]` and `$args[1]`, which the README lists.
 
 **Fix idea:** Accept a script block whose `param()` block declares a parameter for each element, and list `$args[...]` in the message.
+
+**Fixed:** on 2026-10-07. The rule is still that a script block uses each element it receives, now in whichever variable it receives it. That's stricter than the fix idea's "declares a parameter for each element": a parameter that the script block never uses doesn't count, so `{ param($a, $b) $a -eq $a }` still fails. The rule applies to every parameter that has the attribute: `-Condition` on the four condition cmdlets, `-EqualityScript` and `-HashCodeScript` on New-HashSet and New-Dictionary, `-ComparingScript`, and ConvertTo-Dictionary's `-KeySelector` and `-ValueSelector`.
+
+- **The rule:** each `args[i]` entry of the attribute accepts the element at index `i` of the script block's arguments. Without a `param()` block, that's `$args[i]`, as before. With one, PowerShell binds the arguments to the parameters in the order they're declared, whatever their attributes, and `$args` holds only the arguments left over (measured 2026-10-07 in both editions). So the element at index `i` is the parameter at index `i`, or `$args[i - n]` after `n` parameters. `{ param($a) $a.CompareTo($args[0]) }` passes, and `{ param($a) $a.CompareTo($args[1]) }`, whose `$args[1]` is always `$null`, fails. A name that the `param()` block declares counts only when its parameter receives an accepted element, because the parameter takes the place of the variable that the cmdlet defines.
+- **What the check searches:** only the block that runs, the `process` block or else the `end` block, instead of the whole syntax tree. The whole tree included the `param()` block, so `{ param($x, $y) 0 }` passed a comparer's check through its declarations, and so did a default value such as the `$_` in `param($n = $_)`. Both fail now.
+- **What else fails now:** a script block that reads an element where its `param()` block leaves something else. That's an `$args` index past the arguments left over, such as `$args[0]` after `param($n)` in a script block that gets one element, or a name that a parameter at another index takes over, such as `$this` in `param($n, $this)`. The old check accepted both, and neither can read the element at run time.
+- **A function's script block:** the new `ScriptBlockExtensions.TryGetBody` returns the body and the parameters of a script block whose syntax tree is a `ScriptBlockAst` or a `FunctionDefinitionAst`, with a function's parameters from its parentheses or from its body's `param()` block. `IsProperScriptBlock`, which `[IsScriptBlock]` and `ComparingBase` share, uses it too, so `${function:Test-It}` passes both attributes, which 34 left for this item.
+- **Function calls:** the check still doesn't look inside them. A function that the script block calls does see `$_`, so `{ Test-Big }` would work, but following calls would mean resolving commands while the parameter binds. The README tells users to pass the element instead, as in `{ Test-Big $_ }`.
+- **The message:** "The script block must use at least one of these variables: $y, $right, $b." It lists the accepted names that the script block doesn't declare as parameters, and then, for each accepted element, the parameter that receives it, as the script block writes it, or the `$args` index that holds it. A fixed list would offer `$args[1]` for `{ param($a) $a.CompareTo($args[1]) }`, which is the reference it rejects.
+- **Also:** the attribute no longer uses ZLinq, so its `ArgumentNullException` crefs are short again, and the `xml-docs` skill's example of a file with `using ZLinq;` now quotes `ComparingBlock.cs`. `ArraySlice<T>` no longer implements `IEnumerable<T>`, which only the old message's `string.Join` call needed.
+- **Docs:** the XML docs of `ValidateScriptVariableAttribute`, `IsScriptBlockAttribute`, `IsProperScriptBlock`, `PSThisVariable.FirstArg` and `SecondArg`, and the 11 parameters that have the attribute. In the README, the Script blocks section describes `param()` blocks, how they shift `$args`, a function's script block, and passing the element to a called function. The `lf-pwsh-internals` skill's `binding.md` records the measurements.
+- **Tests:** new and changed tests in both suites.
+  - Engine, `Validation/ValidateScriptVariableAttributeTests.cs`: script blocks with `param()` blocks that pass and fail, comparers whose right operand is a parameter or a shifted `$args` index, `{ param($x, $y) 0 }`, functions declared both ways and a filter, and the message, in place of the test that checked only the old message's start.
+  - Engine, `Extensions/ScriptBlockExtensionsTests.cs`: `IsProperScriptBlock` on a function's script block. Both classes get one from the new `FunctionScriptBlock` helper.
+  - Pester: `tests/Test-AnyObject.Tests.ps1` runs a `-Condition` that has a `param()` block, and a function's script block. `tests/New-SortedSet.Tests.ps1` runs a `-ComparingScript` with two parameters, and with one parameter followed by `$args[0]`.
+- **Not changed:**
+  - The message prints `$PSItem` as `$psitem`, because `PSThisVariable.PSItem` is lowercase.
+  - Engine's docs of `ScriptBlockFilter`, `EqualityBlock`, `HashBlock`, and `ComparingBlock` still say that the script block sees an element as `$args[0]` or `$args[1]`. That's what the cmdlets pass, and it holds unless the script block has a `param()` block.
 
 ### 49 — New-Dictionary's `-InputObject` takes only a hashtable
 

@@ -1,7 +1,7 @@
 namespace ListFunctions.Extensions;
 
 /// <summary>
-/// Provides helpers that validate script blocks and invoke them with injected variables.
+/// Provides helpers that inspect and validate script blocks, and invoke them with injected variables.
 /// </summary>
 /// <remarks>
 /// A script block runs only on a thread whose <see cref="System.Management.Automation.Runspaces.Runspace.DefaultRunspace"/> is set. Callers of the invoke method must
@@ -36,21 +36,22 @@ internal static class ScriptBlockExtensions
 	/// </para>
 	/// <para>
 	/// The method returns <see langword="true"/> when <c>InvokeWithContext</c> can run the script block and the block that
-	/// it runs contains at least one statement. Windows PowerShell 5.1 has no <c>clean</c> blocks, so only the .NET 10 build
-	/// looks for one.
+	/// it runs contains at least one statement. It checks a function's script block, such as <c>${function:Test-It}</c>, by
+	/// the function's body (see <see cref="TryGetBody(ScriptBlock, out ScriptBlockAst, out ReadOnlyCollection{ParameterAst})"/>).
+	/// Windows PowerShell 5.1 has no <c>clean</c> blocks, so only the .NET 10 build looks for one.
 	/// </para>
 	/// </remarks>
 	/// <param name="scriptBlock">The script block to check. This value must not be <see langword="null"/>.</param>
 	/// <returns>
 	/// <see langword="true"/> if <paramref name="scriptBlock"/> has a body that can be invoked; otherwise, <see langword="false"/>,
-	/// including when its syntax tree is not a <see cref="ScriptBlockAst"/>.
+	/// including when its syntax tree is neither a <see cref="ScriptBlockAst"/> nor a <see cref="FunctionDefinitionAst"/>.
 	/// </returns>
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="scriptBlock"/> is null.</exception>
 	internal static bool IsProperScriptBlock(this ScriptBlock scriptBlock)
 	{
 		ArgumentNullException.ThrowIfNull(scriptBlock);
 
-		if (scriptBlock.Ast is not ScriptBlockAst scriptAst || scriptAst.BeginBlock is not null)
+		if (!scriptBlock.TryGetBody(out ScriptBlockAst? scriptAst, out _) || scriptAst.BeginBlock is not null)
 		{
 			return false;
 		}
@@ -68,6 +69,59 @@ internal static class ScriptBlockExtensions
 		}
 
 		return scriptAst.EndBlock is not null && scriptAst.EndBlock.Statements.Count != 0;
+	}
+
+	/// <summary>
+	/// Gets the body of a script block and the parameters that it declares.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// Most script blocks have a <see cref="ScriptBlockAst"/> as their syntax tree, which is also their body. A function's
+	/// script block, such as <c>${function:Test-It}</c> or the <see cref="FunctionInfo.ScriptBlock"/> of the function, has
+	/// a <see cref="FunctionDefinitionAst"/> instead, and its body is a child node. A search of the function's tree that
+	/// doesn't search nested script blocks skips that body, so search <paramref name="body"/> instead.
+	/// </para>
+	/// <para>
+	/// A function declares its parameters either in parentheses after its name, as in <c>function Test-It($a)</c>, or in a
+	/// <c>param()</c> block in its body, and the method returns them from either place. PowerShell binds the arguments that
+	/// <see cref="ScriptBlock.InvokeWithContext(Dictionary{string, ScriptBlock}, List{PSVariable}, object[])"/> passes to
+	/// these parameters in the order they're declared, whatever their attributes, and puts the arguments left over in
+	/// <c>$args</c>.
+	/// </para>
+	/// </remarks>
+	/// <param name="scriptBlock">The script block whose body to get. This value must not be <see langword="null"/>.</param>
+	/// <param name="body">
+	/// When this method returns <see langword="true"/>, contains the body of <paramref name="scriptBlock"/>; otherwise,
+	/// <see langword="null"/>.
+	/// </param>
+	/// <param name="parameters">
+	/// When this method returns <see langword="true"/>, contains the parameters that <paramref name="scriptBlock"/> declares, in
+	/// the order it declares them, or <see langword="null"/> or an empty collection when it declares none; otherwise,
+	/// <see langword="null"/>.
+	/// </param>
+	/// <returns>
+	/// <see langword="true"/> if the syntax tree of <paramref name="scriptBlock"/> is a <see cref="ScriptBlockAst"/> or a
+	/// <see cref="FunctionDefinitionAst"/>; otherwise, <see langword="false"/>.
+	/// </returns>
+	internal static bool TryGetBody(this ScriptBlock scriptBlock, [NotNullWhen(true)] out ScriptBlockAst? body, out ReadOnlyCollection<ParameterAst>? parameters)
+	{
+		switch (scriptBlock.Ast)
+		{
+			case ScriptBlockAst scriptAst:
+				body = scriptAst;
+				parameters = scriptAst.ParamBlock?.Parameters;
+				return true;
+
+			case FunctionDefinitionAst functionAst:
+				body = functionAst.Body;
+				parameters = functionAst.Parameters ?? functionAst.Body.ParamBlock?.Parameters;
+				return true;
+
+			default:
+				body = null;
+				parameters = null;
+				return false;
+		}
 	}
 
 	// PowerShell doesn't copy the args array: a script block without a param block gets that array as $args. Pass a

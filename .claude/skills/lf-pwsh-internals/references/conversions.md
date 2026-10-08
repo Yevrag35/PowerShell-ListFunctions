@@ -2,9 +2,9 @@
 
 ## The rule
 
-When a cmdlet converts an element to a typed collection's element type, it stores what `$list.Add($x)` stores in a typed list of the same element type, `$null` included. The user decided this on 2026-09-30, answering the open question under item 04 in `.work/bugs.md`, and showed it with `[System.Collections.Generic.List[int]]::new()`, where `.Add('123')` stores `123` and `.Add($null)` stores `0`.
+When a cmdlet converts an element to a typed collection's element type, it stores what `$list.Add($x)` stores in a typed list of the same element type, `$null` included. This is a deliberate rule, set on 2026-09-30. For example, in a `[System.Collections.Generic.List[int]]::new()`, `.Add('123')` stores `123` and `.Add($null)` stores `0`.
 
-- The rule covers dictionary values too. Item 19 applied it to ConvertTo-Dictionary.
+- The rule covers dictionary values too, and ConvertTo-Dictionary follows it.
 - `-IncludeNullElements` decides only whether a `$null` reaches the collection, not what it converts to.
 - When a change affects how elements convert, compare the result with `$list.Add(...)` on the same type in both editions, instead of choosing a rule.
 

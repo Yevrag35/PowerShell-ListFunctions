@@ -1,6 +1,6 @@
 # Errors from script blocks
 
-How an error in a script block that a cmdlet runs ends a statement or the whole script. Measured 2026-10-03 on PowerShell 7.6.6 and Windows PowerShell 5.1.26100, while fixing item 21 in `.work/bugs.md`, unless a fact gives another date.
+How an error in a script block that a cmdlet runs ends a statement or the whole script. Measured 2026-10-03 on PowerShell 7.6.6 and Windows PowerShell 5.1.26100, unless a fact gives another date.
 
 ## How ForEach-Object behaves
 
@@ -24,11 +24,11 @@ Seen from C# around `InvokeWithContext` (measured 2026-10-05):
 - `throw 'x'` is exactly a `RuntimeException`.
 - `Write-Error` under `Stop` is an `ActionPreferenceStopException`. Its `ErrorRecord` is the record of the error that caused the stop, so its `ToString()` is that error's message, not "The running command stopped because..." (measured 2026-10-06).
 - `break` is a `BreakException`, which is a `FlowControlException`, not a `RuntimeException`.
-- A script block with a `begin` block gives a `PSInvalidOperationException`, which derives from `InvalidOperationException`, not `RuntimeException`. Likewise, `PSInvalidCastException` derives from `InvalidCastException` (checked 2026-10-07). So C# overload resolution sends either one to an `Exception` overload, not a `RuntimeException` one. Review item 47 missed that and called `ComparingScriptException.FromBlockException<T>(Exception, ...)` unused.
+- A script block with a `begin` block gives a `PSInvalidOperationException`, which derives from `InvalidOperationException`, not `RuntimeException`. Likewise, `PSInvalidCastException` derives from `InvalidCastException` (checked 2026-10-07). So C# overload resolution sends either one to an `Exception` overload, not a `RuntimeException` one. Don't call an `Exception` overload unused just because a `RuntimeException` overload sits beside it, as in `ComparingScriptException.FromBlockException<T>`: these exceptions reach it.
 
 ## Preferences inside the script block
 
-Measured 2026-10-06, for review item 40.
+Measured 2026-10-06.
 
 - Under `SilentlyContinue`, a written error, a `throw`, and a failed method call are all hidden, and the script block goes on to its next statement. But when any `try` block encloses the command, even the caller's or Pester's, the `throw` and the failed method call go to that `try` block instead.
 - `-ErrorAction Stop` on a command inside the script block still ends the whole script.
@@ -43,6 +43,6 @@ Measured 2026-10-06, for review item 40.
 
 ## In ListFunctions
 
-- `ListFunctionCmdletBase.PassesThrough` lets a `RuntimeException` or a `FlowControlException` reach PowerShell unchanged, so PowerShell handles it the way it does from `ForEach-Object`. The base class applies it to exceptions from `BeginCore` and `ProcessCore`. That makes the four condition cmdlets match `ForEach-Object` (item 21), and ConvertTo-Dictionary's selectors too, which the user added to the rule after item 21.
-- Since review item 33 (2026-10-05), the comparer script blocks of New-HashSet, New-SortedSet, and New-Dictionary match `ForEach-Object` too. The collection's `Add` method runs through reflection, so the cmdlets rethrow the unwrapped exception with `RethrowIfPassesThrough`.
-- Since review item 40, a condition cmdlet whose `-ScriptBlockErrorAction` is `SilentlyContinue` or `Ignore` runs the condition under `Stop` and writes each error that the condition doesn't handle as a warning, through `ListFunctionCmdletBase.CreateConditionFilter`. The user chose this over comparing `$Error` before and after, which can't tell which errors the preference hid.
+- `ListFunctionCmdletBase.PassesThrough` lets a `RuntimeException` or a `FlowControlException` reach PowerShell unchanged, so PowerShell handles it the way it does from `ForEach-Object`. The base class applies it to exceptions from `BeginCore` and `ProcessCore`. That makes the four condition cmdlets and ConvertTo-Dictionary's selectors match `ForEach-Object`.
+- The comparer script blocks of New-HashSet, New-SortedSet, and New-Dictionary match `ForEach-Object` too. The collection's `Add` method runs through reflection, so the cmdlets rethrow the unwrapped exception with `RethrowIfPassesThrough`.
+- A condition cmdlet whose `-ScriptBlockErrorAction` is `SilentlyContinue` or `Ignore` runs the condition under `Stop` and writes each error that the condition doesn't handle as a warning, through `ListFunctionCmdletBase.CreateConditionFilter`. Don't switch to comparing `$Error` before and after: `$Error` can't tell which errors the preference hid.

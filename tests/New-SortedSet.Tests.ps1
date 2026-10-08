@@ -16,6 +16,16 @@ Describe 'New-SortedSet' {
 		($set -join ', ') | Should-Be '5, 3, 1'
 	}
 
+	# PowerShell binds the elements to the parameters of a param() block in order, and $args holds the ones left over.
+	# Parameter validation used to reject both script blocks. Swapped parameters would sort the set in reverse.
+	It 'passes the elements to a -ComparingScript that has a param() block with <Label>' -ForEach @(
+		@{ Label = 'two parameters'; Script = { param($a, $b) $a.CompareTo($b) } }
+		@{ Label = 'one parameter, followed by $args[0]'; Script = { param($a) $a.CompareTo($args[0]) } }
+	) {
+		$set = 5, 3, 1 | New-SortedSet [int] -ComparingScript $Script
+		($set -join ', ') | Should-Be '1, 3, 5'
+	}
+
 	It 'treats a piped array as one element' -Tag 'Bug06' {
 		# The array can't be converted to [int], so only 3 is added.
 		$set = @(3, @(1, 2)) | New-SortedSet [int] -ErrorAction SilentlyContinue

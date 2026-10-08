@@ -38,11 +38,11 @@ public void Foo() { }
 
 ### Files with `using ZLinq;`
 
-In a file with `using ZLinq;`, write every cref to `ArgumentNullException` as `System.ArgumentNullException`, whether it's in `<exception cref>`, `<see cref>`, or `<seealso cref>`. Other exceptions, such as `ArgumentException`, keep the short form. From `src/engine/ListFunctions.Engine/Validation/ValidateScriptVariableAttribute.cs`:
+In a file with `using ZLinq;`, write every cref to `ArgumentNullException` as `System.ArgumentNullException`, whether it's in `<exception cref>`, `<see cref>`, or `<seealso cref>`. Other exceptions, such as `ArgumentException`, keep the short form. From `src/engine/ListFunctions.Engine/Modern/ComparingBlock.cs`:
 
 ```csharp
-/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="variableNames"/> is null.</exception>
-/// <exception cref="ArgumentException">Thrown when <paramref name="variableNames"/> is empty.</exception>
+/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="genericType"/> is null.</exception>
+/// <exception cref="ArgumentException">Thrown when <paramref name="genericType"/> can't be used as a generic type argument.</exception>
 ```
 
 - ZLinq's `netstandard2.0` build declares an internal `ZLinq.ArgumentNullException`. Code can't see an internal type in another assembly, but cref lookup still finds it, so the short form is ambiguous: warning CS0419, "Ambiguous reference in cref attribute: 'ArgumentNullException'."

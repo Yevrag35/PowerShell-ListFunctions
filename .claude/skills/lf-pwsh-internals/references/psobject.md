@@ -22,5 +22,5 @@ PowerShell 7 has a public `PSObject(int)` constructor, which sets the capacity f
 
 ## In ListFunctions
 
-- Engine's `PSObjectExtensions.GetBaseObject`, in `src/engine/ListFunctions.Engine/Extensions/PSObjectExtensions.cs`, unwraps one layer at a time through `ImmediateBaseObject` and stops at a `PSCustomObject`, so a custom object stays wrapped, the way the pipeline leaves it. Until review item 42 (2026-10-06), it read the private members above. Don't reintroduce private reads, and don't replace its loop with `PSObject.BaseObject`. `src/engine/ListFunctions.Engine.Tests/Extensions/PSObjectExtensionsTests.cs` guards both.
+- Engine's `PSObjectExtensions.GetBaseObject`, in `src/engine/ListFunctions.Engine/Extensions/PSObjectExtensions.cs`, unwraps one layer at a time through `ImmediateBaseObject` and stops at a `PSCustomObject`, so a custom object stays wrapped, the way the pipeline leaves it. Until 2026-10-06, it read the private members above. Don't reintroduce private reads, and don't replace its loop with `PSObject.BaseObject`. `src/engine/ListFunctions.Engine.Tests/Extensions/PSObjectExtensionsTests.cs` guards both.
 - Engine tests and repros never build a wrapped value with `new PSObject(<int>)`.

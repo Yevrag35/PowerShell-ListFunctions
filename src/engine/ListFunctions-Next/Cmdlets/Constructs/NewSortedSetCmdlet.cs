@@ -91,10 +91,11 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase, IDynamicParamet
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	/// The script block receives the two elements as <c>$x</c> and <c>$y</c>, as <c>$left</c> and <c>$right</c>, or
-	/// as <c>$args[0]</c> and <c>$args[1]</c>. It must reference one variable for each element and return an integer
-	/// that is less than zero, zero, or greater than zero, as <see cref="IComparer{T}.Compare(T, T)"/> does. Parameter
-	/// validation also rejects a script block that the cmdlet can't run, such as one that has a <c>begin</c> block.
+	/// The script block receives the two elements as <c>$x</c> and <c>$y</c>, as <c>$left</c> and <c>$right</c>, and
+	/// as its two arguments, in order: <c>$args[0]</c> and <c>$args[1]</c>, or the parameters of its <c>param()</c>
+	/// block. It must reference one variable for each element and return an integer that is less than zero, zero, or
+	/// greater than zero, as <see cref="IComparer{T}.Compare(T, T)"/> does. Parameter validation also rejects a script
+	/// block that the cmdlet can't run, such as one that has a <c>begin</c> block.
 	/// </para>
 	/// <para>
 	/// Its first output is converted to an <see cref="int"/>. When it returns no value, <see langword="null"/>, or a

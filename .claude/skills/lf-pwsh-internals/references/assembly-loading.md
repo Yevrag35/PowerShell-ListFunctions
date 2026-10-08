@@ -2,7 +2,7 @@
 
 ## Resolving dependencies in Windows PowerShell 5.1
 
-Measured 2026-10-05 on Windows PowerShell 5.1.26100.9444 with the Debug `net48` build, for review item 43.
+Measured 2026-10-05 on Windows PowerShell 5.1.26100.9444 with the Debug `net48` build.
 
 - `ResolveEventArgs.RequestingAssembly` is `null` for a static reference from a module's assembly, including one that `Import-Module` loaded for another module. The only non-null requester seen was `Anonymously Hosted DynamicMethods Assembly`, a dynamic assembly, for `[Reflection.Assembly]::Load()` called from script. Satellite `.resources` lookups have a `null` requester too. So a requester check can't tell one module's binds from another's.
 - The runtime rejects a handler's result whose public key token is wrong (`FileLoadException`, 0x80131040), but accepts any version, including a downgrade.
@@ -17,7 +17,7 @@ PowerShell resolves a type name only against assemblies that are already loaded,
 
 ## Loading a build's DLLs in a script
 
-To inspect a build, such as counting the public types each build exports with `Assembly.GetExportedTypes()` (review item 45), load each DLL with `[Reflection.Assembly]::LoadFrom` in a new process, so the build output stays unlocked.
+To inspect a build, such as counting the public types each build exports with `Assembly.GetExportedTypes()`, load each DLL with `[Reflection.Assembly]::LoadFrom` in a new process, so the build output stays unlocked.
 
 - `src/engine/ListFunctions-Next/bin/Debug/net10.0/` holds the `net10.0` Engine and `ListFunctions.Next.dll`.
 - `src/engine/ListFunctions-NETFramework/bin/Debug/net48/` holds the `netstandard2.0` Engine and `ListFunctions.NETFramework.dll`.

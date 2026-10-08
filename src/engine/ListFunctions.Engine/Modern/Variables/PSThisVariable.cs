@@ -29,18 +29,20 @@ internal sealed class PSThisVariable
 	/// </summary>
 	internal const string PSItem = "psitem";
 	/// <summary>
-	/// The name that script block validation accepts for the first positional argument, <c>$args[0]</c>.
+	/// The entry that script block validation accepts for the first argument, which a script block reads as
+	/// <c>$args[0]</c> or as the first parameter of its <c>param()</c> block.
 	/// </summary>
 	/// <remarks>
-	/// This class doesn't define a variable with this name. The name exists for validation attributes that list the
+	/// This class doesn't define a variable with this name. The entry exists for validation attributes that list the
 	/// variables a script block may use.
 	/// </remarks>
 	internal const string FirstArg = "args[0]";
 	/// <summary>
-	/// The name that script block validation accepts for the second positional argument, <c>$args[1]</c>.
+	/// The entry that script block validation accepts for the second argument, which a script block reads as
+	/// <c>$args[1]</c>, as the second parameter of its <c>param()</c> block, or as <c>$args[0]</c> after one parameter.
 	/// </summary>
 	/// <remarks>
-	/// This class doesn't define a variable with this name. The name exists for validation attributes that list the
+	/// This class doesn't define a variable with this name. The entry exists for validation attributes that list the
 	/// variables a script block may use.
 	/// </remarks>
 	internal const string SecondArg = "args[1]";

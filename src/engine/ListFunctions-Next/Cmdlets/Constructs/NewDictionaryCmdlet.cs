@@ -139,10 +139,11 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// Gets or sets the script block that determines whether two keys are equal.
 	/// </summary>
 	/// <remarks>
-	/// The script block receives the two keys as <c>$x</c> and <c>$y</c>, as <c>$left</c> and <c>$right</c>, or as
-	/// <c>$args[0]</c> and <c>$args[1]</c>. It must reference one variable for each key. Parameter validation also
-	/// rejects a script block that the cmdlet can't run, such as one that has a <c>begin</c> block. Its output is
-	/// converted to a <see cref="bool"/> by using PowerShell's truthiness rules.
+	/// The script block receives the two keys as <c>$x</c> and <c>$y</c>, as <c>$left</c> and <c>$right</c>, and as its
+	/// two arguments, in order: <c>$args[0]</c> and <c>$args[1]</c>, or the parameters of its <c>param()</c> block. It
+	/// must reference one variable for each key. Parameter validation also rejects a script block that the cmdlet can't
+	/// run, such as one that has a <c>begin</c> block. Its output is converted to a <see cref="bool"/> by using
+	/// PowerShell's truthiness rules.
 	/// </remarks>
 	/// <value>The key equality <see cref="ScriptBlock"/>.</value>
 	[Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]
@@ -156,10 +157,11 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// Gets or sets the script block that computes the hash code of a key.
 	/// </summary>
 	/// <remarks>
-	/// The script block receives the key as <c>$_</c>, <c>$this</c>, <c>$PSItem</c>, or <c>$args[0]</c> and must
-	/// reference at least one of them. Parameter validation also rejects a script block that the cmdlet can't run, such
-	/// as one that has a <c>begin</c> block. Its first output is converted to an <see cref="int"/>. Keys that
-	/// <see cref="EqualityScript"/> considers equal must produce the same hash code.
+	/// The script block receives the key as <c>$_</c>, <c>$this</c>, and <c>$PSItem</c>, and as its first argument:
+	/// <c>$args[0]</c>, or the first parameter of its <c>param()</c> block. It must reference at least one of them.
+	/// Parameter validation also rejects a script block that the cmdlet can't run, such as one that has a <c>begin</c>
+	/// block. Its first output is converted to an <see cref="int"/>. Keys that <see cref="EqualityScript"/> considers
+	/// equal must produce the same hash code.
 	/// </remarks>
 	/// <value>The key hash code <see cref="ScriptBlock"/>.</value>
 	[Parameter(Mandatory = true, ParameterSetName = WITH_CUSTOM_EQUALITY)]

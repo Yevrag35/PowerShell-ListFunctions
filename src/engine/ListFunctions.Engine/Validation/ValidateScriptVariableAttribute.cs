@@ -1,5 +1,5 @@
+using ListFunctions.Extensions;
 using ListFunctions.Internal;
-using ZLinq;
 
 #nullable enable
 
@@ -11,12 +11,25 @@ namespace ListFunctions.Validation;
 /// <remarks>
 /// <para>
 /// The script block passes when it references at least one of the named variables, such as <c>$_</c> or <c>$left</c>, or
-/// indexes <c>$args</c> with one of the specified constant indexes, such as <c>$args[0]</c>. Names are compared without
-/// regard to case, against the variable path as it is written, so <c>$script:x</c> doesn't match <c>x</c>.
+/// a variable that holds one of the accepted arguments. The cmdlets pass their elements to a script block as its
+/// arguments, in order, and each <c>$args</c> index that the constructor receives, such as <c>args[1]</c>, accepts the
+/// argument at that index. Without a <c>param()</c> block, the script block reads that argument as <c>$args[1]</c>. With
+/// one, PowerShell binds the arguments to the parameters in the order they're declared, whatever their attributes, and
+/// <c>$args</c> holds only the arguments left over. So the argument at index 1 is the second parameter, or
+/// <c>$args[0]</c> when the script block declares one parameter.
 /// </para>
 /// <para>
-/// Only the script block's own body counts. Variables in nested script blocks, splatted variables, the constant
-/// variables <c>$true</c>, <c>$false</c>, and <c>$null</c>, and a bare <c>$args</c> are ignored.
+/// Names are compared without regard to case, against the variable path as it is written, so <c>$script:x</c> doesn't
+/// match <c>x</c>. A named variable that the script block declares as a parameter counts only when the parameter receives
+/// an accepted argument, because the parameter takes the place of the variable that the cmdlet defines.
+/// </para>
+/// <para>
+/// Only the block that PowerShell runs counts: the <c>process</c> block when there is one, and otherwise the <c>end</c>
+/// block. Variables in the <c>param()</c> block, in nested script blocks, and in functions that the script block calls,
+/// splatted variables, the constant variables <c>$true</c>, <c>$false</c>, and <c>$null</c>, and a bare <c>$args</c> are
+/// ignored. A function's script block, such as <c>${function:Test-It}</c>, is checked by its body, with the parameters
+/// that the function declares either in parentheses or in a <c>param()</c> block. A script block that has no block to run
+/// passes, because <see cref="IsScriptBlockAttribute"/> rejects it.
 /// </para>
 /// <para>
 /// A <see cref="string"/> argument is parsed as a script block, without running it, before the check. An argument of
@@ -34,13 +47,13 @@ internal sealed class ValidateScriptVariableAttribute : ValidateArgumentsAttribu
 	/// The name of PowerShell's automatic <c>$args</c> variable.
 	/// </summary>
 	/// <remarks>
-	/// A constructor entry that starts with this name and ends with a bracketed index, such as
-	/// <c>args[0]</c>, specifies an index of <c>$args</c> instead of a variable name.
+	/// A constructor entry that starts with this name and ends with a bracketed index, such as <c>args[0]</c>, specifies
+	/// the index of an accepted argument instead of a variable name.
 	/// </remarks>
 	public const string Args = "args";
 
 	/// <summary>
-	/// The <c>$args</c> indexes that satisfy the check, or an empty slice when the constructor specified none.
+	/// The indexes of the accepted arguments, or an empty slice when the constructor specified none.
 	/// </summary>
 	private readonly ArraySlice<int> _mustContainIndexes;
 
@@ -51,20 +64,21 @@ internal sealed class ValidateScriptVariableAttribute : ValidateArgumentsAttribu
 
 	/// <summary>
 	/// Initializes a new instance of <see cref="ValidateScriptVariableAttribute"/> with the specified variable names and
-	/// <c>$args</c> indexes, any one of which satisfies the check.
+	/// argument indexes, any one of which satisfies the check.
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	/// An entry such as <c>args[0]</c> specifies an index of <c>$args</c>; every other entry is a variable name without
-	/// the <c>$</c>, such as <c>_</c> or <c>left</c>. Names and indexes can be mixed in any order.
+	/// An entry such as <c>args[0]</c> accepts the argument at that index, in whichever variable the script block receives
+	/// it, as the class remarks describe; every other entry is a variable name without the <c>$</c>, such as <c>_</c> or
+	/// <c>left</c>. Names and indexes can be mixed in any order.
 	/// </para>
 	/// <para>
 	/// The constructor reorders the elements of <paramref name="variableNames"/> in place and keeps a reference to the
 	/// array. Don't change the array afterward.
 	/// </para>
 	/// </remarks>
-	/// <param name="variableNames">The variable names and <c>$args</c> indexes to accept. This value must not be <see langword="null"/> or empty.</param>
-	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="variableNames"/> is null.</exception>
+	/// <param name="variableNames">The variable names and argument indexes to accept. This value must not be <see langword="null"/> or empty.</param>
+	/// <exception cref="ArgumentNullException">Thrown when <paramref name="variableNames"/> is null.</exception>
 	/// <exception cref="ArgumentException">Thrown when <paramref name="variableNames"/> is empty.</exception>
 	public ValidateScriptVariableAttribute(params string[] variableNames)
 	{
@@ -85,13 +99,14 @@ internal sealed class ValidateScriptVariableAttribute : ValidateArgumentsAttribu
 	/// variables.
 	/// </summary>
 	/// <remarks>
-	/// The error message lists the accepted variable names but not the accepted <c>$args</c> indexes, and it doesn't
-	/// necessarily list the names in the order that the constructor received them.
+	/// The error message lists the variables that the script block can use: the accepted names that it doesn't declare as
+	/// parameters, and then, for each accepted argument, the parameter that receives it, as the script block writes it, or
+	/// the <c>$args</c> index that holds it. The names aren't necessarily in the order that the constructor received them.
 	/// </remarks>
 	/// <param name="arguments">The argument to validate. Only a <see cref="ScriptBlock"/> or a <see cref="string"/> is checked.</param>
 	/// <param name="engineIntrinsics">The engine intrinsics of the session that binds the parameter. The method doesn't use it.</param>
 	/// <exception cref="ParseException">Thrown when <paramref name="arguments"/> is a string that isn't a valid script.</exception>
-	/// <exception cref="ValidationMetadataException">Thrown when the script block references none of the accepted variable names and indexes none of the accepted <c>$args</c> indexes.</exception>
+	/// <exception cref="ValidationMetadataException">Thrown when the block of the script block that PowerShell runs uses none of the accepted variables.</exception>
 	protected override void Validate(object arguments, EngineIntrinsics engineIntrinsics)
 	{
 		if (arguments is string str)
@@ -99,24 +114,18 @@ internal sealed class ValidateScriptVariableAttribute : ValidateArgumentsAttribu
 			arguments = ScriptBlock.Create(str);
 		}
 
-		if (arguments is not ScriptBlock block)
+		// InvokeWithContext runs only the process block or, without one, the end block. [IsScriptBlock] rejects a script
+		// block that has neither.
+		if (arguments is not ScriptBlock block
+			|| !block.TryGetBody(out ScriptBlockAst? body, out ReadOnlyCollection<ParameterAst>? parameters)
+			|| (body.ProcessBlock ?? body.EndBlock) is not NamedBlockAst blockThatRuns)
 		{
 			return;
 		}
 
-		if (!IsAllValid(block, _mustContainNames, _mustContainIndexes))
+		if (blockThatRuns.Find(ast => this.IsAccepted(ast, parameters), searchNestedScriptBlocks: false) is null)
 		{
-			const string message = "At least one of the following variables must be included in the script block: ";
-			const string sep = ", $";
-			string vars = string.Join(
-				separator: sep,
-#if NET9_0_OR_GREATER
-				values: _mustContainNames.AsSpan()
-#else
-				values: (IEnumerable<string>)_mustContainNames
-#endif
-			);
-			throw new ValidationMetadataException(string.Concat(message, "$", vars));
+			throw new ValidationMetadataException(this.FormatMessage(parameters));
 		}
 	}
 
@@ -140,7 +149,7 @@ internal sealed class ValidateScriptVariableAttribute : ValidateArgumentsAttribu
 	/// <see langword="null"/> when there are no index entries.
 	/// </param>
 	/// <returns>The number of index entries, which is also the number of entries at the end of <paramref name="variableNames"/> that aren't variable names.</returns>
-	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="variableNames"/> is null.</exception>
+	/// <exception cref="ArgumentNullException">Thrown when <paramref name="variableNames"/> is null.</exception>
 	/// <exception cref="ArgumentException">Thrown when <paramref name="variableNames"/> is empty.</exception>
 	private static int ParseIndexes(string[]? variableNames, out int[]? indexes)
 	{
@@ -195,121 +204,143 @@ internal sealed class ValidateScriptVariableAttribute : ValidateArgumentsAttribu
 	}
 
 	/// <summary>
-	/// Determines whether the specified script block references at least one of the accepted variable names or indexes
-	/// <c>$args</c> with at least one of the accepted indexes.
+	/// Determines whether the specified syntax tree node uses one of the accepted variables.
 	/// </summary>
 	/// <remarks>
-	/// The method searches only the script block's own body, not its nested script blocks. It looks for <c>$args</c>
-	/// index expressions only when <paramref name="mustContainIndexes"/> isn't empty.
+	/// <para>
+	/// A variable that <paramref name="parameters"/> declares is accepted when its parameter receives an accepted argument.
+	/// Any other variable is accepted when its name is.
+	/// </para>
+	/// <para>
+	/// An index expression on <c>$args</c> is accepted when its index is a non-negative constant <see cref="int"/>, such
+	/// as the <c>0</c> in <c>$args[0]</c>, and the argument that it holds is accepted. An index that is a variable or an
+	/// expression never matches.
+	/// </para>
 	/// </remarks>
-	/// <param name="block">The script block to check. This value must not be <see langword="null"/>.</param>
-	/// <param name="mustContainNames">The accepted variable names, without the <c>$</c>. This slice can be empty.</param>
-	/// <param name="mustContainIndexes">The accepted <c>$args</c> indexes. When this slice is empty, only variable names are checked.</param>
-	/// <returns><see langword="true"/> if <paramref name="block"/> uses at least one accepted variable or index; otherwise, <see langword="false"/>.</returns>
-	private static bool IsAllValid(ScriptBlock block, ArraySlice<string> mustContainNames, ArraySlice<int> mustContainIndexes)
+	/// <param name="ast">The node to check.</param>
+	/// <param name="parameters">
+	/// The parameters that the script block declares, in the order it declares them, or <see langword="null"/> when it
+	/// declares none.
+	/// </param>
+	/// <returns><see langword="true"/> if <paramref name="ast"/> uses an accepted variable; otherwise, <see langword="false"/>.</returns>
+	private bool IsAccepted(Ast ast, ReadOnlyCollection<ParameterAst>? parameters)
 	{
-		bool allowsArgs = mustContainIndexes.Length != 0;
+		if (ast is VariableExpressionAst varAst)
+		{
+			if (!CanMatch(varAst))
+			{
+				return false;
+			}
 
-		IEnumerable<Ast> asts = allowsArgs
-			? block.Ast.FindAll(searchNestedScriptBlocks: false, predicate: x => IsVariableAst(x) || IsArgsIndexed(x))
-			: block.Ast.FindAll(searchNestedScriptBlocks: false, predicate: IsVariableAst);
+			string name = varAst.VariablePath.UserPath;
+			int position = IndexOfParameter(parameters, name);
 
-		return allowsArgs
-			? IsValidWithIndexes(asts, mustContainNames, mustContainIndexes!)
-			: IsValidNoIndexes(asts, mustContainNames!);
+			return position >= 0
+				? ArraySlice.Contains(_mustContainIndexes, position)
+				: ArraySlice.Contains(_mustContainNames, name, StringComparer.OrdinalIgnoreCase);
+		}
+
+		// The parameters receive the first arguments, so $args[i] holds the argument at index i plus the number of
+		// parameters.
+		return ast is IndexExpressionAst indexAst
+			&& IsArgsIndexed(indexAst)
+			&& indexAst.Index is ConstantExpressionAst { Value: int index }
+			&& index >= 0
+			&& ArraySlice.Contains(_mustContainIndexes, index + (parameters?.Count ?? 0));
 	}
 
 	/// <summary>
-	/// Determines whether the specified syntax tree node is a variable reference that can match an accepted name.
+	/// Determines whether the specified variable reference can match an accepted name or parameter.
 	/// </summary>
 	/// <remarks>
 	/// The method rejects the constant variables <c>$true</c>, <c>$false</c>, and <c>$null</c>, splatted variables such
 	/// as <c>@params</c>, drive-qualified paths that aren't variables, such as <c>$env:Path</c>, and <c>$args</c>.
 	/// </remarks>
-	/// <param name="ast">The node to check.</param>
-	/// <returns><see langword="true"/> if <paramref name="ast"/> is a variable reference that can match an accepted name; otherwise, <see langword="false"/>.</returns>
-	private static bool IsVariableAst(Ast ast)
+	/// <param name="varAst">The variable reference to check.</param>
+	/// <returns><see langword="true"/> if <paramref name="varAst"/> can match an accepted name or parameter; otherwise, <see langword="false"/>.</returns>
+	private static bool CanMatch(VariableExpressionAst varAst)
 	{
-		return ast is VariableExpressionAst varAst
-			&& !varAst.IsConstantVariable()
+		return !varAst.IsConstantVariable()
 			&& !varAst.Splatted
 			&& varAst.VariablePath.IsVariable
 			&& !Args.Equals(varAst.VariablePath.UserPath, StringComparison.OrdinalIgnoreCase);
 	}
 
 	/// <summary>
-	/// Determines whether the specified syntax tree node indexes the <c>$args</c> variable, such as <c>$args[0]</c>.
+	/// Determines whether the specified index expression indexes the <c>$args</c> variable, such as <c>$args[0]</c>.
 	/// </summary>
 	/// <remarks>
-	/// The method checks only the target of the index expression. <see cref="IsValidWithIndexes(IEnumerable{Ast}, ArraySlice{string}, ArraySlice{int})"/>
+	/// The method checks only the target of the index expression. <see cref="IsAccepted(Ast, ReadOnlyCollection{ParameterAst})"/>
 	/// checks the index itself.
 	/// </remarks>
-	/// <param name="ast">The node to check.</param>
-	/// <returns><see langword="true"/> if <paramref name="ast"/> is an index expression whose target is <c>$args</c>; otherwise, <see langword="false"/>.</returns>
-	private static bool IsArgsIndexed(Ast ast)
+	/// <param name="indexAst">The index expression to check.</param>
+	/// <returns><see langword="true"/> if the target of <paramref name="indexAst"/> is <c>$args</c>; otherwise, <see langword="false"/>.</returns>
+	private static bool IsArgsIndexed(IndexExpressionAst indexAst)
 	{
-		return ast is IndexExpressionAst indexAst
-			&& indexAst.Target is VariableExpressionAst varAst
+		return indexAst.Target is VariableExpressionAst varAst
 			&& varAst.VariablePath.IsVariable
 			&& Args.Equals(varAst.VariablePath.UserPath, StringComparison.OrdinalIgnoreCase);
 	}
 
 	/// <summary>
-	/// Determines whether any of the specified syntax tree nodes references an accepted variable name or indexes
-	/// <c>$args</c> with an accepted index.
+	/// Returns the index of the parameter with the specified name among the specified parameters.
 	/// </summary>
 	/// <remarks>
-	/// An index matches only when it is a constant <see cref="int"/>, such as the <c>0</c> in <c>$args[0]</c>. An index
-	/// that is a variable or an expression never matches.
+	/// Names are compared by ordinal comparison that ignores case, the way PowerShell compares variable names.
 	/// </remarks>
-	/// <param name="asts">The variable references and <c>$args</c> index expressions to search.</param>
-	/// <param name="anyNames">The accepted variable names, compared by ordinal comparison that ignores case. This slice can be empty.</param>
-	/// <param name="orAnyIndexes">The accepted <c>$args</c> indexes.</param>
-	/// <returns>
-	/// <see langword="true"/> if a node is a variable reference whose name is in <paramref name="anyNames"/>, or an index
-	/// expression whose constant index is in <paramref name="orAnyIndexes"/>; otherwise, <see langword="false"/>.
-	/// </returns>
-	private static bool IsValidWithIndexes(IEnumerable<Ast> asts, ArraySlice<string> anyNames, ArraySlice<int> orAnyIndexes)
+	/// <param name="parameters">The parameters that the script block declares, in the order it declares them, or <see langword="null"/>.</param>
+	/// <param name="name">The variable name to look for, without the <c>$</c>.</param>
+	/// <returns>The zero-based index of the parameter named <paramref name="name"/>, or -1 when there is none.</returns>
+	private static int IndexOfParameter(ReadOnlyCollection<ParameterAst>? parameters, string name)
 	{
-		bool isNotNull = anyNames.Length > 0;
-		foreach (Ast ast in asts.AsValueEnumerable())
+		if (parameters is not null)
 		{
-			if (ast is VariableExpressionAst varAst && isNotNull && ArraySlice.Contains(anyNames, varAst.VariablePath.UserPath, StringComparer.OrdinalIgnoreCase))
+			for (int i = 0; i < parameters.Count; i++)
 			{
-				return true;
-			}
-			else if (ast is IndexExpressionAst indexAst && indexAst.Index is ConstantExpressionAst constAst && constAst.Value is int index
-				&&
-				ArraySlice.Contains(orAnyIndexes, index))
-			{
-				return true;
+				if (name.Equals(parameters[i].Name.VariablePath.UserPath, StringComparison.OrdinalIgnoreCase))
+				{
+					return i;
+				}
 			}
 		}
 
-		return false;
+		return -1;
 	}
+
 	/// <summary>
-	/// Determines whether any of the specified variable references uses an accepted variable name.
+	/// Creates the message that reports a script block that uses none of the accepted variables.
 	/// </summary>
 	/// <remarks>
-	/// Every node in <paramref name="asts"/> must be a <see cref="VariableExpressionAst"/>. The method casts each node,
-	/// so any other node type causes an <see cref="InvalidCastException"/>.
+	/// The message lists the variables that the script block can use: each accepted name that it doesn't declare as a
+	/// parameter, and then, for each accepted argument, the parameter that receives it, as the script block writes it, such
+	/// as <c>$b</c> or <c>${the right}</c>, or the <c>$args</c> index that holds it.
 	/// </remarks>
-	/// <param name="asts">The variable references to search.</param>
-	/// <param name="anyNames">The accepted variable names, compared by ordinal comparison that ignores case.</param>
-	/// <returns><see langword="true"/> if at least one node references a name in <paramref name="anyNames"/>; otherwise, <see langword="false"/>.</returns>
-	/// <exception cref="InvalidCastException">Thrown when <paramref name="asts"/> contains a node that isn't a variable reference.</exception>
-	private static bool IsValidNoIndexes(IEnumerable<Ast> asts, ArraySlice<string> anyNames)
+	/// <param name="parameters">
+	/// The parameters that the script block declares, in the order it declares them, or <see langword="null"/> when it
+	/// declares none.
+	/// </param>
+	/// <returns>The message, such as "The script block must use at least one of these variables: $y, $right, $b."</returns>
+	private string FormatMessage(ReadOnlyCollection<ParameterAst>? parameters)
 	{
-		foreach (VariableExpressionAst varAst in asts.AsValueEnumerable())
+		int parameterCount = parameters?.Count ?? 0;
+		var variables = new List<string>(_mustContainNames.Length + _mustContainIndexes.Length);
+
+		foreach (string name in _mustContainNames)
 		{
-			if (ArraySlice.Contains(anyNames, varAst.VariablePath.UserPath, StringComparer.OrdinalIgnoreCase))
+			if (IndexOfParameter(parameters, name) < 0)
 			{
-				return true;
+				variables.Add("$" + name);
 			}
 		}
 
-		return false;
+		foreach (int index in _mustContainIndexes)
+		{
+			variables.Add(index < parameterCount
+				? parameters![index].Name.Extent.Text
+				: $"$args[{index - parameterCount}]");
+		}
+
+		return string.Concat("The script block must use at least one of these variables: ", string.Join(", ", variables), ".");
 	}
 
 	/// <summary>

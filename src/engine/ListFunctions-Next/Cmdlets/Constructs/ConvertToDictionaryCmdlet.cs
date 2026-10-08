@@ -135,9 +135,10 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// Gets or sets the script block that computes each object's key.
 	/// </summary>
 	/// <remarks>
-	/// The script block receives the current object as <c>$_</c>, <c>$PSItem</c>, <c>$this</c>, or <c>$args[0]</c>
-	/// and must reference at least one of them. Parameter validation also rejects a script block that the cmdlet can't
-	/// run, such as one that has a <c>begin</c> block. The first object it outputs becomes the key.
+	/// The script block receives the current object as <c>$_</c>, <c>$PSItem</c>, and <c>$this</c>, and as its first
+	/// argument: <c>$args[0]</c>, or the first parameter of its <c>param()</c> block. It must reference at least one of
+	/// them. Parameter validation also rejects a script block that the cmdlet can't run, such as one that has a
+	/// <c>begin</c> block. The first object it outputs becomes the key.
 	/// </remarks>
 	/// <value>The key selector <see cref="ScriptBlock"/>.</value>
 	[Parameter(Mandatory = true, Position = 0, ParameterSetName = KEY_SCRIPT)]
@@ -189,14 +190,14 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// Gets or sets the script block that computes each object's value.
 	/// </summary>
 	/// <remarks>
-	/// The script block receives the current object as <c>$_</c>, <c>$PSItem</c>, <c>$this</c>, or <c>$args[0]</c>
-	/// and must reference at least one of them. Parameter validation also rejects a script block that the cmdlet can't
-	/// run, such as one that has a <c>begin</c> block. The first object it outputs becomes the value, converted to the
-	/// value type. When it outputs nothing or <see langword="null"/>, the value is <see langword="null"/> converted to
-	/// the value type, the way PowerShell converts it when it calls the dictionary's <c>Add</c> method: an empty string
-	/// for <see cref="string"/>, 0 for <see cref="int"/>, and <see langword="null"/> for <see cref="object"/> and most
-	/// other reference types. The parameter can't be combined with a property name or script block in
-	/// <see cref="ValuePropertyName"/>.
+	/// The script block receives the current object as <c>$_</c>, <c>$PSItem</c>, and <c>$this</c>, and as its first
+	/// argument: <c>$args[0]</c>, or the first parameter of its <c>param()</c> block. It must reference at least one of
+	/// them. Parameter validation also rejects a script block that the cmdlet can't run, such as one that has a
+	/// <c>begin</c> block. The first object it outputs becomes the value, converted to the value type. When it outputs
+	/// nothing or <see langword="null"/>, the value is <see langword="null"/> converted to the value type, the way
+	/// PowerShell converts it when it calls the dictionary's <c>Add</c> method: an empty string for <see cref="string"/>,
+	/// 0 for <see cref="int"/>, and <see langword="null"/> for <see cref="object"/> and most other reference types. The
+	/// parameter can't be combined with a property name or script block in <see cref="ValuePropertyName"/>.
 	/// </remarks>
 	/// <value>The value selector <see cref="ScriptBlock"/>, or <see langword="null"/>.</value>
 	[Parameter]

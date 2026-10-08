@@ -16,6 +16,20 @@ Describe 'Test-AnyObject' {
 			1, $null | Test-AnyObject -Condition $null | Should-BeTrue
 			$null | Test-AnyObject -Condition $null | Should-BeFalse
 		}
+
+		# PowerShell binds the elements to the parameters of a param() block in order, the way it passes them in $args.
+		# Parameter validation used to reject a condition that read the element only through a parameter.
+		It 'passes each element to the first parameter of a -Condition that has a param() block' {
+			1, 2, 3 | Test-AnyObject { param($n) $n -gt 2 } | Should-BeTrue
+			1, 2 | Test-AnyObject { param($n) $n -gt 2 } | Should-BeFalse
+		}
+
+		# Parameter validation used to reject a function's script block, whose syntax tree is the function's definition.
+		It "accepts a function's script block as -Condition" {
+			function Test-Big { param($n) $n -gt 2 }
+			1, 2, 3 | Test-AnyObject ${function:Test-Big} | Should-BeTrue
+			1, 2 | Test-AnyObject ${function:Test-Big} | Should-BeFalse
+		}
 	}
 
 	Context 'Pipeline input' {

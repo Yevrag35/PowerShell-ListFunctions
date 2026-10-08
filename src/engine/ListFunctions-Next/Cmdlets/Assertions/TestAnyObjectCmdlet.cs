@@ -61,11 +61,12 @@ public sealed class TestAnyObjectCmdlet : TestObjectCmdlet
 	/// Gets or sets the script block that tests each input object.
 	/// </summary>
 	/// <remarks>
-	/// The script block receives the current element as <c>$_</c>, <c>$PSItem</c>, <c>$this</c>, and <c>$args[0]</c>,
-	/// and must reference at least one of them. Parameter validation rejects a script block that references none,
-	/// including an empty one, and one that the cmdlet can't run, such as one that has a <c>begin</c> block. Its output
-	/// is converted to a <see cref="bool"/> by using PowerShell's truthiness rules. Without a condition, the cmdlet tests
-	/// whether any element isn't <see langword="null"/>, and <see langword="null"/> is the same as no condition.
+	/// The script block receives the current element as <c>$_</c>, <c>$PSItem</c>, and <c>$this</c>, and as its first
+	/// argument: <c>$args[0]</c>, or the first parameter of its <c>param()</c> block. It must reference at least one of
+	/// them. Parameter validation rejects a script block that references none, including an empty one, and one that the
+	/// cmdlet can't run, such as one that has a <c>begin</c> block. Its output is converted to a <see cref="bool"/> by
+	/// using PowerShell's truthiness rules. Without a condition, the cmdlet tests whether any element isn't
+	/// <see langword="null"/>, and <see langword="null"/> is the same as no condition.
 	/// </remarks>
 	/// <value>The condition <see cref="ScriptBlock"/>, or <see langword="null"/> when none is set.</value>
 	[Parameter(Position = 0)]
