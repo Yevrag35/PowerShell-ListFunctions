@@ -16,7 +16,7 @@ namespace ListFunctions.Modern;
 /// inner comparer.
 /// </para>
 /// <para>
-/// The adapter keeps no state of its own, so it's exactly as thread-safe as <see cref="InnerComparer"/>. An
+/// The adapter keeps no state of its own, so it's exactly as thread-safe as the inner comparer. An
 /// <see cref="EqualityBlock"/> isn't thread-safe.
 /// </para>
 /// </remarks>
@@ -24,10 +24,9 @@ namespace ListFunctions.Modern;
 internal sealed class EqualityComparerAdapter<T> : IEqualityComparer<T>, IEqualityComparer
 {
 	/// <summary>
-	/// Gets the comparer that the adapter passes every comparison to.
+	/// The comparer that the adapter passes every comparison to. It's never <see langword="null"/>.
 	/// </summary>
-	/// <value>The comparer passed to the constructor. It's never <see langword="null"/>.</value>
-	public IEqualityComparer InnerComparer { get; }
+	private readonly IEqualityComparer _innerComparer;
 
 	/// <summary>
 	/// Initializes a new <see cref="EqualityComparerAdapter{T}"/> instance that passes every comparison to the specified
@@ -38,7 +37,7 @@ internal sealed class EqualityComparerAdapter<T> : IEqualityComparer<T>, IEquali
 	public EqualityComparerAdapter(IEqualityComparer innerComparer)
 	{
 		ArgumentNullException.ThrowIfNull(innerComparer);
-		this.InnerComparer = innerComparer;
+		_innerComparer = innerComparer;
 	}
 
 	/// <summary>
@@ -46,20 +45,20 @@ internal sealed class EqualityComparerAdapter<T> : IEqualityComparer<T>, IEquali
 	/// </summary>
 	/// <param name="x">The first object to compare, or <see langword="null"/>.</param>
 	/// <param name="y">The second object to compare, or <see langword="null"/>.</param>
-	/// <returns>The result of <see cref="IEqualityComparer.Equals(object, object)"/> on <see cref="InnerComparer"/>.</returns>
+	/// <returns>The result of <see cref="IEqualityComparer.Equals(object, object)"/> on the inner comparer.</returns>
 	public bool Equals(T? x, T? y)
 	{
-		return this.InnerComparer.Equals(x, y);
+		return _innerComparer.Equals(x, y);
 	}
 
 	/// <summary>
 	/// Returns a hash code for the specified object by calling the inner comparer.
 	/// </summary>
 	/// <param name="obj">The object to compute the hash code of. This value must not be <see langword="null"/>.</param>
-	/// <returns>The result of <see cref="IEqualityComparer.GetHashCode(object)"/> on <see cref="InnerComparer"/>.</returns>
+	/// <returns>The result of <see cref="IEqualityComparer.GetHashCode(object)"/> on the inner comparer.</returns>
 	public int GetHashCode(T obj)
 	{
-		return this.InnerComparer.GetHashCode(obj!);
+		return _innerComparer.GetHashCode(obj!);
 	}
 
 	/// <summary>
@@ -70,10 +69,10 @@ internal sealed class EqualityComparerAdapter<T> : IEqualityComparer<T>, IEquali
 	/// </remarks>
 	/// <param name="x">The first object to compare, or <see langword="null"/>.</param>
 	/// <param name="y">The second object to compare, or <see langword="null"/>.</param>
-	/// <returns>The result of <see cref="IEqualityComparer.Equals(object, object)"/> on <see cref="InnerComparer"/>.</returns>
+	/// <returns>The result of <see cref="IEqualityComparer.Equals(object, object)"/> on the inner comparer.</returns>
 	bool IEqualityComparer.Equals(object? x, object? y)
 	{
-		return this.InnerComparer.Equals(x, y);
+		return _innerComparer.Equals(x, y);
 	}
 
 	/// <summary>
@@ -83,9 +82,9 @@ internal sealed class EqualityComparerAdapter<T> : IEqualityComparer<T>, IEquali
 	/// The object isn't converted to <typeparamref name="T"/> first.
 	/// </remarks>
 	/// <param name="obj">The object to compute the hash code of. This value must not be <see langword="null"/>.</param>
-	/// <returns>The result of <see cref="IEqualityComparer.GetHashCode(object)"/> on <see cref="InnerComparer"/>.</returns>
+	/// <returns>The result of <see cref="IEqualityComparer.GetHashCode(object)"/> on the inner comparer.</returns>
 	int IEqualityComparer.GetHashCode(object obj)
 	{
-		return this.InnerComparer.GetHashCode(obj);
+		return _innerComparer.GetHashCode(obj);
 	}
 }

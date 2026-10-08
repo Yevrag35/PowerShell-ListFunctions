@@ -75,7 +75,7 @@ public sealed class HashSetCtorTests : IClassFixture<RunspaceFixture>
 	public void Construct_UsesTheEqualityBlock()
 	{
 		using RunspaceScope scope = _runspace.Enter();
-		var block = new EqualityBlock(ScriptBlock.Create("$x.Length -eq $y.Length"), new HashBlock(ScriptBlock.Create("$_.Length")));
+		var block = new EqualityBlock(ScriptBlock.Create("$x.Length -eq $y.Length"), new HashBlock(ScriptBlock.Create("$_.Length")), additionalVariables: null);
 		var set = Assert.IsType<HashSet<object>>(new HashSetCtor(typeof(object), block).Construct());
 
 		Assert.Same(block, set.Comparer);
@@ -102,7 +102,7 @@ public sealed class HashSetCtorTests : IClassFixture<RunspaceFixture>
 	[Trait("Category", "Bug02")]
 	public void Construct_PassesTheCapacityToASetWithAnEqualityBlock()
 	{
-		var block = new EqualityBlock(ScriptBlock.Create("$x -eq $y"), new HashBlock(ScriptBlock.Create("$_")));
+		var block = new EqualityBlock(ScriptBlock.Create("$x -eq $y"), new HashBlock(ScriptBlock.Create("$_")), additionalVariables: null);
 		var ctor = new HashSetCtor(typeof(object), block)
 		{
 			Capacity = 1000,

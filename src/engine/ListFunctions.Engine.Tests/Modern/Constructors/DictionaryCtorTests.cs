@@ -16,7 +16,7 @@ public sealed class DictionaryCtorTests : IClassFixture<RunspaceFixture>
 	public void Construct_UsesTheEqualityBlockForObjectKeys()
 	{
 		using RunspaceScope scope = _runspace.Enter();
-		var block = new EqualityBlock(ScriptBlock.Create("$x.Length -eq $y.Length"), new HashBlock(ScriptBlock.Create("$_.Length")));
+		var block = new EqualityBlock(ScriptBlock.Create("$x.Length -eq $y.Length"), new HashBlock(ScriptBlock.Create("$_.Length")), additionalVariables: null);
 		var dict = Assert.IsType<Dictionary<object, object>>(new DictionaryCtor(block, keyType: null, valueType: null).Construct());
 
 		Assert.Same(block, dict.Comparer);
@@ -29,7 +29,7 @@ public sealed class DictionaryCtorTests : IClassFixture<RunspaceFixture>
 	public void Construct_UsesAnEqualityBlockWithValueTypeKeys()
 	{
 		using RunspaceScope scope = _runspace.Enter();
-		var block = new EqualityBlock(ScriptBlock.Create("$x % 10 -eq $y % 10"), new HashBlock(ScriptBlock.Create("$_ % 10")));
+		var block = new EqualityBlock(ScriptBlock.Create("$x % 10 -eq $y % 10"), new HashBlock(ScriptBlock.Create("$_ % 10")), additionalVariables: null);
 		var dict = Assert.IsType<Dictionary<int, object>>(new DictionaryCtor(block, typeof(int), valueType: null).Construct());
 
 		dict.Add(1, "a");
@@ -43,7 +43,7 @@ public sealed class DictionaryCtorTests : IClassFixture<RunspaceFixture>
 	public void Construct_UsesAnEqualityBlockWithNullableKeys()
 	{
 		using RunspaceScope scope = _runspace.Enter();
-		var block = new EqualityBlock(ScriptBlock.Create("$x % 10 -eq $y % 10"), new HashBlock(ScriptBlock.Create("$_ % 10")));
+		var block = new EqualityBlock(ScriptBlock.Create("$x % 10 -eq $y % 10"), new HashBlock(ScriptBlock.Create("$_ % 10")), additionalVariables: null);
 #pragma warning disable CS8714 // Dictionary<int?, TValue> is valid at run time. Its notnull constraint applies only to nullable analysis.
 		var dict = Assert.IsType<Dictionary<int?, object>>(new DictionaryCtor(block, typeof(int?), valueType: null).Construct());
 #pragma warning restore CS8714
@@ -58,18 +58,17 @@ public sealed class DictionaryCtorTests : IClassFixture<RunspaceFixture>
 	[Trait("Category", "Bug09")]
 	public void Construct_WrapsAnEqualityBlockForValueTypeKeys()
 	{
-		var block = new EqualityBlock(ScriptBlock.Create("$x -eq $y"), new HashBlock(ScriptBlock.Create("$_")));
+		var block = new EqualityBlock(ScriptBlock.Create("$x -eq $y"), new HashBlock(ScriptBlock.Create("$_")), additionalVariables: null);
 		var dict = Assert.IsType<Dictionary<int, object>>(new DictionaryCtor(block, typeof(int), valueType: null).Construct());
 
-		var adapter = Assert.IsType<EqualityComparerAdapter<int>>(dict.Comparer);
-		Assert.Same(block, adapter.InnerComparer);
+		Assert.IsType<EqualityComparerAdapter<int>>(dict.Comparer);
 	}
 
 	[Fact]
 	[Trait("Category", "Bug09")]
 	public void Construct_PassesAnEqualityBlockForStringKeysAsItIs()
 	{
-		var block = new EqualityBlock(ScriptBlock.Create("$x -eq $y"), new HashBlock(ScriptBlock.Create("$_.Length")));
+		var block = new EqualityBlock(ScriptBlock.Create("$x -eq $y"), new HashBlock(ScriptBlock.Create("$_.Length")), additionalVariables: null);
 		var dict = Assert.IsType<Dictionary<string, object>>(new DictionaryCtor(block, typeof(string), valueType: null).Construct());
 
 		Assert.Same(block, dict.Comparer);
@@ -174,7 +173,7 @@ public sealed class DictionaryCtorTests : IClassFixture<RunspaceFixture>
 	[Trait("Category", "Bug02")]
 	public void Construct_PassesTheCapacityToADictionaryWithAnEqualityBlock()
 	{
-		var block = new EqualityBlock(ScriptBlock.Create("$x -eq $y"), new HashBlock(ScriptBlock.Create("$_")));
+		var block = new EqualityBlock(ScriptBlock.Create("$x -eq $y"), new HashBlock(ScriptBlock.Create("$_")), additionalVariables: null);
 		var ctor = new DictionaryCtor(block, keyType: null, valueType: null)
 		{
 			Capacity = 1000,

@@ -6,18 +6,6 @@ using ZLinq;
 namespace ListFunctions.Modern;
 
 /// <summary>
-/// Defines a non-generic comparer, built from a PowerShell script block, that reports the type it compares.
-/// </summary>
-public interface IComparingBlock : IComparer
-{
-	/// <summary>
-	/// Gets the type of the objects that the comparer compares.
-	/// </summary>
-	/// <value>The type argument of the comparer.</value>
-	Type ChecksType { get; }
-}
-
-/// <summary>
 /// Provides factory methods that create <see cref="ComparingBlock{T}"/> instances.
 /// </summary>
 internal static class ComparingBlock
@@ -31,8 +19,7 @@ internal static class ComparingBlock
 	/// <paramref name="genericType"/> and calls it through reflection.
 	/// </para>
 	/// <para>
-	/// Unlike the <see cref="ComparingBlock{T}"/> constructor, this method doesn't validate the script block. The caller is
-	/// expected to have validated it.
+	/// The method doesn't validate the script block. The caller is expected to have validated it.
 	/// </para>
 	/// </remarks>
 	/// <param name="scriptBlock">The script block that compares <c>$x</c> (or <c>$left</c>) with <c>$y</c> (or <c>$right</c>). This value must not be <see langword="null"/>.</param>
@@ -53,8 +40,7 @@ internal static class ComparingBlock
 	/// Creates a <see cref="ComparingBlock{T}"/> from the specified script block.
 	/// </summary>
 	/// <remarks>
-	/// Unlike the <see cref="ComparingBlock{T}"/> constructor, this method doesn't validate the script block. The caller is
-	/// expected to have validated it.
+	/// The method doesn't validate the script block. The caller is expected to have validated it.
 	/// </remarks>
 	/// <typeparam name="T">The type of the objects to compare.</typeparam>
 	/// <param name="scriptBlock">The script block that compares <c>$x</c> (or <c>$left</c>) with <c>$y</c> (or <c>$right</c>). This value must not be <see langword="null"/>.</param>
@@ -63,7 +49,7 @@ internal static class ComparingBlock
 	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="scriptBlock"/> is null.</exception>
 	public static ComparingBlock<T> Create<T>(ScriptBlock scriptBlock, IEnumerable<PSVariable>? additionalVariables)
 	{
-		return new ComparingBlock<T>(scriptBlock, preValidated: true, additionalVariables);
+		return new ComparingBlock<T>(scriptBlock, additionalVariables);
 	}
 
 	private static readonly Lazy<MethodInfo> _getInit = new Lazy<MethodInfo>(InitializeLazyMethod);
@@ -98,16 +84,13 @@ internal static class ComparingBlock
 /// </para>
 /// </remarks>
 /// <typeparam name="T">The type of the objects to compare.</typeparam>
-internal sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparingBlock
+internal sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparer
 {
 	private readonly PSVariable[] _additionalVariables;
 	private readonly ScriptBlock _compareScript;
 	private readonly PSComparingVariable<T> _left;
 	private readonly PSComparingVariable<T> _right;
 	private readonly List<PSVariable> _varList;
-
-	/// <inheritdoc/>
-	Type IComparingBlock.ChecksType => typeof(T);
 
 	/// <summary>
 	/// Gets the left operand of the current comparison.
@@ -136,25 +119,14 @@ internal sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparin
 	/// Initializes a new <see cref="ComparingBlock{T}"/> instance with the specified script block and additional
 	/// variables.
 	/// </summary>
+	/// <remarks>
+	/// The constructor doesn't validate the script block. The caller is expected to have validated it.
+	/// </remarks>
 	/// <param name="scriptBlock">The script block that compares <c>$x</c> (or <c>$left</c>) with <c>$y</c> (or <c>$right</c>). This value must not be <see langword="null"/>.</param>
 	/// <param name="additionalVariables">The variables to define in the script block's scope along with the operands, or <see langword="null"/> for none. The constructor copies them.</param>
 	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="scriptBlock"/> is null.</exception>
-	/// <exception cref="ArgumentException">Thrown when <paramref name="scriptBlock"/> has no statements to run, or has a <c>begin</c> block, a <c>clean</c> block, or both a <c>process</c> block and an <c>end</c> block.</exception>
-	public ComparingBlock(ScriptBlock scriptBlock, IEnumerable<PSVariable>? additionalVariables)
-		: this(scriptBlock, preValidated: false, additionalVariables)
-	{
-	}
-	/// <summary>
-	/// Initializes a new <see cref="ComparingBlock{T}"/> instance with the specified script block and additional
-	/// variables, and validates the script block unless <paramref name="preValidated"/> is <see langword="true"/>.
-	/// </summary>
-	/// <param name="scriptBlock">The script block that compares the operands. This value must not be <see langword="null"/>.</param>
-	/// <param name="preValidated"><see langword="true"/> if the caller has already validated <paramref name="scriptBlock"/>; otherwise, <see langword="false"/>.</param>
-	/// <param name="additionalVariables">The variables to define in the script block's scope along with the operands, or <see langword="null"/> for none. The constructor copies them.</param>
-	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="scriptBlock"/> is null.</exception>
-	/// <exception cref="ArgumentException">Thrown when <paramref name="preValidated"/> is false and <paramref name="scriptBlock"/> has no statements to run, or has a <c>begin</c> block, a <c>clean</c> block, or both a <c>process</c> block and an <c>end</c> block.</exception>
-	internal ComparingBlock(ScriptBlock scriptBlock, bool preValidated, IEnumerable<PSVariable>? additionalVariables)
-		: base(scriptBlock, preValidated)
+	internal ComparingBlock(ScriptBlock scriptBlock, IEnumerable<PSVariable>? additionalVariables)
+		: base(scriptBlock, preValidated: true)
 	{
 		_additionalVariables = additionalVariables is null
 			? Array.Empty<PSVariable>()

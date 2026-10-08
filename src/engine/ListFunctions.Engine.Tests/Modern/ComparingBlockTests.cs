@@ -118,17 +118,6 @@ public sealed class ComparingBlockTests : IClassFixture<RunspaceFixture>
 	{
 		IComparer comparer = ComparingBlock.Create(ScriptBlock.Create("$x.CompareTo($y)"), typeof(string), additionalVariables: null);
 
-		var block = Assert.IsType<ComparingBlock<string>>(comparer);
-		Assert.Equal(typeof(string), ((IComparingBlock)block).ChecksType);
-	}
-
-	// ScriptBlock.InvokeWithContext, which runs the script, refuses a script block that has a begin block, or both a
-	// process block and an end block.
-	[Theory]
-	[InlineData("begin { } process { $x.CompareTo($y) }")]
-	[InlineData("process { $x.CompareTo($y) } end { $x.CompareTo($y) }")]
-	public void Constructor_ThrowsWhenInvokeWithContextCannotRunTheScript(string comparingScript)
-	{
-		Assert.Throws<ArgumentException>(() => new ComparingBlock<int>(ScriptBlock.Create(comparingScript), additionalVariables: null));
+		Assert.IsType<ComparingBlock<string>>(comparer);
 	}
 }

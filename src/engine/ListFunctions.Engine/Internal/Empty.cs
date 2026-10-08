@@ -1,5 +1,3 @@
-using ZLinq;
-
 namespace ListFunctions.Internal;
 
 /// <summary>
@@ -11,16 +9,6 @@ namespace ListFunctions.Internal;
 /// </remarks>
 internal static class Empty
 {
-	/// <summary>
-	/// Returns an empty read-only set.
-	/// </summary>
-	/// <remarks>
-	/// The method is internal because the <c>netstandard2.0</c> build's <see cref="IReadOnlySet{T}"/> is an internal
-	/// polyfill.
-	/// </remarks>
-	/// <typeparam name="T">The element type of the set.</typeparam>
-	/// <returns>A cached <see cref="IReadOnlySet{T}"/> that contains no elements.</returns>
-	internal static IReadOnlySet<T> Set<T>() => EmptyHolder<object, T>.Default;
 	/// <summary>
 	/// Returns an empty read-only dictionary.
 	/// </summary>
@@ -39,7 +27,7 @@ internal static class Empty
 	/// The runtime initializes the field once per closed generic type, so the instance is created lazily and without locking.
 	/// </remarks>
 	/// <typeparam name="TKey">The key type of the empty dictionary.</typeparam>
-	/// <typeparam name="TValue">The element type of the empty set, or the value type of the empty dictionary.</typeparam>
+	/// <typeparam name="TValue">The value type of the empty dictionary.</typeparam>
 	private static class EmptyHolder<TKey, TValue> where TKey : notnull
 	{
 		/// <summary>
@@ -49,7 +37,7 @@ internal static class Empty
 	}
 }
 /// <summary>
-/// Represents a collection with no elements that serves as an empty read-only list, set, and dictionary at once.
+/// Represents a collection with no elements that serves as an empty read-only list and dictionary at once.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -62,9 +50,9 @@ internal static class Empty
 /// </para>
 /// </remarks>
 /// <typeparam name="TKey">The key type when the instance is used as a dictionary. Keys can't be <see langword="null"/>.</typeparam>
-/// <typeparam name="TValue">The element type when the instance is used as a list or set, or the value type when it is used as a dictionary.</typeparam>
+/// <typeparam name="TValue">The element type when the instance is used as a list, or the value type when it is used as a dictionary.</typeparam>
 [StructLayout(LayoutKind.Sequential)]
-internal sealed class ReadOnlyEmpty<TKey, TValue> : IReadOnlyList<TValue>, IReadOnlySet<TValue>, IReadOnlyDictionary<TKey, TValue>
+internal sealed class ReadOnlyEmpty<TKey, TValue> : IReadOnlyList<TValue>, IReadOnlyDictionary<TKey, TValue>
 	where TKey : notnull
 {
 	/// <summary>
@@ -72,7 +60,7 @@ internal sealed class ReadOnlyEmpty<TKey, TValue> : IReadOnlyList<TValue>, IRead
 	/// </summary>
 	/// <param name="key">The key to look up. This value must not be <see langword="null"/>.</param>
 	/// <value>This indexer never returns a value.</value>
-	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="key"/> is null.</exception>
+	/// <exception cref="ArgumentNullException">Thrown when <paramref name="key"/> is null.</exception>
 	/// <exception cref="KeyNotFoundException">Thrown for every key that is not null.</exception>
 	TValue IReadOnlyDictionary<TKey, TValue>.this[TKey key]
 	{
@@ -114,28 +102,18 @@ internal sealed class ReadOnlyEmpty<TKey, TValue> : IReadOnlyList<TValue>, IRead
 	/// Initializes a new <see cref="ReadOnlyEmpty{TKey, TValue}"/> instance.
 	/// </summary>
 	/// <remarks>
-	/// Use the cached instances from <see cref="Empty.Set{T}"/> and <see cref="Empty.Dictionary{TKey, TValue}"/> instead of
-	/// creating new ones.
+	/// Use the cached instances from <see cref="Empty.Dictionary{TKey, TValue}"/> instead of creating new ones.
 	/// </remarks>
 	internal ReadOnlyEmpty()
 	{
 	}
 
 	/// <summary>
-	/// Determines whether the set contains the specified item.
-	/// </summary>
-	/// <param name="item">The item to locate. This value can be <see langword="null"/>.</param>
-	/// <returns>Always <see langword="false"/>.</returns>
-	public bool Contains(TValue item)
-	{
-		return false;
-	}
-	/// <summary>
 	/// Determines whether the dictionary contains the specified key.
 	/// </summary>
 	/// <param name="key">The key to locate. This value must not be <see langword="null"/>.</param>
 	/// <returns>Always <see langword="false"/>.</returns>
-	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="key"/> is null.</exception>
+	/// <exception cref="ArgumentNullException">Thrown when <paramref name="key"/> is null.</exception>
 	bool IReadOnlyDictionary<TKey, TValue>.ContainsKey(TKey key)
 	{
 		ArgumentNullException.ThrowIfNull(key);
@@ -149,67 +127,6 @@ internal sealed class ReadOnlyEmpty<TKey, TValue> : IReadOnlyList<TValue>, IRead
 	public IEnumerator<TValue> GetEnumerator()
 	{
 		return Enumerable.Empty<TValue>().GetEnumerator();
-	}
-
-	/// <summary>
-	/// Determines whether the empty set is a proper subset of the specified collection.
-	/// </summary>
-	/// <param name="other">The collection to compare with. This value must not be <see langword="null"/>.</param>
-	/// <returns><see langword="true"/> when <paramref name="other"/> contains at least one element; otherwise, <see langword="false"/>.</returns>
-	public bool IsProperSubsetOf(IEnumerable<TValue> other)
-	{
-		return other.AsValueEnumerable().Any();
-	}
-
-	/// <summary>
-	/// Determines whether the empty set is a proper superset of the specified collection.
-	/// </summary>
-	/// <param name="other">The collection to compare with. It is not read.</param>
-	/// <returns>Always <see langword="false"/>.</returns>
-	public bool IsProperSupersetOf(IEnumerable<TValue> other)
-	{
-		return false;
-	}
-
-	/// <summary>
-	/// Determines whether the empty set is a subset of the specified collection.
-	/// </summary>
-	/// <param name="other">The collection to compare with. It is not read.</param>
-	/// <returns>Always <see langword="true"/>, because the empty set is a subset of every set.</returns>
-	public bool IsSubsetOf(IEnumerable<TValue> other)
-	{
-		return true;
-	}
-
-	/// <summary>
-	/// Determines whether the empty set is a superset of the specified collection.
-	/// </summary>
-	/// <param name="other">The collection to compare with. This value must not be <see langword="null"/>.</param>
-	/// <returns><see langword="true"/> when <paramref name="other"/> is empty; otherwise, <see langword="false"/>.</returns>
-	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="other"/> is null.</exception>
-	public bool IsSupersetOf(IEnumerable<TValue> other)
-	{
-		return !other.Any();
-	}
-
-	/// <summary>
-	/// Determines whether the empty set shares any elements with the specified collection.
-	/// </summary>
-	/// <param name="other">The collection to compare with. It is not read.</param>
-	/// <returns>Always <see langword="false"/>.</returns>
-	public bool Overlaps(IEnumerable<TValue> other)
-	{
-		return false;
-	}
-
-	/// <summary>
-	/// Determines whether the empty set and the specified collection contain the same elements.
-	/// </summary>
-	/// <param name="other">The collection to compare with. This value must not be <see langword="null"/>.</param>
-	/// <returns><see langword="true"/> when <paramref name="other"/> is empty; otherwise, <see langword="false"/>.</returns>
-	public bool SetEquals(IEnumerable<TValue> other)
-	{
-		return !other.AsValueEnumerable().Any();
 	}
 
 	/// <summary>

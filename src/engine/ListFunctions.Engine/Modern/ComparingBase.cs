@@ -7,10 +7,10 @@ namespace ListFunctions.Modern;
 /// </summary>
 /// <remarks>
 /// <para>
-/// A derived type validates its script block when it's constructed. A valid script block is one that PowerShell can
-/// invoke as a single block that contains at least one statement: the <c>process</c> block when there is one, and
-/// otherwise the <c>end</c> block. A script block that has a <c>begin</c> block, a <c>clean</c> block, or both a
-/// <c>process</c> block and an <c>end</c> block isn't valid.
+/// A derived type validates its script block when it's constructed, unless the caller has already validated it. A
+/// valid script block is one that PowerShell can invoke as a single block that contains at least one statement: the
+/// <c>process</c> block when there is one, and otherwise the <c>end</c> block. A script block that has a <c>begin</c>
+/// block, a <c>clean</c> block, or both a <c>process</c> block and an <c>end</c> block isn't valid.
 /// </para>
 /// <para>
 /// Only types in this assembly can derive from this class.

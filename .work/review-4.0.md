@@ -42,7 +42,7 @@ Item numbers continue from `bugs.md`, so each number names one item in either fi
 **Public surface and dead code**
 
 - [ ] 45 — Engine and Next have more public types than they need
-- [ ] 46 — About 1,600 lines of code are dead or used only by tests
+- [x] 46 — About 1,600 lines of code are dead or used only by tests
 - [ ] 47 — Leftover members, unused extension points, and TODOs in the XML docs
 
 **Can wait**
@@ -1107,6 +1107,28 @@ About 7 to 17 of them need to be public, depending on the judgment calls below.
 
 Removing a type that only tests use means removing its tests too. Keep `ScriptBlockInvocationException.Offender` and `.Variables`: in code, only tests read them, but users see them in error records.
 
+**Fixed:** on 2026-10-07, everything listed above is gone, and `ScriptBlockInvocationException.Offender` and `.Variables` stay. The change deletes 1,774 lines of product code and 125 lines of tests.
+
+- **Dead code:**
+  - The files that held `EqualityExtensions`, `EqualityScriptException`, `ReadOnlySet<T>` and the `IReadOnlySet<T>` shim, `PSVariableNameEquality`, `SingleValueReadOnlySet`, `DoubleBool`, `EnumerableExtensions`, and `InternalFinder` are deleted, along with Next's empty `Build/` folder. Commit `d84b256` had already deleted `VarList.cs` and Engine's two csproj items for it.
+  - Deleting `SingleValueReadOnlySet.cs` also fixes the `netstandard2.0` build, which fails at `d84b256` with CS0411. That commit removed the file's `using ListFunctions.Extensions;`, which brings in the `TryGetNonEnumeratedCount` polyfill.
+  - `IHashCodeBlock` is gone from its file, which is renamed `IHashBlock.cs` after the interface it still holds.
+  - `ArraySlice<T>` loses `CtorArgs` and the constructor that takes it.
+- **The shim's users:** without `IReadOnlySet<T>`, `Empty.Set<T>()` (47) is deleted, and `ReadOnlyEmpty<TKey, TValue>` is no longer a set. It still backs `Empty.Dictionary`, which `ScriptBlockInvocationException` uses.
+- **Next's description:** `InternalFinder.cs` also held the `AssemblyDescription` of `ListFunctions.Next.dll`, which the item doesn't mention. It's now `<Description>` in Next's csproj, from which the SDK generates the same attribute. The DLL's version resource still has the text, and the NETFramework DLL still has none.
+- **Used only by tests:**
+  - `IComparingBlock`, `ListTransformAttribute`, and `PipelineItem` are deleted. `ComparingBlock<T>` now lists `IComparer` itself, which it used to get through `IComparingBlock`.
+  - The public `ComparingBlock<T>` constructor is gone. The internal one that `ComparingBlock.Create<T>` calls now takes the same parameters: its `preValidated` parameter is gone, because every remaining caller passed `true`. So a `ComparingBlock<T>` never validates its script block, and New-SortedSet's `[IsScriptBlock]` still validates `-ComparingScript` first.
+  - The `EqualityBlock(ScriptBlock, IHashBlock)` constructor is gone. The cmdlets use the other two.
+  - `EqualityComparerAdapter<T>.InnerComparer` is now a private field.
+- **Public types:** both Engine builds export 10 types. `d84b256` had made most of Engine internal, but 5 of the deleted types were still public after it: `EqualityScriptException`, `IComparingBlock`, `IHashCodeBlock`, `PipelineItem`, and `PipelineItem.Enumerator`.
+- **Docs:** `ComparingBlock.Create`'s remarks no longer compare it with the deleted constructor. `ComparingBase`'s remarks say that a derived type doesn't validate a script block that its caller has validated. `CLAUDE.md` no longer names `ListTransform`, `IReadOnlySet<T>`, or `VarList.cs`, and it names `StringOrScriptBlockTransform` beside `ArgumentToTypeTransform`.
+- **Tests:** none added, because the change only removes code.
+  - The 9 tests in `ListTransformAttributeTests.cs` are deleted with the attribute, and so are the 2 cases of `ComparingBlockTests`' constructor-validation theory.
+  - The `EqualityBlock` tests in three files pass `additionalVariables: null` to the three-argument constructor. `ComparingBlockTests` calls the internal constructor, whose parameters match the deleted one's.
+  - `Create_ReturnsAComparingBlockOfTheSpecifiedType` and `Construct_WrapsAnEqualityBlockForValueTypeKeys` check only the comparer's type. `Construct_UsesAnEqualityBlockWithValueTypeKeys` still shows that the adapter passes keys to the block.
+  - The build has no warnings. The 382 Engine tests, 191 in each target, and the 304 Pester tests in each edition passed.
+
 ### 47 — Leftover members, unused extension points, and TODOs in the XML docs
 
 **Members whose XML docs have TODOs:**
@@ -1114,7 +1136,7 @@ Removing a type that only tests use means removing its tests too. Keep `ScriptBl
 - `ComparingBlock<T>.CurrentLeft` and `CurrentRight` always return `default` (`src/engine/ListFunctions.Engine/Modern/ComparingBlock.cs:117`).
 - Nothing assigns `PSComparingVariable.InstanceValue` or `EqualityBlock.ObjVariable.Value`.
 - Nothing calls `HashBlock(ScriptBlock, List<PSVariable>?)`, and every call clears the list it's given (`src/engine/ListFunctions.Engine/Modern/HashBlock.cs:46`).
-- The three `EqualityBlock` constructors accept a `$null` `IHashBlock`, which fails later with a NullReferenceException.
+- The three `EqualityBlock` constructors accept a `$null` `IHashBlock`, which fails later with a NullReferenceException. 46's fix removed the two-argument one.
 - The `addIfNull` parameter of `AddToCollection` does nothing (`src/engine/ListFunctions-Next/Cmdlets/Constructs/EqualityConstructingCmdlet.cs:311`). 32's fix removed the parameter and its TODO.
 - `ArraySlice<T>(T[], int, int)` doesn't validate its offset (`src/engine/ListFunctions.Engine/Internal/ArraySlice.cs:228`).
 
@@ -1130,12 +1152,12 @@ Removing a type that only tests use means removing its tests too. Keep `ScriptBl
 
 **Members nothing calls:**
 
-- `Empty.Set<T>()`.
+- `Empty.Set<T>()`. 46's fix deleted it.
 - `PSVariableCollectionExtensions.GetLastValue`.
 - `ComparingScriptException.FromBlockException<T>(Exception, ...)`.
 - `PSThisVariable.Clone()`.
 - `ListWrapper.Count`.
-- `PipelineItem.AddToList`.
+- `PipelineItem.AddToList`. 46's fix deleted `PipelineItem`.
 - `GenericCollectionCtor.GenericDefinitionType` and `HasGenerics`.
 - `DictionaryCtor.ValueType`.
 - `AddMethodInvoker.ImplementingType`.
@@ -1145,7 +1167,7 @@ Removing a type that only tests use means removing its tests too. Keep `ScriptBl
 
 **Also:**
 
-- **`ReadOnlySet<T>`:** its `ISet<T>.Add` throws `NotImplementedException`. The type is dead (46).
+- **`ReadOnlySet<T>`:** its `ISet<T>.Add` throws `NotImplementedException`. The type was dead, and 46's fix deleted it.
 - **`HashCodeScriptException`:**
   - It's `[Serializable]` in every build, because the `#if` around the attribute is commented out (`src/engine/ListFunctions.Engine/Modern/Exceptions/HashCodeScriptException.cs:10`). Its sibling exceptions apply the attribute only before .NET 8.
   - In the `net10.0` build, it has no deserialization constructor.

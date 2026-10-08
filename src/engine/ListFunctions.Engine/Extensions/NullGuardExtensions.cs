@@ -2,7 +2,7 @@
 namespace System;
 #pragma warning restore IDE0130 // Namespace does not match folder structure
 
-#if !NETCOREAPP
+#if !NET6_0_OR_GREATER
 
 /// <summary>
 /// Provides the static argument-validation helpers that .NET declares on <see cref="ArgumentNullException"/>,

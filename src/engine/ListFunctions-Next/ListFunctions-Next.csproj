@@ -4,6 +4,7 @@
 		<TargetFramework>net10.0</TargetFramework>
 		<Nullable>disable</Nullable>
 		<Product>ListFunctions</Product>
+		<Description>A PowerShell module that provides functions to manipulate and search through Arrays, Collections, Lists, and Sets.</Description>
 		<AssemblyName>ListFunctions.Next</AssemblyName>
 		<PackageIconUrl>https://github.com/Yevrag35/PowerShell-ListFunctions/blob/master/.icon/list-functions.png?raw=true</PackageIconUrl>
 		<PackageLicenseUrl>https://raw.githubusercontent.com/Yevrag35/PowerShell-ListFunctions/master/LICENSE</PackageLicenseUrl>

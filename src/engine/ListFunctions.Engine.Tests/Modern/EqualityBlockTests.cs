@@ -17,7 +17,7 @@ public sealed class EqualityBlockTests : IClassFixture<RunspaceFixture>
 	public void Equals_ExposesTheOperandsToTheScript(string equalityScript)
 	{
 		using RunspaceScope scope = _runspace.Enter();
-		var block = new EqualityBlock(ScriptBlock.Create(equalityScript), new HashBlock(ScriptBlock.Create("0")));
+		var block = new EqualityBlock(ScriptBlock.Create(equalityScript), new HashBlock(ScriptBlock.Create("0")), additionalVariables: null);
 
 		Assert.True(block.Equals(1, 1));
 		Assert.False(block.Equals(1, 2));
@@ -28,7 +28,7 @@ public sealed class EqualityBlockTests : IClassFixture<RunspaceFixture>
 	public void Equals_PassesTheOperandsAsArgumentsInOrder()
 	{
 		using RunspaceScope scope = _runspace.Enter();
-		var block = new EqualityBlock(ScriptBlock.Create("$args[0] -eq $x -and $args[1] -eq $y"), new HashBlock(ScriptBlock.Create("0")));
+		var block = new EqualityBlock(ScriptBlock.Create("$args[0] -eq $x -and $args[1] -eq $y"), new HashBlock(ScriptBlock.Create("0")), additionalVariables: null);
 
 		Assert.True(block.Equals(1, 2));
 	}
@@ -37,7 +37,7 @@ public sealed class EqualityBlockTests : IClassFixture<RunspaceFixture>
 	public void Equals_ReturnsTrueForTheSameReferenceWithoutRunningTheScript()
 	{
 		using RunspaceScope scope = _runspace.Enter();
-		var block = new EqualityBlock(ScriptBlock.Create("throw 'The script ran.'"), new HashBlock(ScriptBlock.Create("0")));
+		var block = new EqualityBlock(ScriptBlock.Create("throw 'The script ran.'"), new HashBlock(ScriptBlock.Create("0")), additionalVariables: null);
 		object item = new();
 
 		Assert.True(block.Equals(item, item));
@@ -47,7 +47,7 @@ public sealed class EqualityBlockTests : IClassFixture<RunspaceFixture>
 	public void Equals_ReturnsFalseWhenTheScriptHasNoOutput()
 	{
 		using RunspaceScope scope = _runspace.Enter();
-		var block = new EqualityBlock(ScriptBlock.Create("$null = $x, $y"), new HashBlock(ScriptBlock.Create("0")));
+		var block = new EqualityBlock(ScriptBlock.Create("$null = $x, $y"), new HashBlock(ScriptBlock.Create("0")), additionalVariables: null);
 
 		Assert.False(block.Equals(1, 1));
 	}
@@ -79,7 +79,8 @@ public sealed class EqualityBlockTests : IClassFixture<RunspaceFixture>
 		using RunspaceScope scope = _runspace.Enter();
 		var block = new EqualityBlock(
 			ScriptBlock.Create("[string]::Equals($x, $y, 'OrdinalIgnoreCase')"),
-			new HashBlock(ScriptBlock.Create("$_.ToUpperInvariant().GetHashCode()")));
+			new HashBlock(ScriptBlock.Create("$_.ToUpperInvariant().GetHashCode()")),
+			additionalVariables: null);
 		var set = new HashSet<object>(block);
 
 		Assert.True(set.Add("abc"));
@@ -91,7 +92,7 @@ public sealed class EqualityBlockTests : IClassFixture<RunspaceFixture>
 	public void Equals_RunsAScriptWithOnlyAProcessBlock()
 	{
 		using RunspaceScope scope = _runspace.Enter();
-		var block = new EqualityBlock(ScriptBlock.Create("process { $x -eq $y }"), new HashBlock(ScriptBlock.Create("0")));
+		var block = new EqualityBlock(ScriptBlock.Create("process { $x -eq $y }"), new HashBlock(ScriptBlock.Create("0")), additionalVariables: null);
 
 		Assert.True(block.Equals(1, 1));
 		Assert.False(block.Equals(1, 2));
@@ -100,7 +101,7 @@ public sealed class EqualityBlockTests : IClassFixture<RunspaceFixture>
 	[Fact]
 	public void Constructor_ThrowsWhenTheScriptHasNoStatements()
 	{
-		Assert.Throws<ArgumentException>(() => new EqualityBlock(ScriptBlock.Create("# No statements"), new HashBlock(ScriptBlock.Create("0"))));
+		Assert.Throws<ArgumentException>(() => new EqualityBlock(ScriptBlock.Create("# No statements"), new HashBlock(ScriptBlock.Create("0")), additionalVariables: null));
 	}
 
 	// ScriptBlock.InvokeWithContext, which runs the script, refuses a script block that has a begin block, or both a
@@ -110,6 +111,6 @@ public sealed class EqualityBlockTests : IClassFixture<RunspaceFixture>
 	[InlineData("process { $x -eq $y } end { $x -eq $y }")]
 	public void Constructor_ThrowsWhenInvokeWithContextCannotRunTheScript(string equalityScript)
 	{
-		Assert.Throws<ArgumentException>(() => new EqualityBlock(ScriptBlock.Create(equalityScript), new HashBlock(ScriptBlock.Create("0"))));
+		Assert.Throws<ArgumentException>(() => new EqualityBlock(ScriptBlock.Create(equalityScript), new HashBlock(ScriptBlock.Create("0")), additionalVariables: null));
 	}
 }

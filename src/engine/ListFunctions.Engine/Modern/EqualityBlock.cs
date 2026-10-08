@@ -44,23 +44,6 @@ internal sealed class EqualityBlock : ComparingBase, IEqualityBlock
 	public IHashBlock HashCodeBlock { get; }
 
 	/// <summary>
-	/// Initializes a new <see cref="EqualityBlock"/> instance with the specified equality script block and hash code
-	/// provider.
-	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// TODO: The constructor doesn't check <paramref name="hashCodeBlock"/>, so a <see langword="null"/> value fails
-	/// only when <see cref="GetHashCode(object)"/> is called.
-	/// </para>
-	/// </remarks>
-	/// <param name="equalityBlock">The script block that determines whether <c>$x</c> and <c>$y</c> are equal. This value must not be <see langword="null"/>.</param>
-	/// <param name="hashCodeBlock">The provider that computes hash codes. This value must not be <see langword="null"/>.</param>
-	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="equalityBlock"/> is null.</exception>
-	/// <exception cref="ArgumentException">Thrown when <paramref name="equalityBlock"/> has no statements to run, or has a <c>begin</c> block, a <c>clean</c> block, or both a <c>process</c> block and an <c>end</c> block.</exception>
-	public EqualityBlock(ScriptBlock equalityBlock, IHashBlock hashCodeBlock) : this(equalityBlock, hashCodeBlock, additionalVariables: null)
-	{
-	}
-	/// <summary>
 	/// Initializes a new <see cref="EqualityBlock"/> instance with the specified equality script block, hash code
 	/// provider, and additional variables.
 	/// </summary>

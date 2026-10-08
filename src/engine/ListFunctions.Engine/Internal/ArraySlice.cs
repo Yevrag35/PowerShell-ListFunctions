@@ -107,18 +107,6 @@ internal static class ArraySlice
 [CollectionBuilder(typeof(ArraySlice), nameof(ArraySlice.Create))]
 internal readonly struct ArraySlice<T> : IReadOnlyCollection<T>
 {
-	/// <summary>
-	/// Carries the offset and length for the unchecked <see cref="ArraySlice{T}"/> constructor.
-	/// </summary>
-	/// <remarks>
-	/// Wrapping the values in a separate type keeps the unchecked constructor from being confused with the public
-	/// constructor that takes the same values and validates them.
-	/// </remarks>
-	/// <param name="Offset">The zero-based index in the array at which the slice begins.</param>
-	/// <param name="Length">The number of elements in the slice.</param>
-	[StructLayout(LayoutKind.Auto)]
-	internal readonly record struct CtorArgs(int Offset, int Length);
-
 	private readonly T[]? _array;
 	private readonly int _length;
 	private readonly int _offset;
@@ -193,20 +181,6 @@ internal readonly struct ArraySlice<T> : IReadOnlyCollection<T>
 		_array = empty;
 		_length = 0;
 		_offset = 0;
-	}
-	/// <summary>
-	/// Initializes a new <see cref="ArraySlice{T}"/> instance that represents a slice of the specified array, using the offset and length in <paramref name="args"/>.
-	/// </summary>
-	/// <remarks>This constructor does not validate its arguments, so callers must ensure that the offset and length describe
-	/// a range inside <paramref name="array"/>. Only the <see langword="null"/> check on <paramref name="array"/> runs, and only
-	/// in Debug builds.</remarks>
-	/// <param name="array">The array to create the slice from. This value must not be <see langword="null"/>.</param>
-	/// <param name="args">A <see cref="CtorArgs"/> struct containing the offset and length for the slice.</param>
-	internal ArraySlice(T[] array, CtorArgs args)
-	{
-		Debug.Assert(array is not null, "We're trusting you here...");
-		_array = array;
-		(_offset, _length) = args;
 	}
 	/// <summary>
 	/// Initializes a new instance of the <see cref="ArraySlice{T}"/> struct that represents a slice of the specified array,
