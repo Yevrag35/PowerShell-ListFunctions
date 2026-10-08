@@ -27,7 +27,7 @@ internal sealed class HashSetCtor : EqualityCollectionCtor
 	/// The equality comparer for the set, or <see langword="null"/> to use a default comparer.
 	/// </param>
 	public HashSetCtor(Type? genericType, IEqualityComparer? equalityComparer)
-		: base(HashSetTypeDefinition, equalityComparer, ToArrayOrEmpty(genericType), null)
+		: base(HashSetTypeDefinition, equalityComparer, ToArrayOrEmpty(genericType))
 	{
 		_equalityType = genericType ?? typeof(object);
 	}

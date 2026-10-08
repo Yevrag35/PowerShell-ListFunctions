@@ -4,31 +4,18 @@ using ListFunctions.Modern.Exceptions;
 namespace ListFunctions.Modern.Constructors;
 
 /// <summary>
-/// Represents a method that closes a generic type definition over a set of type arguments.
-/// </summary>
-/// <remarks>
-/// Pass a <see cref="CreateConstructingType"/> to a <see cref="GenericCollectionCtor"/> to replace the default
-/// behavior, which calls <see cref="Type.MakeGenericType(Type[])"/> on the definition.
-/// </remarks>
-/// <param name="genericTypeDefinition">The open generic type definition, such as <c>typeof(List&lt;&gt;)</c>.</param>
-/// <param name="genericTypeArguments">The type arguments to close <paramref name="genericTypeDefinition"/> over.</param>
-/// <returns>The closed generic type that the collection constructor creates instances of.</returns>
-internal delegate Type CreateConstructingType(Type genericTypeDefinition, Type[] genericTypeArguments);
-
-/// <summary>
 /// Provides the base class for objects that create instances of a closed generic collection type through
 /// reflection.
 /// </summary>
 /// <remarks>
 /// <para>
-/// A derived class supplies the generic type definition and type arguments, the arguments for the collection's
-/// constructor, and a fallback collection to create when the type arguments call for one. <see cref="Construct"/>
-/// either creates that fallback collection or calls <see cref="Activator.CreateInstance(Type, object[])"/> on
-/// <see cref="ConstructingGenericType"/>.
+/// A derived class supplies the generic type definition and type arguments, and the arguments for the collection's
+/// constructor. <see cref="Construct"/> calls <see cref="Activator.CreateInstance(Type, object[])"/> on
+/// <see cref="ConstructingGenericType"/> with those arguments.
 /// </para>
 /// <para>
-/// Instances aren't thread-safe. <see cref="Construct"/> can change <see cref="ConstructingGenericType"/> and
-/// <see cref="GenericArgumentTypes"/>.
+/// The class doesn't change its own state after construction. Whether an instance is thread-safe depends on the derived
+/// class's <see cref="GetConstructorArguments(Type[])"/>, which <see cref="Construct"/> calls.
 /// </para>
 /// </remarks>
 internal abstract class GenericCollectionCtor
@@ -36,35 +23,17 @@ internal abstract class GenericCollectionCtor
 	/// <summary>
 	/// Gets the closed generic type of the collection that <see cref="Construct"/> creates.
 	/// </summary>
-	/// <remarks>
-	/// When <see cref="Construct"/> creates the fallback collection, this property changes to the type of that
-	/// collection, which might not be generic.
-	/// </remarks>
-	/// <value>The runtime type of the collection.</value>
-	public Type ConstructingGenericType { get; private set; }
-	/// <summary>
-	/// Gets the open generic type definition of the collection.
-	/// </summary>
-	/// <value>The generic type definition passed to the constructor, such as <c>typeof(List&lt;&gt;)</c>.</value>
-	public Type GenericDefinitionType { get; }
+	/// <value>The generic type definition passed to the constructor, closed over <see cref="GenericArgumentTypes"/>.</value>
+	public Type ConstructingGenericType { get; }
 	/// <summary>
 	/// Gets the generic type arguments of the collection.
 	/// </summary>
-	/// <remarks>
-	/// When <see cref="Construct"/> creates the fallback collection, this property changes to the type arguments of
-	/// that collection, or to an empty array when that collection isn't generic.
-	/// </remarks>
 	/// <value>A copy of the type arguments passed to the constructor, or an empty array when none were passed.</value>
-	public Type[] GenericArgumentTypes { get; private set; }
-	/// <summary>
-	/// Gets a value that indicates whether the collection has any generic type arguments.
-	/// </summary>
-	/// <value><see langword="true"/> if <see cref="GenericArgumentTypes"/> isn't empty; otherwise, <see langword="false"/>.</value>
-	public bool HasGenerics => this.GenericArgumentTypes.Length > 0;
+	public Type[] GenericArgumentTypes { get; }
 
 	/// <summary>
-	/// Initializes a new <see cref="GenericCollectionCtor"/> instance with the specified generic type definition, type
-	/// arguments, and callback that closes the definition over the arguments.
+	/// Initializes a new <see cref="GenericCollectionCtor"/> instance with the specified generic type definition and type
+	/// arguments.
 	/// </summary>
 	/// <remarks>
 	/// The constructor copies <paramref name="genericTypes"/>, so later changes to that array don't affect this
@@ -77,40 +46,29 @@ internal abstract class GenericCollectionCtor
 	/// <param name="genericTypes">
 	/// The type arguments to close <paramref name="genericDefinition"/> over, or <see langword="null"/> for none.
 	/// </param>
-	/// <param name="makeConstructingTypeCallback">
-	/// The method that closes <paramref name="genericDefinition"/> over <paramref name="genericTypes"/>, or
-	/// <see langword="null"/> to call <see cref="Type.MakeGenericType(Type[])"/>.
-	/// </param>
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="genericDefinition"/> is null.</exception>
 	/// <exception cref="ArgumentException">
 	/// Thrown when <paramref name="genericDefinition"/> isn't a generic type, isn't a class, or is abstract; or when
-	/// <paramref name="makeConstructingTypeCallback"/> is null and <paramref name="genericTypes"/> doesn't satisfy
-	/// the definition's type parameters.
+	/// <paramref name="genericTypes"/> doesn't satisfy the definition's type parameters.
 	/// </exception>
 	/// <exception cref="InvalidOperationException">
-	/// Thrown when <paramref name="makeConstructingTypeCallback"/> is null and <paramref name="genericDefinition"/> is a
-	/// closed generic type instead of a generic type definition.
+	/// Thrown when <paramref name="genericDefinition"/> is a closed generic type instead of a generic type definition.
 	/// </exception>
-	protected GenericCollectionCtor(Type genericDefinition, Type[]? genericTypes, CreateConstructingType? makeConstructingTypeCallback)
+	protected GenericCollectionCtor(Type genericDefinition, Type[]? genericTypes)
 	{
 		ArgumentNullException.ThrowIfNull(genericDefinition);
 		GuardDefinition(genericDefinition);
 
-		this.GenericDefinitionType = genericDefinition;
 		this.GenericArgumentTypes = SetGenericTypes(genericTypes);
-		this.ConstructingGenericType = makeConstructingTypeCallback is null
-			? MakeConstructingType(genericDefinition, this.GenericArgumentTypes)
-			: makeConstructingTypeCallback(genericDefinition, this.GenericArgumentTypes);
+		this.ConstructingGenericType = MakeConstructingType(genericDefinition, this.GenericArgumentTypes);
 	}
 
 	/// <summary>
 	/// Creates a new, empty collection.
 	/// </summary>
 	/// <remarks>
-	/// When <see cref="ShouldConstructDefault(Type[])"/> returns <see langword="true"/>, the method returns the
-	/// collection from <see cref="ConstructDefault"/> and updates <see cref="ConstructingGenericType"/> and
-	/// <see cref="GenericArgumentTypes"/> to match it. Otherwise, it creates an instance of
-	/// <see cref="ConstructingGenericType"/> with the arguments from <see cref="GetConstructorArguments(Type[])"/>.
+	/// The method creates an instance of <see cref="ConstructingGenericType"/> with the arguments from
+	/// <see cref="GetConstructorArguments(Type[])"/>.
 	/// </remarks>
 	/// <returns>The new collection.</returns>
 	/// <exception cref="ActivatorCtorException">
@@ -118,16 +76,6 @@ internal abstract class GenericCollectionCtor
 	/// </exception>
 	public object Construct()
 	{
-		if (this.ShouldConstructDefault(this.GenericArgumentTypes))
-		{
-			object defCol = this.ConstructDefault();
-			this.ConstructingGenericType = defCol.GetType();
-			this.GenericArgumentTypes = this.ConstructingGenericType.GetGenericArguments()
-				?? Type.EmptyTypes;
-
-			return defCol;
-		}
-
 		object?[]? ctorArgs = this.EnumerateCtorArguments(this.GenericArgumentTypes);
 
 		return CallActivator(this.ConstructingGenericType, ctorArgs);
@@ -185,16 +133,6 @@ internal abstract class GenericCollectionCtor
 	}
 
 	/// <summary>
-	/// Creates the fallback collection that <see cref="Construct"/> returns when
-	/// <see cref="ShouldConstructDefault(Type[])"/> returns <see langword="true"/>.
-	/// </summary>
-	/// <remarks>
-	/// The collection doesn't have to be an instance of <see cref="ConstructingGenericType"/>, and it doesn't have to be
-	/// generic.
-	/// </remarks>
-	/// <returns>The new, empty collection. This value must not be <see langword="null"/>.</returns>
-	protected abstract object ConstructDefault();
-	/// <summary>
 	/// Returns the arguments to pass to the constructor of <see cref="ConstructingGenericType"/>.
 	/// </summary>
 	/// <param name="genericTypes">The generic type arguments of the collection.</param>
@@ -248,15 +186,6 @@ internal abstract class GenericCollectionCtor
 	{
 		return genericTypeDefinition.MakeGenericType(genericTypes);
 	}
-	/// <summary>
-	/// Determines whether <see cref="Construct"/> creates the fallback collection from
-	/// <see cref="ConstructDefault"/> instead of an instance of <see cref="ConstructingGenericType"/>.
-	/// </summary>
-	/// <param name="genericTypes">The generic type arguments of the collection.</param>
-	/// <returns>
-	/// <see langword="true"/> to create the fallback collection; otherwise, <see langword="false"/>.
-	/// </returns>
-	protected abstract bool ShouldConstructDefault(Type[] genericTypes);
 	/// <summary>
 	/// Copies the specified type arguments into a new array.
 	/// </summary>

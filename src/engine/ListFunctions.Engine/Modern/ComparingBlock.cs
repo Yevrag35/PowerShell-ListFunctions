@@ -93,29 +93,6 @@ internal sealed class ComparingBlock<T> : ComparingBase, IComparer<T>, IComparer
 	private readonly List<PSVariable> _varList;
 
 	/// <summary>
-	/// Gets the left operand of the current comparison.
-	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// TODO: Nothing assigns the value this property returns, so it's always the default value of
-	/// <typeparamref name="T"/>.
-	/// </para>
-	/// </remarks>
-	/// <value>The left operand.</value>
-	public T CurrentLeft => _left.Value;
-	/// <summary>
-	/// Gets the right operand of the current comparison.
-	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// TODO: Nothing assigns the value this property returns, so it's always the default value of
-	/// <typeparamref name="T"/>.
-	/// </para>
-	/// </remarks>
-	/// <value>The right operand.</value>
-	public T CurrentRight => _right.Value;
-
-	/// <summary>
 	/// Initializes a new <see cref="ComparingBlock{T}"/> instance with the specified script block and additional
 	/// variables.
 	/// </summary>

@@ -58,8 +58,12 @@ Every cmdlet derives from `Cmdlets/ListFunctionCmdletBase`.
 	- `ProcessCore()`, which returns `false` to stop processing further pipeline input. The base class records this as `CmdletRunFlags.FoundMatch`.
 	- `EndCore(CmdletRunState)`
 	- `Cleanup()`
-- If `BeginCore` or `ProcessCore` throws, the exception becomes a terminating error after `Cleanup` runs.
-- The collection-building cmdlets derive from `EqualityConstructingCmdlet<T>`. It builds the collection in a sealed `BeginCore`, supports a custom ScriptBlock equality comparer, and adds a dynamic `-CaseSensitive` parameter when the element type is `string`.
+- If `BeginCore` or `ProcessCore` throws, `Cleanup` runs first. A `RuntimeException` or `FlowControlException`, such as an error or `break` from a script block, then reaches PowerShell unchanged (see `PassesThrough`), so PowerShell handles it the way it does from a `ForEach-Object` script block. Any other exception becomes a terminating error.
+- `New-HashSet` and `New-Dictionary` derive from `EqualityConstructingCmdlet<T>`. It builds the collection in a sealed `BeginCore`, supports a custom ScriptBlock equality comparer, and adds a dynamic `-CaseSensitive` parameter when the element type, or a dictionary's key type, is `string` or `object`. `New-List`, `New-SortedSet`, and `ConvertTo-Dictionary` derive from `ListFunctionCmdletBase` directly, and `New-SortedSet` adds its own dynamic `-CaseSensitive` for `string` elements.
+
+### PowerShell behavior
+
+The cmdlets mirror native PowerShell wherever they can: they read input the way PowerShell binds it, errors from their script blocks end a command the way they do in `ForEach-Object`, and conversions store what `$list.Add($x)` stores. Load the `lf-pwsh-internals` skill before you change code that depends on how PowerShell behaves, answer a question about it, or measure it. The skill records the engine behavior that the code relies on, as measured in both editions.
 
 ### Shipped module layout
 

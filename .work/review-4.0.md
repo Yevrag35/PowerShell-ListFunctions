@@ -43,7 +43,7 @@ Item numbers continue from `bugs.md`, so each number names one item in either fi
 
 - [x] 45 — Engine and Next have more public types than they need
 - [x] 46 — About 1,600 lines of code are dead or used only by tests
-- [ ] 47 — Leftover members, unused extension points, and TODOs in the XML docs
+- [x] 47 — Leftover members, unused extension points, and TODOs in the XML docs
 
 **Can wait**
 
@@ -1176,6 +1176,39 @@ Removing a type that only tests use means removing its tests too. Keep `ScriptBl
   - In the `net10.0` build, it has no deserialization constructor.
 - **`AssertObjectCmdlet.BeginCore`:** it has a commented-out block.
 - **`[MemberNotNullWhen]`:** it's on a property that isn't a `bool` (`src/engine/ListFunctions-Next/Cmdlets/Constructs/EqualityConstructingCmdlet.cs:55`).
+
+**Fixed:** on 2026-10-07, every entry above is gone or resolved, except `SortingCollectorCtor.IsCaseSensitive`, which New-SortedSet's `-CaseSensitive` sets since 37, and `ComparingScriptException.FromBlockException<T>(Exception, ...)`, which has callers (see Kept). 32 and 46 had already removed `addIfNull`, `Empty.Set<T>()`, `PipelineItem`, and `ReadOnlySet<T>`. No XML doc in the solution has a TODO now.
+
+- **The TODOs:**
+  - `ComparingBlock<T>.CurrentLeft` and `CurrentRight` are gone, and so are `PSComparingVariable.InstanceValue`, `PSComparingVariable<T>.Value`, and `EqualityBlock.ObjVariable.Value`, which nothing assigned.
+  - The `HashBlock(ScriptBlock, List<PSVariable>?)` constructor is gone.
+  - Both `EqualityBlock` constructors throw an `ArgumentNullException` for a `null` `IHashBlock`.
+  - `ArraySlice<T>(T[], int, int)` checks the offset before the length, and throws an `ArgumentOutOfRangeException` for an offset that's negative or past the end of the array.
+  - `Guard.ThrowIfNegativeOrGreaterThan` changed too. Its .NET Standard 2.0 build asserted in Debug builds that the bound isn't 0, but a valid slice that ends at the end of its array, such as one over an empty array, gives a bound of 0, in the old length check as well as the new checks. The assertion now allows 0, which the check itself already handled.
+  - Measured in both editions through reflection: offsets 4 and -1 on a 3-element array throw for `offset`, offset 1 with length 3 throws for `length`, and offset 3 with length 0, and an empty array, give empty slices without an assertion.
+- **Extension points:**
+  - `CreateConstructingType` is gone, along with the constructor parameters of `GenericCollectionCtor` and `EqualityCollectionCtor` that took it.
+  - `GenericCollectionCtor` lost `ShouldConstructDefault` and `ConstructDefault`, along with their overrides in `EqualityCollectionCtor` and `SortingCollectorCtor`. `Construct` no longer changes `ConstructingGenericType` and `GenericArgumentTypes`, so both are read-only.
+  - `EqualityConstructingCmdlet<T>` lost `Begin` and `TryGetDynamicParameters`. `Process` returns nothing, `ProcessCore` always returns `true`, and `End` lost `wantsToStop`, so New-HashSet's and New-Dictionary's `End` write the collection without a check.
+  - `ListFunctionCmdletBase.GetErrorPreference()` is gone.
+  - `CmdletRunState` lost `Flags`, `IsStopping`, `HadError`, `BeginFailed`, and `ProcessFailed`. `CmdletRunFlags` keeps every value, because `ShouldSkipProcess` reads them.
+- **Members nothing called:**
+  - `PSVariableCollectionExtensions.GetLastValue`, `ScriptBlockExtensions.TryInvokeWithContext<T>`, `ListWrapper.Count`, `GenericCollectionCtor.GenericDefinitionType` and `HasGenerics`, `DictionaryCtor.ValueType`, and `NewDictionaryCmdlet.GetAddMethod` and `GetHashtableAddMethod`.
+  - `PSThisVariable.Clone()`, with the `ICloneable` implementation and the copy constructor that only it used.
+  - `AddMethodInvoker.ImplementingType`, with the `_genericTypes` field that only the constructor read.
+  - `ArraySlice<T>` keeps what `ValidateScriptVariableAttribute` uses: `Length`, `AsSpan()`, the enumerator, the `(T[], int, int)` constructor, and the static `Create`, `Empty`, and `Contains` methods, with the constructor of the shared empty slice. The indexer, `Array`, `IsDefault`, `Offset`, the `(T[], int)` constructor, `Deconstruct`, and the conversions to `Span<T>` and `ReadOnlySpan<T>` are gone. It implements `IEnumerable<T>` instead of `IReadOnlyCollection<T>`, because nothing read `Count`. The `netstandard2.0` build of the attribute passes a slice to `string.Join` as an `IEnumerable<string>`.
+- **Kept:** `ComparingScriptException.FromBlockException<T>(Exception, ...)`. `ComparingBlock<T>` calls it twice, with a `PSInvalidCastException` and with a `PSInvalidOperationException`. Neither type derives from `RuntimeException`, in PowerShell 7.6.6 or Windows PowerShell 5.1, so overload resolution can't pick the `RuntimeException` overload. Both calls were already there at `e07546b`.
+- **Also:**
+  - `HashCodeScriptException` has `[Serializable]` only before .NET 8, like its sibling exceptions. Measured on the Debug build: `IsSerializable` is `False` in PowerShell 7.6.6, and `True` in Windows PowerShell 5.1, whose build also has the deserialization constructor.
+  - `TestObjectCmdlet.BeginCore`, the item's `AssertObjectCmdlet.BeginCore`, lost its commented-out block. `EqualityConstructingCmdlet<T>.DynParamLib` lost the `[MemberNotNullWhen]`.
+- **Docs:** the remarks that described the fallback collections, `Begin`, `wantsToStop`, `ImplementingType`, the error action preference helper, and the run state's properties, in `GenericCollectionCtor`, `EqualityCollectionCtor`, `AddMethodInvoker`, `EqualityConstructingCmdlet<T>`, `ListFunctionCmdletBase`, `CmdletRunFlags`, and `CmdletRunState`. `PSVariableCollectionExtensions` and `ScriptBlockExtensions` now describe one method each, and `ListWrapper<T>.SetCapacity`'s exception no longer names `Count`.
+- **Not changed:** leftovers of the same kind that the item doesn't list.
+  - `EqualityConstructingCmdlet<T>.Process` still takes a `collectionType` parameter that neither override reads, so `_collectionType` exists only to pass it on.
+  - The `EndCore` of New-List, New-SortedSet, and ConvertTo-Dictionary checks `FoundMatch`, which is never set for them. Of their `ProcessCore` methods, only ConvertTo-Dictionary's can return `false`, and only right after `ThrowTerminatingError`, which throws first.
+  - `ReadOnlyEmpty<TKey, TValue>` still implements `IReadOnlyList<TValue>`, which `Empty.Dictionary` doesn't need.
+  - Nothing calls the `netstandard2.0`-only `ArgumentOutOfRangeException.ThrowIfNegativeOrGreaterThan` extension in `NullGuardExtensions`, because code calls `Guard.ThrowIfNegativeOrGreaterThan` instead.
+  - Neither override of `GenericCollectionCtor.GetConstructorArguments` reads its `genericTypes` parameter.
+- **Tests:** none added. Most of the change removes code, and the two new argument checks are in internal types whose callers never pass those arguments.
 
 ## Can wait
 

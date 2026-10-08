@@ -206,10 +206,9 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// </remarks>
 	/// <param name="collection">The dictionary to copy entries into.</param>
 	/// <param name="collectionType">The closed generic type of the dictionary.</param>
-	/// <returns>Always <see langword="true"/>, so all pipeline input is processed.</returns>
 	/// <exception cref="RuntimeException">Thrown when adding an entry throws one, for example because <see cref="HashCodeScript"/> fails.</exception>
 	/// <exception cref="FlowControlException">Thrown when adding an entry throws one, for example because <see cref="HashCodeScript"/> runs <c>break</c>.</exception>
-	protected override bool Process(IDictionary collection, Type collectionType)
+	protected override void Process(IDictionary collection, Type collectionType)
 	{
 		if (null != this.InputObject && this.InputObject.Count > 0)
 		{
@@ -236,19 +235,13 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 				this.AddToCollection(collection, args);
 			}
 		}
-
-		return true;
 	}
 	/// <summary>
 	/// Writes the dictionary to the pipeline as a single object.
 	/// </summary>
 	/// <param name="collection">The constructed dictionary.</param>
-	/// <param name="wantsToStop"><see langword="true"/> to skip writing the dictionary; otherwise, <see langword="false"/>.</param>
-	protected override void End(IDictionary collection, bool wantsToStop)
+	protected override void End(IDictionary collection)
 	{
-		if (wantsToStop)
-			return;
-
 		this.WriteObject(collection, false);
 	}
 
@@ -292,20 +285,6 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 		};
 	}
 
-	/// <summary>
-	/// Gets the public instance <c>Add</c> method of the specified closed dictionary type.
-	/// </summary>
-	/// <remarks>The method is not currently called.</remarks>
-	/// <param name="genericBaseType">A closed generic dictionary type whose generic arguments are the key and value types.</param>
-	/// <returns>The <see cref="MethodInfo"/> for <c>Add(TKey, TValue)</c>.</returns>
-	private static MethodInfo GetAddMethod(Type genericBaseType)
-	{
-		return genericBaseType.GetMethod(nameof(Dictionary<object, object>.Add),
-			bindingAttr: BindingFlags.Public | BindingFlags.Instance,
-			binder: null,
-			types: genericBaseType.GetGenericArguments(),
-			modifiers: null)!;
-	}
 	/// <summary>
 	/// Returns the key equality comparer, building one from <see cref="EqualityScript"/> and
 	/// <see cref="HashCodeScript"/> in the custom equality parameter sets.
@@ -354,19 +333,6 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 		this.ValueType ??= typeof(object);
 
 		return [this.KeyType, this.ValueType];
-	}
-	/// <summary>
-	/// Gets the <see cref="MethodInfo"/> of the <see cref="Hashtable"/> method called in the specified expression.
-	/// </summary>
-	/// <remarks>The method is not currently called.</remarks>
-	/// <param name="addExpression">An expression whose body is a single method call on a <see cref="Hashtable"/>.</param>
-	/// <returns>The <see cref="MethodInfo"/> of the called method.</returns>
-	/// <exception cref="ArgumentException">Thrown when the body of <paramref name="addExpression"/> is not a method call.</exception>
-	private static MethodInfo GetHashtableAddMethod(Expression<Action<Hashtable>> addExpression)
-	{
-		return addExpression.Body is MethodCallExpression methodCall
-			? methodCall.Method
-			: throw new ArgumentException("What the hell? That's not a method call...");
 	}
 
 	#endregion

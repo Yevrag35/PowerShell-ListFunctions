@@ -7,9 +7,9 @@ namespace ListFunctions.Modern.Exceptions;
 /// Use one of the <c>FromBlockException</c> methods to create an instance from the exception that the script block
 /// threw. They keep the PowerShell error record and the failing statement when the exception carries them.
 /// </remarks>
-//#if !NET8_0_OR_GREATER
+#if !NET8_0_OR_GREATER
 [Serializable]
-//#endif
+#endif
 public sealed class HashCodeScriptException : ScriptBlockInvocationException
 {
 	private const string DEF_MSG = "An exception occurred trying to calculate the hash code of a specific object";

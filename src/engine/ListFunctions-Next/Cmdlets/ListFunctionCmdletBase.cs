@@ -29,8 +29,8 @@ namespace ListFunctions.Cmdlets;
 /// class rejects both together before <see cref="BeginCore"/> runs.
 /// </para>
 /// <para>
-/// The class also provides helpers that create the filter for a condition script block, get the error action
-/// preference, and convert items with PowerShell's conversion rules. Like other cmdlets, an instance isn't thread-safe.
+/// The class also provides helpers that create the filter for a condition script block and convert items with
+/// PowerShell's conversion rules. Like other cmdlets, an instance isn't thread-safe.
 /// </para>
 /// </remarks>
 public abstract class ListFunctionCmdletBase : PSCmdlet
@@ -468,28 +468,6 @@ public abstract class ListFunctionCmdletBase : PSCmdlet
 		// Override to implement custom cleanup logic
 	}
 
-	/// <summary>
-	/// Gets the error action preference that applies to this cmdlet.
-	/// </summary>
-	/// <remarks>
-	/// The method returns the value of the <c>-ErrorAction</c> common parameter when it is bound. Otherwise, it returns
-	/// the value of <c>$ErrorActionPreference</c> in the cmdlet's session state.
-	/// </remarks>
-	/// <returns>
-	/// The error action preference, or <see cref="ActionPreference.Continue"/> when the value found isn't an
-	/// <see cref="ActionPreference"/>.
-	/// </returns>
-	protected ActionPreference GetErrorPreference()
-	{
-		if (!this.MyInvocation.BoundParameters.TryGetValue(ERROR_ACTION, out object? errorObj))
-		{
-			errorObj = this.SessionState.PSVariable.GetValue(ERROR_ACTION_PREFERENCE);
-		}
-
-		return errorObj is ActionPreference actionPref
-			? actionPref
-			: ActionPreference.Continue;
-	}
 	/// <summary>
 	/// Creates the filter that tests elements with the specified condition script block and error action preference.
 	/// </summary>

@@ -13,10 +13,9 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The begin phase is sealed. It resolves the collection's generic type arguments, chooses an equality comparer,
-/// constructs the collection, and then calls <see cref="Begin(T, Type)"/>. Derived classes add pipeline input in
-/// <see cref="Process(T, Type)"/> and write the finished collection in <see cref="End(T, bool)"/>. Only classes in this
-/// assembly can derive from this class.
+/// The begin phase is sealed. It resolves the collection's generic type arguments, chooses an equality comparer, and
+/// constructs the collection. Derived classes add pipeline input in <see cref="Process(T, Type)"/> and write the
+/// finished collection in <see cref="End(T)"/>. Only classes in this assembly can derive from this class.
 /// </para>
 /// <para>
 /// When the type used for equality is <see cref="string"/> or <see cref="object"/>, the cmdlet exposes a mandatory
@@ -48,7 +47,6 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// Gets the dictionary that holds the cmdlet's dynamic parameters, creating it on first access.
 	/// </summary>
 	/// <value>The <see cref="RuntimeDefinedParameterDictionary"/> that holds the dynamic parameters.</value>
-	[MemberNotNullWhen(true, nameof(_addMethod))]
 	private RuntimeDefinedParameterDictionary DynParamLib => field ??= [];
 	/// <summary>
 	/// Gets the name of the parameter set that the dynamic <c>-CaseSensitive</c> parameter belongs to.
@@ -94,23 +92,24 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// The method rebuilds the dynamic parameter set on each call. It adds <c>-CaseSensitive</c> when the type used
-	/// for equality is <see cref="string"/> or <see cref="object"/>, and then lets the derived class add its own
-	/// parameters through <see cref="TryGetDynamicParameters(RuntimeDefinedParameterDictionary, bool)"/>.
+	/// for equality is <see cref="string"/> or <see cref="object"/>.
 	/// </remarks>
-	/// <returns>A <see cref="RuntimeDefinedParameterDictionary"/> that contains the dynamic parameters, or <see langword="null"/> when there are none.</returns>
+	/// <returns>
+	/// A <see cref="RuntimeDefinedParameterDictionary"/> that contains <c>-CaseSensitive</c>, or <see langword="null"/>
+	/// when the type used for equality is any other type.
+	/// </returns>
 	public object? GetDynamicParameters()
 	{
 		this.DynParamLib.Clear();
-		bool hasCase = this.TryGetDynamicCaseParam(this.GetEqualityForType(), this.CaseSensitiveParameterSetName);
 
-		return this.TryGetDynamicParameters(this.DynParamLib, hasCase)
+		return this.TryGetDynamicCaseParam(this.GetEqualityForType(), this.CaseSensitiveParameterSetName)
 			? this.DynParamLib
 			: null;
 	}
 
 	#region PROCESSING
 	/// <summary>
-	/// Constructs the collection and then calls <see cref="Begin(T, Type)"/>.
+	/// Constructs the collection.
 	/// </summary>
 	/// <remarks>
 	/// The method resolves the generic type arguments from <see cref="GetGenericTypes"/>, gets the equality comparer
@@ -131,51 +130,38 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 		_collectionType = ctor.ConstructingGenericType;
 		_genericTypes = ctor.GenericArgumentTypes;
 		_addMethod = new AddMethodInvoker(ctor);
-
-		this.Begin(_collection, _collectionType);
-	}
-	/// <summary>
-	/// When overridden in a derived class, performs begin-phase work after the collection is constructed.
-	/// </summary>
-	/// <remarks>The base implementation does nothing.</remarks>
-	/// <param name="collection">The newly constructed collection.</param>
-	/// <param name="genericBaseType">The closed generic type of the constructed collection.</param>
-	protected virtual void Begin(T collection, Type genericBaseType)
-	{
-		return;
 	}
 
 	/// <summary>
 	/// Passes the constructed collection to <see cref="Process(T, Type)"/> for the current pipeline record.
 	/// </summary>
-	/// <returns>The value returned by <see cref="Process(T, Type)"/>.</returns>
+	/// <returns>Always <see langword="true"/>, so all pipeline input is processed.</returns>
 	protected sealed override bool ProcessCore()
 	{
-		return this.Process(_collection, _collectionType);
+		this.Process(_collection, _collectionType);
+		return true;
 	}
 	/// <summary>
 	/// When implemented in a derived class, adds the current pipeline input to the collection.
 	/// </summary>
 	/// <param name="collection">The collection to add input to.</param>
 	/// <param name="collectionType">The closed generic type of the collection.</param>
-	/// <returns><see langword="true"/> to continue processing pipeline input; <see langword="false"/> to stop.</returns>
-	protected abstract bool Process(T collection, Type collectionType);
+	protected abstract void Process(T collection, Type collectionType);
 
 	/// <summary>
-	/// Passes the constructed collection to <see cref="End(T, bool)"/>.
+	/// Passes the constructed collection to <see cref="End(T)"/>.
 	/// </summary>
-	/// <param name="state">The run state of the cmdlet. Its <see cref="CmdletRunState.FoundMatch"/> value indicates whether <see cref="Process(T, Type)"/> requested a stop.</param>
+	/// <param name="state">The run state of the cmdlet. The method doesn't use it.</param>
 	private protected sealed override void EndCore(CmdletRunState state)
 	{
-		this.End(_collection, state.FoundMatch);
+		this.End(_collection);
 	}
 	/// <summary>
 	/// When overridden in a derived class, completes the cmdlet, typically by writing the collection to the pipeline.
 	/// </summary>
 	/// <remarks>The base implementation does nothing.</remarks>
 	/// <param name="collection">The constructed collection.</param>
-	/// <param name="wantsToStop"><see langword="true"/> when <see cref="Process(T, Type)"/> returned <see langword="false"/> for a pipeline record; otherwise, <see langword="false"/>.</param>
-	protected virtual void End(T collection, bool wantsToStop)
+	protected virtual void End(T collection)
 	{
 		return;
 	}
@@ -191,17 +177,6 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// <returns>The <see cref="EqualityCollectionCtor"/> that constructs the collection.</returns>
 	private protected abstract EqualityCollectionCtor GetConstructor(IEqualityComparer? comparer, Type[]? genericTypes);
 
-	/// <summary>
-	/// When overridden in a derived class, adds the derived cmdlet's own dynamic parameters.
-	/// </summary>
-	/// <remarks>The base implementation adds nothing and returns <paramref name="hasCaseSensitive"/>.</remarks>
-	/// <param name="paramDict">The dictionary to add dynamic parameters to.</param>
-	/// <param name="hasCaseSensitive"><see langword="true"/> when <c>-CaseSensitive</c> was added to <paramref name="paramDict"/>; otherwise, <see langword="false"/>.</param>
-	/// <returns><see langword="true"/> when <paramref name="paramDict"/> contains at least one dynamic parameter; otherwise, <see langword="false"/>.</returns>
-	protected virtual bool TryGetDynamicParameters(RuntimeDefinedParameterDictionary paramDict, bool hasCaseSensitive)
-	{
-		return hasCaseSensitive;
-	}
 	/// <summary>
 	/// Adds the <c>-CaseSensitive</c> switch to <see cref="DynParamLib"/> when the equality type is <see cref="string"/> or <see cref="object"/>.
 	/// </summary>

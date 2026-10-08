@@ -18,23 +18,16 @@ namespace ListFunctions.Modern;
 /// </remarks>
 internal sealed class AddMethodInvoker
 {
-	private readonly Type[] _genericTypes;
 	private readonly MethodInfo _method;
-	/// <summary>
-	/// Gets the collection type whose <c>Add</c> method the invoker calls.
-	/// </summary>
-	/// <value>The value of <see cref="GenericCollectionCtor.ConstructingGenericType"/> when the invoker was constructed.</value>
-	public Type ImplementingType { get; }
 
 	/// <summary>
 	/// Initializes a new <see cref="AddMethodInvoker"/> instance for the collection type that the specified constructor
 	/// creates.
 	/// </summary>
 	/// <remarks>
-	/// The constructor reads <see cref="GenericCollectionCtor.ConstructingGenericType"/> and
-	/// <see cref="GenericCollectionCtor.GenericArgumentTypes"/> once. Because
-	/// <see cref="GenericCollectionCtor.Construct"/> can change both, create the invoker after the collection is
-	/// constructed.
+	/// The constructor looks up the <c>Add</c> method from <see cref="GenericCollectionCtor.ConstructingGenericType"/>
+	/// and <see cref="GenericCollectionCtor.GenericArgumentTypes"/>, which don't change, so the invoker can be created
+	/// before or after the collection.
 	/// </remarks>
 	/// <param name="constructor">The constructor that describes the collection type. This value must not be <see langword="null"/>.</param>
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="constructor"/> is null.</exception>
@@ -42,10 +35,7 @@ internal sealed class AddMethodInvoker
 	public AddMethodInvoker(GenericCollectionCtor constructor)
 	{
 		ArgumentNullException.ThrowIfNull(constructor);
-
-		this.ImplementingType = constructor.ConstructingGenericType;
-		_genericTypes = constructor.GenericArgumentTypes;
-		_method = ReflectionResolver.GetAddMethod(this.ImplementingType, _genericTypes);
+		_method = ReflectionResolver.GetAddMethod(constructor.ConstructingGenericType, constructor.GenericArgumentTypes);
 	}
 
 	/// <summary>
@@ -62,7 +52,7 @@ internal sealed class AddMethodInvoker
 	/// <see cref="TargetInvocationException"/> that reflection wraps it in.
 	/// </para>
 	/// </remarks>
-	/// <param name="collection">The collection to add to. It must be an instance of <see cref="ImplementingType"/>.</param>
+	/// <param name="collection">The collection to add to. It must be an instance of the type that the constructor passed to this invoker creates.</param>
 	/// <param name="arguments">The arguments to pass to the <c>Add</c> method: the item for a collection, or the key and value for a dictionary. This value must not be <see langword="null"/>.</param>
 	/// <param name="addIfNull"><see langword="true"/> to add the item even when an argument is <see langword="null"/>; <see langword="false"/> to skip it.</param>
 	/// <param name="caughtException">When the method returns <see langword="false"/>, the exception that stopped the item from being added; otherwise, <see langword="null"/>.</param>

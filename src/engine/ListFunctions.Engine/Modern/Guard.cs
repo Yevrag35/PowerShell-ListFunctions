@@ -39,8 +39,8 @@ internal static class Guard
 	/// </remarks>
 	/// <param name="value">The value to validate. This value must not be negative and must not exceed <paramref name="other"/>.</param>
 	/// <param name="other">
-	/// The inclusive upper bound for <paramref name="value"/>. This value must be greater than 0 and less than or equal to
-	/// <see cref="int.MaxValue"/>; a debug build asserts this condition on .NET Standard 2.0.
+	/// The inclusive upper bound for <paramref name="value"/>. This value must be less than or equal to
+	/// <see cref="int.MaxValue"/>; a debug build asserts this condition on .NET Standard 2.0. A bound of 0 accepts only 0.
 	/// </param>
 	/// <param name="paramName">
 	/// The name to report in the exception. The compiler supplies the argument expression for <paramref name="value"/> when
@@ -59,7 +59,7 @@ internal static class Guard
 		ArgumentOutOfRangeException.ThrowIfGreaterThan((uint)value, other, paramName);
 #else
 
-		Debug.Assert(other is <= int.MaxValue and not 0, "The other value should never be 0 and always less than or equal to int.MaxValue.");
+		Debug.Assert(other <= int.MaxValue, "The other value should always be less than or equal to int.MaxValue.");
 		if ((uint)value > other)
 		{
 			throwOutOfRange(value, other, paramName);

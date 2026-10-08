@@ -21,10 +21,6 @@ namespace ListFunctions.Modern.Constructors;
 /// <see cref="EqualityComparerAdapter{T}"/>.
 /// </para>
 /// <para>
-/// <see cref="GenericCollectionCtor.Construct"/> always creates an instance of
-/// <see cref="GenericCollectionCtor.ConstructingGenericType"/>. There's no fallback collection.
-/// </para>
-/// <para>
 /// Instances aren't thread-safe. The object caches the default comparer the first time it needs one.
 /// </para>
 /// </remarks>
@@ -71,7 +67,7 @@ internal abstract class EqualityCollectionCtor : GenericCollectionCtor
 
 	/// <summary>
 	/// Initializes a new <see cref="EqualityCollectionCtor"/> instance with the specified generic type definition,
-	/// equality comparer, type arguments, and callback that closes the definition over the arguments.
+	/// equality comparer, and type arguments.
 	/// </summary>
 	/// <param name="genericTypeDefinition">
 	/// The open generic type definition of the collection. It must be a generic class that isn't abstract, and it
@@ -81,39 +77,21 @@ internal abstract class EqualityCollectionCtor : GenericCollectionCtor
 	/// The equality comparer for the collection, or <see langword="null"/> to use a default comparer.
 	/// </param>
 	/// <param name="genericTypes">The type arguments to close <paramref name="genericTypeDefinition"/> over.</param>
-	/// <param name="createConstructingCallback">
-	/// The method that closes <paramref name="genericTypeDefinition"/> over <paramref name="genericTypes"/>, or
-	/// <see langword="null"/> to call <see cref="Type.MakeGenericType(Type[])"/>.
-	/// </param>
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="genericTypeDefinition"/> is null.</exception>
 	/// <exception cref="ArgumentException">
 	/// Thrown when <paramref name="genericTypeDefinition"/> isn't a generic type, isn't a class, or is abstract; or
-	/// when <paramref name="createConstructingCallback"/> is null and <paramref name="genericTypes"/> doesn't satisfy
-	/// the definition's type parameters.
+	/// when <paramref name="genericTypes"/> doesn't satisfy the definition's type parameters.
 	/// </exception>
 	/// <exception cref="InvalidOperationException">
-	/// Thrown when <paramref name="createConstructingCallback"/> is null and <paramref name="genericTypeDefinition"/>
-	/// is a closed generic type instead of a generic type definition.
+	/// Thrown when <paramref name="genericTypeDefinition"/> is a closed generic type instead of a generic type
+	/// definition.
 	/// </exception>
-	protected EqualityCollectionCtor(Type genericTypeDefinition, IEqualityComparer? comparer, Type[] genericTypes, CreateConstructingType? createConstructingCallback)
-		: base(genericTypeDefinition, genericTypes, createConstructingCallback)
+	protected EqualityCollectionCtor(Type genericTypeDefinition, IEqualityComparer? comparer, Type[] genericTypes)
+		: base(genericTypeDefinition, genericTypes)
 	{
 		_comparer = comparer;
 	}
 
-	/// <summary>
-	/// Throws, because the object never creates a fallback collection.
-	/// </summary>
-	/// <remarks>
-	/// <see cref="ShouldConstructDefault(Type[])"/> always returns <see langword="false"/>, so
-	/// <see cref="GenericCollectionCtor.Construct"/> never calls this method.
-	/// </remarks>
-	/// <returns>The method doesn't return.</returns>
-	/// <exception cref="NotSupportedException">Thrown always.</exception>
-	protected sealed override object ConstructDefault()
-	{
-		throw new NotSupportedException("A collection with an equality comparer has no fallback collection.");
-	}
 	/// <summary>
 	/// Returns the comparer passed to the constructor, or a default comparer for the type used for equality.
 	/// </summary>
@@ -246,21 +224,6 @@ internal abstract class EqualityCollectionCtor : GenericCollectionCtor
 	public static bool IsTypeObjectOrString(Type? type)
 	{
 		return null != type && (typeof(object).Equals(type) || typeof(string).Equals(type));
-	}
-
-	/// <summary>
-	/// Determines whether <see cref="GenericCollectionCtor.Construct"/> creates a fallback collection.
-	/// </summary>
-	/// <remarks>
-	/// A collection with an equality comparer has no fallback, so <see cref="GenericCollectionCtor.Construct"/> always
-	/// creates an instance of <see cref="GenericCollectionCtor.ConstructingGenericType"/>, with the comparer that
-	/// <see cref="GetConstructorArguments(Type[])"/> describes.
-	/// </remarks>
-	/// <param name="genericTypes">The generic type arguments of the collection. This implementation doesn't use them.</param>
-	/// <returns>Always <see langword="false"/>.</returns>
-	protected sealed override bool ShouldConstructDefault(Type[] genericTypes)
-	{
-		return false;
 	}
 }
 

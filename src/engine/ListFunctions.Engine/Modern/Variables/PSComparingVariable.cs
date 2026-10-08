@@ -49,18 +49,6 @@ internal abstract class PSComparingVariable
 	protected static readonly ImmutableArray<string> RightNames = ImmutableCollectionsMarshal.AsImmutableArray(s_right);
 
 	/// <summary>
-	/// Gets the operand value that this variable represents.
-	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// TODO: Neither implementation in this assembly assigns the value it returns, so this property always returns
-	/// <see langword="null"/> or the default value of the operand type, even after the variables are given a value.
-	/// </para>
-	/// </remarks>
-	/// <value>The operand value, as an <see cref="object"/>.</value>
-	public abstract object? InstanceValue { get; }
-
-	/// <summary>
 	/// Initializes a new <see cref="PSComparingVariable"/> instance.
 	/// </summary>
 	private protected PSComparingVariable()
@@ -102,24 +90,6 @@ internal abstract class PSComparingVariable
 internal sealed class PSComparingVariable<T> : PSComparingVariable
 {
 	private readonly PSVariable[] _allVars;
-	private readonly T _value = default!;
-
-	/// <summary>
-	/// Gets the operand value.
-	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// TODO: Nothing assigns this value, so it is always the default value of <typeparamref name="T"/>.
-	/// <see cref="AddToVarList(T, List{PSVariable})"/> sets only the values of the variables.
-	/// </para>
-	/// </remarks>
-	/// <value>The operand value.</value>
-	internal T Value => _value;
-	/// <summary>
-	/// Gets the operand value as an <see cref="object"/>.
-	/// </summary>
-	/// <value>The value of <see cref="Value"/>, boxed when <typeparamref name="T"/> is a value type.</value>
-	public override object? InstanceValue => this.Value;
 
 	/// <summary>
 	/// Initializes a new <see cref="PSComparingVariable{T}"/> instance with one variable for each of the specified

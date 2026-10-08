@@ -7,8 +7,9 @@ namespace ListFunctions.Components;
 /// process, and end phases.
 /// </summary>
 /// <remarks>
-/// The values are bit flags, and a run can record several at once. <see cref="CmdletRunState"/> exposes each flag
-/// as a <see cref="bool"/> property.
+/// The values are bit flags, and a run can record several at once. <see cref="CmdletRunState"/> exposes
+/// <see cref="FoundMatch"/> and <see cref="Ended"/> as <see cref="bool"/> properties, and combines the flags that make
+/// the cmdlet skip its remaining input in <see cref="CmdletRunState.ShouldSkipProcess"/>.
 /// </remarks>
 [Flags]
 internal enum CmdletRunFlags : uint
@@ -43,8 +44,8 @@ internal enum CmdletRunFlags : uint
 /// </para>
 /// <para>
 /// A failure in the begin or process phase becomes a terminating error, and PowerShell doesn't run the end phase
-/// after one. In practice, <see cref="ListFunctionCmdletBase.EndCore(CmdletRunState)"/> sees
-/// <see cref="FoundMatch"/> and <see cref="Ended"/>, but not the failure flags.
+/// after one. In practice, the state that <see cref="ListFunctionCmdletBase.EndCore(CmdletRunState)"/> receives holds
+/// no failure flag, so the state exposes the stopping and failure flags only through <see cref="ShouldSkipProcess"/>.
 /// </para>
 /// </remarks>
 [StructLayout(LayoutKind.Sequential)]
@@ -53,40 +54,11 @@ internal readonly struct CmdletRunState
 	private readonly uint _flags;
 
 	/// <summary>
-	/// Gets every outcome recorded in this state.
-	/// </summary>
-	/// <value>A bitwise combination of the <see cref="CmdletRunFlags"/> values.</value>
-	public CmdletRunFlags Flags => (CmdletRunFlags)_flags;
-
-	/// <summary>
-	/// Gets a value that indicates whether PowerShell is stopping the pipeline.
-	/// </summary>
-	/// <value><see langword="true"/> when <see cref="CmdletRunFlags.IsStopping"/> is set; otherwise, <see langword="false"/>.</value>
-	public bool IsStopping => (_flags & (uint)CmdletRunFlags.IsStopping) != 0;
-	/// <summary>
 	/// Gets a value that indicates whether the cmdlet stopped processing pipeline input before the input ran out.
 	/// </summary>
 	/// <remarks>For the search and assertion cmdlets, this means an element matched.</remarks>
 	/// <value><see langword="true"/> when <see cref="CmdletRunFlags.FoundMatch"/> is set; otherwise, <see langword="false"/>.</value>
 	public bool FoundMatch => (_flags & (uint)CmdletRunFlags.FoundMatch) != 0;
-	/// <summary>
-	/// Gets a value that indicates whether the begin or process phase threw an exception.
-	/// </summary>
-	/// <value>
-	/// <see langword="true"/> when <see cref="CmdletRunFlags.BeginFailed"/> or <see cref="CmdletRunFlags.ProcessFailed"/>
-	/// is set; otherwise, <see langword="false"/>.
-	/// </value>
-	public bool HadError => (_flags & (uint)(CmdletRunFlags.BeginFailed | CmdletRunFlags.ProcessFailed)) != 0;
-	/// <summary>
-	/// Gets a value that indicates whether the begin phase threw an exception.
-	/// </summary>
-	/// <value><see langword="true"/> when <see cref="CmdletRunFlags.BeginFailed"/> is set; otherwise, <see langword="false"/>.</value>
-	public bool BeginFailed => (_flags & (uint)CmdletRunFlags.BeginFailed) != 0;
-	/// <summary>
-	/// Gets a value that indicates whether the process phase threw an exception.
-	/// </summary>
-	/// <value><see langword="true"/> when <see cref="CmdletRunFlags.ProcessFailed"/> is set; otherwise, <see langword="false"/>.</value>
-	public bool ProcessFailed => (_flags & (uint)CmdletRunFlags.ProcessFailed) != 0;
 	/// <summary>
 	/// Gets a value that indicates whether the end phase ran.
 	/// </summary>

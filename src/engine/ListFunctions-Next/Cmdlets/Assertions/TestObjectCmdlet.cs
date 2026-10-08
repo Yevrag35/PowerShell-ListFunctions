@@ -94,17 +94,6 @@ public abstract class TestObjectCmdlet : ListFunctionCmdletBase
 		{
 			this.Filter = this.CreateConditionFilter(this.Condition, this.ScriptBlockErrorAction);
 		}
-
-		// # Maybe in the future.
-		//try
-		//{
-		//    this.Begin();
-		//}
-		//catch
-		//{
-		//    this.Cleanup();
-		//    throw;
-		//}
 	}
 
 	/// <summary>

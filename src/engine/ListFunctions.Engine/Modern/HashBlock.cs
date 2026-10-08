@@ -36,29 +36,6 @@ internal sealed class HashBlock : ComparingBase, IHashBlock
 		_thisVar = new();
 		_varList = new(4);
 	}
-	/// <summary>
-	/// Initializes a new <see cref="HashBlock"/> instance with the specified script block and variable list.
-	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// The instance keeps <paramref name="variables"/> without copying it and uses it as its working list of script
-	/// block variables. Every call to <see cref="GetHashCode(object, IEnumerable{PSVariable})"/> clears and refills the
-	/// list, so the variables it holds beforehand never reach the script block. Pass variables to
-	/// <see cref="GetHashCode(object, IEnumerable{PSVariable})"/> instead.
-	/// </para>
-	/// <para>
-	/// TODO: Clarify whether the variables in <paramref name="variables"/> are meant to reach the script block.
-	/// </para>
-	/// </remarks>
-	/// <param name="scriptBlock">The script block that computes the hash code of <c>$_</c>. This value must not be <see langword="null"/>.</param>
-	/// <param name="variables">The list to use as the working list of script block variables, or <see langword="null"/> to create one.</param>
-	/// <exception cref="ArgumentNullException">Thrown when <paramref name="scriptBlock"/> is null.</exception>
-	/// <exception cref="ArgumentException">Thrown when <paramref name="scriptBlock"/> has no statements to run, or has a <c>begin</c> block, a <c>clean</c> block, or both a <c>process</c> block and an <c>end</c> block.</exception>
-	public HashBlock(ScriptBlock scriptBlock, List<PSVariable>? variables) : base(scriptBlock, preValidated: false)
-	{
-		_varList = variables ?? new(4);
-		_thisVar = new();
-	}
 
 	/// <summary>
 	/// Computes the hash code of the specified object by running the hash code script block.

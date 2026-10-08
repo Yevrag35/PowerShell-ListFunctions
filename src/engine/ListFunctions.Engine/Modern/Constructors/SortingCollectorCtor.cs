@@ -42,25 +42,12 @@ internal sealed class SortingCollectorCtor : GenericCollectionCtor
 	/// <param name="genericType">The element type of the set, or <see langword="null"/> for <see cref="object"/>.</param>
 	/// <param name="comparer">The comparer for the set, or <see langword="null"/> to use a default comparer.</param>
 	public SortingCollectorCtor(Type? genericType, IComparer? comparer)
-		: base(SortedSetTypeDefinition, ToTypeArray(ref genericType), null)
+		: base(SortedSetTypeDefinition, ToTypeArray(ref genericType))
 	{
 		_comparer = comparer;
 		_sortedType = genericType;
 	}
 
-	/// <summary>
-	/// Throws, because the object never creates a fallback set.
-	/// </summary>
-	/// <remarks>
-	/// <see cref="ShouldConstructDefault(Type[])"/> always returns <see langword="false"/>, so
-	/// <see cref="GenericCollectionCtor.Construct"/> never calls this method.
-	/// </remarks>
-	/// <returns>The method doesn't return.</returns>
-	/// <exception cref="NotSupportedException">Thrown always.</exception>
-	protected override object ConstructDefault()
-	{
-		throw new NotSupportedException("A sorted set has no fallback collection.");
-	}
 	/// <summary>
 	/// Returns the comparer for the set.
 	/// </summary>
@@ -111,19 +98,6 @@ internal sealed class SortingCollectorCtor : GenericCollectionCtor
 	protected override IEnumerable<object?>? GetConstructorArguments(Type[] genericTypes)
 	{
 		yield return this.GetComparer();
-	}
-	/// <summary>
-	/// Determines whether <see cref="GenericCollectionCtor.Construct"/> creates a fallback set.
-	/// </summary>
-	/// <remarks>
-	/// A sorted set has no fallback, so <see cref="GenericCollectionCtor.Construct"/> always creates the set with the
-	/// comparer that <see cref="GetComparer"/> returns.
-	/// </remarks>
-	/// <param name="genericTypes">The generic type arguments of the set. This implementation doesn't use them.</param>
-	/// <returns>Always <see langword="false"/>.</returns>
-	protected override bool ShouldConstructDefault(Type[] genericTypes)
-	{
-		return false;
 	}
 	/// <summary>
 	/// Replaces a <see langword="null"/> element type with <see cref="object"/> and wraps it in a single-element array.

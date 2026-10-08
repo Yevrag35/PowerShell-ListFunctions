@@ -1,5 +1,3 @@
-using ListFunctions.Extensions;
-
 namespace ListFunctions.Modern.Variables;
 
 /// <summary>
@@ -16,7 +14,7 @@ namespace ListFunctions.Modern.Variables;
 /// <see cref="InsertIntoList(List{PSVariable})"/> put into other lists.
 /// </para>
 /// </remarks>
-internal sealed class PSThisVariable : ICloneable
+internal sealed class PSThisVariable
 {
 	/// <summary>
 	/// The name of the <c>$_</c> variable.
@@ -62,41 +60,6 @@ internal sealed class PSThisVariable : ICloneable
 	/// </summary>
 	public PSThisVariable()
 	{
-	}
-	/// <summary>
-	/// Initializes a new <see cref="PSThisVariable"/> instance with a copy of the value of the specified instance.
-	/// </summary>
-	/// <remarks>
-	/// The value is cloned when it supports cloning, such as an <see cref="ICloneable"/> or a <see cref="PSObject"/>.
-	/// Otherwise, the new instance shares the value. The variables themselves aren't copied; the new instance creates
-	/// its own when it first needs them.
-	/// </remarks>
-	/// <param name="other">The instance to copy.</param>
-	private PSThisVariable(PSThisVariable other)
-	{
-		this.ObjValue = other.ObjValue.CloneIf();
-	}
-
-	/// <summary>
-	/// Creates a copy of this instance.
-	/// </summary>
-	/// <remarks>
-	/// The copy has its own variables. Its value is a clone of <see cref="ObjValue"/> when the value supports cloning,
-	/// such as an <see cref="ICloneable"/> or a <see cref="PSObject"/>; otherwise, both instances share the value.
-	/// </remarks>
-	/// <returns>A new <see cref="PSThisVariable"/> with the same value as this instance.</returns>
-	public PSThisVariable Clone()
-	{
-		return new(this);
-	}
-	/// <summary>
-	/// Creates a copy of this instance.
-	/// </summary>
-	/// <returns>A new <see cref="PSThisVariable"/>, returned as an <see cref="object"/>.</returns>
-	[DebuggerStepThrough]
-	object ICloneable.Clone()
-	{
-		return this.Clone();
 	}
 
 	/// <summary>

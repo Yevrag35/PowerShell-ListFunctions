@@ -33,11 +33,6 @@ internal sealed class DictionaryCtor : EqualityCollectionCtor
 	/// </summary>
 	/// <value>The key type passed to the constructor, or <see cref="object"/> when none was passed.</value>
 	public Type KeyType { get; }
-	/// <summary>
-	/// Gets the value type of the dictionary.
-	/// </summary>
-	/// <value>The value type passed to the constructor, or <see cref="object"/> when none was passed.</value>
-	public Type ValueType { get; }
 
 	/// <summary>
 	/// Initializes a new <see cref="DictionaryCtor"/> instance with the specified key comparer, key type, and value
@@ -50,10 +45,9 @@ internal sealed class DictionaryCtor : EqualityCollectionCtor
 	/// <param name="valueType">The value type of the dictionary, or <see langword="null"/> for <see cref="object"/>.</param>
 	/// <exception cref="ArgumentException">Thrown when <paramref name="keyType"/> or <paramref name="valueType"/> can't be a type argument of <see cref="Dictionary{TKey, TValue}"/>, such as a pointer type.</exception>
 	public DictionaryCtor(IEqualityComparer? comparer, Type? keyType, Type? valueType)
-		: base(TypeDefinition, comparer, [SetTypeOrObject(ref keyType), SetTypeOrObject(ref valueType)], null)
+		: base(TypeDefinition, comparer, [SetTypeOrObject(ref keyType), SetTypeOrObject(ref valueType)])
 	{
 		this.KeyType = keyType;
-		this.ValueType = valueType;
 	}
 
 	/// <summary>

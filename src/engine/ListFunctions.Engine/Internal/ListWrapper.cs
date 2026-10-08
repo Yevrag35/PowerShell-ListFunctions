@@ -19,14 +19,6 @@ namespace ListFunctions.Internal;
 internal abstract class ListWrapper
 {
 	/// <summary>
-	/// Gets the number of elements in the underlying list.
-	/// </summary>
-	/// <value>
-	/// The number of items that were converted and added. Skipped items are not counted.
-	/// </value>
-	public abstract int Count { get; }
-
-	/// <summary>
 	/// Gets or sets a value indicating whether <see langword="null"/> items and <see langword="null"/> conversion results are added to the list.
 	/// </summary>
 	/// <remarks>
@@ -149,9 +141,6 @@ internal sealed class ListWrapper<T> : ListWrapper
 	[SuppressMessage("Style", "IDE0028", Justification = "Keeps an empty array on creation.")]
 	private readonly List<T> _list = new(0);
 
-	/// <inheritdoc/>
-	public override int Count => _list.Count;
-
 	/// <summary>
 	/// Initializes a new <see cref="ListWrapper{T}"/> instance with an empty list that has a capacity of <c>0</c>.
 	/// </summary>
@@ -180,7 +169,7 @@ internal sealed class ListWrapper<T> : ListWrapper
 	/// Sets the capacity of the underlying list, clamped to <see cref="int.MaxValue"/>.
 	/// </summary>
 	/// <param name="capacity">The number of elements the list can hold before it resizes. A value of <c>0</c> leaves the capacity unchanged.</param>
-	/// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="capacity"/> is less than <see cref="Count"/>.</exception>
+	/// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="capacity"/> is less than the number of elements in the list.</exception>
 	/// <exception cref="OutOfMemoryException">Thrown when <paramref name="capacity"/> exceeds the maximum array length.</exception>
 	protected override void SetCapacity(uint capacity)
 	{

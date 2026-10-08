@@ -158,8 +158,7 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	/// </remarks>
 	/// <param name="collection">The set to add elements to.</param>
 	/// <param name="collectionType">The closed generic type of the set.</param>
-	/// <returns>Always <see langword="true"/>, so all pipeline input is processed.</returns>
-	protected override bool Process(object collection, Type collectionType)
+	protected override void Process(object collection, Type collectionType)
 	{
 		object?[] elements = this.GetInputElements(this.InputObject);
 		if (collection is ICollection<object?> objCol)
@@ -183,21 +182,15 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 				this.AddToCollection(collection, item);
 			}
 		}
-
-		return true;
 	}
 
 	/// <summary>
 	/// Writes the set to the pipeline as a single object.
 	/// </summary>
 	/// <param name="collection">The constructed set.</param>
-	/// <param name="wantsToStop"><see langword="true"/> to skip writing the set; otherwise, <see langword="false"/>.</param>
-	protected override void End(object collection, bool wantsToStop)
+	protected override void End(object collection)
 	{
-		if (!wantsToStop)
-		{
-			this.WriteObject(collection, false);
-		}
+		this.WriteObject(collection, false);
 	}
 
 	#endregion

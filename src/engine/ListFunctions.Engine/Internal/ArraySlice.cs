@@ -1,5 +1,3 @@
-using System.ComponentModel;
-
 namespace ListFunctions.Internal;
 
 /// <summary>
@@ -97,77 +95,25 @@ internal static class ArraySlice
 /// <summary>
 /// Represents a contiguous slice of an array, defined by an offset and length, without copying the underlying data.
 /// </summary>
-/// <remarks><see cref="ArraySlice{T}"/> provides a lightweight view over a segment of an array, allowing efficient access and
-/// manipulation of a subset of its elements. The slice does not own the array; changes to the underlying array are
+/// <remarks><see cref="ArraySlice{T}"/> provides a lightweight view over a segment of an array, allowing efficient read
+/// access to a subset of its elements. The slice does not own the array; changes to the underlying array are
 /// reflected in the slice. This type is useful for scenarios where working with subarrays is required without incurring
 /// the cost of allocation or copying. <see cref="ArraySlice{T}"/> is a value type and is intended for performance-critical code. It
 /// is not thread-safe if the underlying array is modified concurrently.</remarks>
 /// <typeparam name="T">The type of elements contained in the array slice.</typeparam>
 [DebuggerDisplay("Length = {Length}")]
 [CollectionBuilder(typeof(ArraySlice), nameof(ArraySlice.Create))]
-internal readonly struct ArraySlice<T> : IReadOnlyCollection<T>
+internal readonly struct ArraySlice<T> : IEnumerable<T>
 {
 	private readonly T[]? _array;
 	private readonly int _length;
 	private readonly int _offset;
 
 	/// <summary>
-	/// Gets or sets the element at the specified index within the slice.
-	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// The indexer does not check <paramref name="index"/> against <see cref="Length"/>. An index past the end of the slice
-	/// reads or writes the elements of the underlying array that follow the slice, and the runtime throws only when the
-	/// resulting position falls outside the array.
-	/// </para>
-	/// <para>
-	/// Setting an element writes to the underlying array, so the change is visible to every slice and span over that array.
-	/// </para>
-	/// </remarks>
-	/// <param name="index">The zero-based index of the element, relative to the start of the slice.</param>
-	/// <value>The element located at the specified <paramref name="index"/>.</value>
-	/// <exception cref="IndexOutOfRangeException">Thrown when <paramref name="index"/> plus <see cref="Offset"/> is outside the bounds of the underlying array.</exception>
-	/// <exception cref="NullReferenceException">Thrown when the slice is default-initialized.</exception>
-	public T this[int index]
-	{
-		get => _array![_offset + index];
-		set => _array![_offset + index] = value;
-	}
-
-	/// <summary>
-	/// Gets the underlying array represented by this slice.
-	/// </summary>
-	/// <remarks>
-	/// The array is returned as is, not copied, and it can be longer than the slice. Use <see cref="Offset"/> and
-	/// <see cref="Length"/> to find the slice's elements in it.
-	/// </remarks>
-	/// <value>
-	/// A reference to the whole underlying array, or <see langword="null"/> if the slice is default-initialized.
-	/// </value>
-	public T[]? Array => _array;
-	/// <summary>
-	/// Gets a value indicating whether the current <see cref="ArraySlice{T}"/> instance is default-initialized, meaning it has not been initialized with an underlying array.
-	/// </summary>
-	/// <value>
-	/// <see langword="true"/> if the slice has no underlying array; otherwise, <see langword="false"/>. An empty slice from
-	/// <see cref="ArraySlice.Empty{T}"/> is not default-initialized.
-	/// </value>
-	[MemberNotNullWhen(false, nameof(_array), nameof(Array))]
-	public bool IsDefault => _array is null;
-	/// <summary>
 	/// Gets the number of elements in the slice.
 	/// </summary>
 	/// <value>The number of elements in the slice, or <c>0</c> if the slice is empty or default-initialized.</value>
 	public readonly int Length => _length;
-	/// <summary>
-	/// Gets the zero-based offset in the underlying array where the slice begins.
-	/// </summary>
-	/// <value>The index in <see cref="Array"/> of the slice's first element, or <c>0</c> if the slice is default-initialized.</value>
-	public readonly int Offset => _offset;
-
-	/// <inheritdoc/>
-	[DebuggerBrowsable(DebuggerBrowsableState.Never)]
-	int IReadOnlyCollection<T>.Count => _length;
 
 	/// <summary>
 	/// Initializes a new <see cref="ArraySlice{T}"/> instance that represents an empty slice over the specified zero-length array.
@@ -183,25 +129,9 @@ internal readonly struct ArraySlice<T> : IReadOnlyCollection<T>
 		_offset = 0;
 	}
 	/// <summary>
-	/// Initializes a new instance of the <see cref="ArraySlice{T}"/> struct that represents a slice of the specified array,
-	/// starting at the beginning and containing the specified number of elements.
-	/// </summary>
-	/// <remarks>The slice references <paramref name="array"/> directly; the elements are not copied.</remarks>
-	/// <param name="array">The array to create the slice from. This value must not be <see langword="null"/>.</param>
-	/// <param name="length">The number of elements to include in the slice. Must be non-negative and not greater than the length of the array.</param>
-	/// <exception cref="ArgumentNullException">Thrown when <paramref name="array"/> is null.</exception>
-	/// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="length"/> is negative or greater than the length of <paramref name="array"/>.</exception>
-	public ArraySlice(T[] array, int length) : this(array, 0, length)
-	{
-	}
-	/// <summary>
 	/// Initializes a new <see cref="ArraySlice{T}"/> instance that represents the segment of the specified array that starts at <paramref name="offset"/> and contains <paramref name="length"/> elements.
 	/// </summary>
-	/// <remarks>
-	/// <para>The slice references <paramref name="array"/> directly; the elements are not copied.</para>
-	/// <para>TODO: <paramref name="offset"/> is not validated on its own. A negative offset, or one greater than the length
-	/// of <paramref name="array"/>, makes the bounds check on <paramref name="length"/> unreliable.</para>
-	/// </remarks>
+	/// <remarks>The slice references <paramref name="array"/> directly; the elements are not copied.</remarks>
 	/// <param name="array">The array to create a slice from. This value must not be <see langword="null"/>.</param>
 	/// <param name="offset">The zero-based index in the array at which the slice begins. Must be greater than or equal to 0 and less than or
 	/// equal to the length of the array.</param>
@@ -209,30 +139,18 @@ internal readonly struct ArraySlice<T> : IReadOnlyCollection<T>
 	/// end of the array.</param>
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="array"/> is null.</exception>
 	/// <exception cref="ArgumentOutOfRangeException">
-	/// Thrown when <paramref name="length"/> is negative or greater than the number of elements from <paramref name="offset"/> to
-	/// the end of <paramref name="array"/>.
+	/// Thrown when <paramref name="offset"/> is negative or greater than the length of <paramref name="array"/>, or when
+	/// <paramref name="length"/> is negative or greater than the number of elements from <paramref name="offset"/> to the
+	/// end of <paramref name="array"/>.
 	/// </exception>
 	public ArraySlice(T[] array, int offset, int length)
 	{
 		ArgumentNullException.ThrowIfNull(array);
-		Guard.ThrowIfNegativeOrGreaterThan(length, (uint)array.Length - (uint)offset, nameof(length));
+		Guard.ThrowIfNegativeOrGreaterThan(offset, (uint)array.Length);
+		Guard.ThrowIfNegativeOrGreaterThan(length, (uint)(array.Length - offset));
 		_array = array;
 		_offset = offset;
 		_length = length;
-	}
-
-	/// <summary>
-	/// Deconstructs the slice into its underlying array, length, and offset components.
-	/// </summary>
-	/// <param name="array">When this method returns, contains the underlying array, or an empty array if the slice is default-initialized.</param>
-	/// <param name="length">When this method returns, contains the number of elements in the slice.</param>
-	/// <param name="offset">When this method returns, contains the zero-based offset at which the slice begins.</param>
-	[DebuggerStepThrough, EditorBrowsable(EditorBrowsableState.Never)]
-	public void Deconstruct(out T[] array, out int length, out int offset)
-	{
-		array = this.Array ?? [];
-		length = _length;
-		offset = _offset;
 	}
 
 	/// <summary>
@@ -246,37 +164,6 @@ internal readonly struct ArraySlice<T> : IReadOnlyCollection<T>
 	{
 		return _length > 0
 			? _array.AsSpan(_offset, _length)
-			: [];
-	}
-
-	/// <summary>
-	/// Converts an <see cref="ArraySlice{T}"/> instance to a <see cref="ReadOnlySpan{T}"/> representing the sliced portion
-	/// of the array.
-	/// </summary>
-	/// <remarks>If the underlying array is <see langword="null"/> or empty, the resulting <see cref="ReadOnlySpan{T}"/> is
-	/// empty. This operator enables seamless use of <see cref="ArraySlice{T}"/> in APIs that accept <see
-	/// cref="ReadOnlySpan{T}"/>. The conversion does not allocate.</remarks>
-	/// <param name="slice">The <see cref="ArraySlice{T}"/> to convert to a <see cref="ReadOnlySpan{T}"/>.</param>
-	/// <returns>A <see cref="ReadOnlySpan{T}"/> over the elements of <paramref name="slice"/>.</returns>
-	public static implicit operator ReadOnlySpan<T>(ArraySlice<T> slice)
-	{
-		return slice._array is T[] array && array.Length > 0
-			? new ReadOnlySpan<T>(array, slice._offset, slice._length)
-			: [];
-	}
-	/// <summary>
-	/// Converts an <see cref="ArraySlice{T}"/> instance to a <see cref="Span{T}"/> representing the sliced portion of the
-	/// array.
-	/// </summary>
-	/// <remarks>If the underlying array is <see langword="null"/> or empty, the resulting <see cref="Span{T}"/> is empty. This
-	/// operator enables seamless use of <see cref="ArraySlice{T}"/> in APIs that accept <see cref="Span{T}"/>. The conversion
-	/// does not allocate, and writes through the span change the underlying array.</remarks>
-	/// <param name="slice">The <see cref="ArraySlice{T}"/> to convert to a <see cref="Span{T}"/>.</param>
-	/// <returns>A writable <see cref="Span{T}"/> over the elements of <paramref name="slice"/>.</returns>
-	public static implicit operator Span<T>(ArraySlice<T> slice)
-	{
-		return slice._array is T[] array && array.Length > 0
-			? array.AsSpan(slice._offset, slice._length)
 			: [];
 	}
 
@@ -324,7 +211,7 @@ internal readonly struct ArraySlice<T> : IReadOnlyCollection<T>
 		/// <param name="slice">The array slice to enumerate. Must contain a valid array and range.</param>
 		internal Enumerator(ArraySlice<T> slice)
 		{
-			_array = slice.Array!;
+			_array = slice._array!;
 			_current = default!;
 			_index = -1;
 			_length = slice._length;

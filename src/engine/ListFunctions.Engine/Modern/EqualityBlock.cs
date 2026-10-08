@@ -47,19 +47,14 @@ internal sealed class EqualityBlock : ComparingBase, IEqualityBlock
 	/// Initializes a new <see cref="EqualityBlock"/> instance with the specified equality script block, hash code
 	/// provider, and additional variables.
 	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// TODO: The constructor doesn't check <paramref name="hashCodeBlock"/>, so a <see langword="null"/> value fails
-	/// only when <see cref="GetHashCode(object)"/> is called.
-	/// </para>
-	/// </remarks>
 	/// <param name="equalityBlock">The script block that determines whether <c>$x</c> and <c>$y</c> are equal. This value must not be <see langword="null"/>.</param>
 	/// <param name="hashCodeBlock">The provider that computes hash codes. This value must not be <see langword="null"/>.</param>
 	/// <param name="additionalVariables">The variables to define in the scope of both script blocks, or <see langword="null"/> for none. The constructor copies them.</param>
-	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="equalityBlock"/> is null.</exception>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="equalityBlock"/> or <paramref name="hashCodeBlock"/> is null.</exception>
 	/// <exception cref="ArgumentException">Thrown when <paramref name="equalityBlock"/> has no statements to run, or has a <c>begin</c> block, a <c>clean</c> block, or both a <c>process</c> block and an <c>end</c> block.</exception>
 	public EqualityBlock(ScriptBlock equalityBlock, IHashBlock hashCodeBlock, IEnumerable<PSVariable>? additionalVariables) : base(equalityBlock, preValidated: false)
 	{
+		ArgumentNullException.ThrowIfNull(hashCodeBlock);
 		_additionalVariables = additionalVariables is not null
 			? additionalVariables.AsValueEnumerable().ToArray()
 			: [];
@@ -74,19 +69,14 @@ internal sealed class EqualityBlock : ComparingBase, IEqualityBlock
 	/// Initializes a new <see cref="EqualityBlock"/> instance with the specified equality script block, hash code
 	/// provider, and span of additional variables.
 	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// TODO: The constructor doesn't check <paramref name="hashCodeBlock"/>, so a <see langword="null"/> value fails
-	/// only when <see cref="GetHashCode(object)"/> is called.
-	/// </para>
-	/// </remarks>
 	/// <param name="equalityBlock">The script block that determines whether <c>$x</c> and <c>$y</c> are equal. This value must not be <see langword="null"/>.</param>
 	/// <param name="hashCodeBlock">The provider that computes hash codes. This value must not be <see langword="null"/>.</param>
 	/// <param name="variables">The variables to define in the scope of both script blocks. The span can be empty. The constructor copies it.</param>
-	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="equalityBlock"/> is null.</exception>
+	/// <exception cref="System.ArgumentNullException">Thrown when <paramref name="equalityBlock"/> or <paramref name="hashCodeBlock"/> is null.</exception>
 	/// <exception cref="ArgumentException">Thrown when <paramref name="equalityBlock"/> has no statements to run, or has a <c>begin</c> block, a <c>clean</c> block, or both a <c>process</c> block and an <c>end</c> block.</exception>
 	public EqualityBlock(ScriptBlock equalityBlock, IHashBlock hashCodeBlock, params ReadOnlySpan<PSVariable> variables) : base(equalityBlock, preValidated: false)
 	{
+		ArgumentNullException.ThrowIfNull(hashCodeBlock);
 		_additionalVariables = !variables.IsEmpty
 			? variables.AsValueEnumerable().ToArray()
 			: [];
@@ -160,22 +150,6 @@ internal sealed class EqualityBlock : ComparingBase, IEqualityBlock
 	{
 		private readonly PSVariable[] _variables;
 
-		/// <summary>
-		/// Gets or sets the operand value.
-		/// </summary>
-		/// <remarks>
-		/// <para>
-		/// TODO: Nothing assigns this value. <see cref="AddToList(object, List{PSVariable})"/> sets only the values of
-		/// the variables, so this property is always <see langword="null"/>.
-		/// </para>
-		/// </remarks>
-		/// <value>The operand value.</value>
-		internal object? Value { get; set; }
-		/// <summary>
-		/// Gets the operand value.
-		/// </summary>
-		/// <value>The value of <see cref="Value"/>.</value>
-		public override object? InstanceValue => this.Value;
 		/// <summary>
 		/// Initializes a new <see cref="ObjVariable"/> instance for the left or right operand.
 		/// </summary>
