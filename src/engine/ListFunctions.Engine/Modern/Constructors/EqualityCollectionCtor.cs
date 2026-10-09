@@ -208,7 +208,7 @@ internal abstract class EqualityCollectionCtor : GenericCollectionCtor
 	/// Returns the type whose values the collection compares for equality.
 	/// </summary>
 	/// <remarks>
-	/// For a set, this is the element type. For a dictionary, it's the key type.
+	/// For a set, this is the element type.
 	/// </remarks>
 	/// <returns>The type that the default equality comparer compares.</returns>
 	protected abstract Type GetTypeForEquality();

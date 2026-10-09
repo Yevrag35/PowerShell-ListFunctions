@@ -161,8 +161,7 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	/// </para>
 	/// </remarks>
 	/// <param name="collection">The set to add elements to.</param>
-	/// <param name="collectionType">The closed generic type of the set.</param>
-	protected override void Process(object collection, Type collectionType)
+	protected override void Process(object collection)
 	{
 		object?[] elements = this.GetInputElements(this.InputObject);
 		if (collection is ICollection<object?> objCol)
@@ -201,19 +200,25 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 
 	#region BACKEND
 	/// <summary>
-	/// Creates a <see cref="HashSetCtor"/> for the first generic type argument.
+	/// Creates the set through a <see cref="HashSetCtor"/> for <see cref="GenericType"/>.
 	/// </summary>
+	/// <remarks>
+	/// The <see cref="HashSetCtor"/> honors the <c>-CaseSensitive</c> switch. The set is created through the base class's
+	/// <see cref="EqualityConstructingCmdlet{T}.ConstructCollection(EqualityCollectionCtor)"/>, so
+	/// <see cref="Process(object)"/> can add elements with
+	/// <see cref="EqualityConstructingCmdlet{T}.AddToCollection(T, object)"/>.
+	/// </remarks>
 	/// <param name="comparer">The element equality comparer, or <see langword="null"/> to use the default for the element type.</param>
-	/// <param name="genericTypes">The generic type arguments. The first element is the element type; when the array is <see langword="null"/> or empty, <see cref="object"/> is used.</param>
-	/// <returns>A <see cref="HashSetCtor"/> that honors the <c>-CaseSensitive</c> switch.</returns>
-	private protected override EqualityCollectionCtor GetConstructor(IEqualityComparer? comparer, Type[]? genericTypes)
+	/// <returns>The new, empty set.</returns>
+	/// <exception cref="ListFunctions.Modern.Exceptions.ActivatorCtorException">Thrown when the set's constructor fails.</exception>
+	private protected override object CreateCollection(IEqualityComparer? comparer)
 	{
-		return new HashSetCtor(genericTypes is null || genericTypes.Length <= 0
-			? typeof(object)
-			: genericTypes[0], comparer)
+		var ctor = new HashSetCtor(this.GenericType, comparer)
 		{
 			IsCaseSensitive = this.CaseSensitive,
 		};
+
+		return this.ConstructCollection(ctor);
 	}
 	/// <summary>
 	/// Returns the element equality comparer, building one from <see cref="EqualityScript"/> and
@@ -249,16 +254,6 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	protected override Type GetEqualityForType()
 	{
 		return this.GenericType ??= typeof(object);
-	}
-	/// <summary>
-	/// Returns the element type, setting <see cref="GenericType"/> to <see cref="object"/> when it is <see langword="null"/>.
-	/// </summary>
-	/// <returns>A single-element array that contains <see cref="GenericType"/>.</returns>
-	protected override Type[]? GetGenericTypes()
-	{
-		this.GenericType ??= typeof(object);
-
-		return [this.GenericType];
 	}
 
 	#endregion

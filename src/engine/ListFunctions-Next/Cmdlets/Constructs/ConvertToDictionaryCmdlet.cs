@@ -1,8 +1,8 @@
 using ListFunctions.Completion;
 using ListFunctions.Components;
 using ListFunctions.Extensions;
+using ListFunctions.Internal;
 using ListFunctions.Modern;
-using ListFunctions.Modern.Constructors;
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
 using ZLinq;
@@ -223,9 +223,8 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	[PSDefaultValue(Value = typeof(object))]
 	public Type? ValueType { get; set; }
 
-	private IDictionary _dictionary = null!;
+	private DictionaryWrapper _dictionary = null!;
 	private Type _keyType = null!;
-	private Type _valueType = null!;
 	private nint _addToDictionaryPtr;
 	private readonly PSThisVariable _current = new();
 	private readonly List<PSVariable> _variables = [];
@@ -240,7 +239,6 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// arrives.
 	/// </remarks>
 	/// <exception cref="ArgumentException">Thrown when <see cref="ValuePropertyName"/> is a property name or a script block, and <see cref="ValueSelector"/> is supplied too; or when the key type or the value type can't be a type argument of <see cref="Dictionary{TKey, TValue}"/>.</exception>
-	/// <exception cref="ListFunctions.Modern.Exceptions.ActivatorCtorException">Thrown when the dictionary's constructor fails.</exception>
 	protected override void BeginCore()
 	{
 		_addToDictionaryPtr = StoreAddToDictionaryFunction(this.DuplicateKeyBehavior);
@@ -302,27 +300,32 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 	/// The dictionary compares its keys with <see cref="KeyComparer"/>, which is wrapped in an adapter when it isn't an
 	/// <see cref="IEqualityComparer{T}"/> of the key type, or with the default comparer for the key type.
 	/// </para>
+	/// <para>
+	/// The dictionary is created through a <see cref="DictionaryWrapper"/>, which converts each value to the value type
+	/// and adds each entry with typed calls. The method sets the wrapper's callback that writes the non-terminating error
+	/// that <c>New-List</c> writes for a value that can't be converted.
+	/// </para>
 	/// </remarks>
-	/// <returns>The new, empty dictionary.</returns>
+	/// <returns>The wrapper over the new, empty dictionary.</returns>
 	/// <exception cref="ArgumentException">Thrown when the key type or the value type can't be a type argument of <see cref="Dictionary{TKey, TValue}"/>, such as a pointer type.</exception>
-	/// <exception cref="ListFunctions.Modern.Exceptions.ActivatorCtorException">Thrown when the dictionary's constructor fails.</exception>
-	private IDictionary CreateDictionary()
+	private DictionaryWrapper CreateDictionary()
 	{
 		_keyType = this.KeyType ?? typeof(object);
-		_valueType = this.ValueType ?? typeof(object);
+		Type valueType = this.ValueType ?? typeof(object);
 
 		if (this.DuplicateKeyBehavior == DuplicateKeyBehavior.Concatenate)
 		{
-			if (!typeof(object).Equals(_valueType))
+			if (!typeof(object).Equals(valueType))
 			{
 				this.WriteWarning("ValueType is ignored when 'DuplicateKeyBehavior::Concatenate' is used as the values can either be objects or lists of objects.");
 			}
 
-			_valueType = typeof(object);
+			valueType = typeof(object);
 		}
 
-		var ctor = new DictionaryCtor(this.KeyComparer, _keyType, _valueType);
-		return (IDictionary)ctor.Construct();
+		DictionaryWrapper dictionary = DictionaryWrapper.CreateTyped(_keyType, valueType, 0, this.KeyComparer);
+		dictionary.ConversionFailed = (item, type, exception) => this.WriteConversionError(exception, item, type);
+		return dictionary;
 	}
 
 	/// <summary>
@@ -418,18 +421,14 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 					continue;
 				}
 
-				// Each value converts the way PowerShell converts the arguments of Add, whether the value selector gives it
-				// or the object is its own value. A selected null converts to an empty string for [string], to 0 for
-				// [int], and to null for [object] and most other reference types. PowerShell also unwraps an argument from
-				// its PSObject, which the conversion to [object] doesn't do, so the object is unwrapped first.
+				// The dictionary converts each value the way PowerShell converts the arguments of Add, whether the value
+				// selector gives it or the object is its own value. A selected null converts to an empty string for
+				// [string], to 0 for [int], and to null for [object] and most other reference types. PowerShell also
+				// unwraps an argument from its PSObject, which the conversion to [object] doesn't do, so the object is
+				// unwrapped first.
 				object? value = this.ValueSelector is null
 					? item.GetBaseObject()
 					: this.Select(this.ValueSelector, item);
-
-				if (!this.TryConvertItem(value, _valueType, out value))
-				{
-					continue;
-				}
 
 				addToDictionaryAction(this, key, value);
 			}
@@ -488,67 +487,59 @@ public sealed class ConvertToDictionaryCmdlet : ListFunctionCmdletBase
 		if (state.FoundMatch)
 			return;
 
-		this.WriteObject(_dictionary, enumerateCollection: false);
+		this.WriteObject(_dictionary.AsDictionary(), enumerateCollection: false);
 	}
 
 	/// <summary>
 	/// Adds an entry, or appends the value to the existing entry's <see cref="ObjectList"/> when the key exists.
 	/// </summary>
-	/// <remarks>The first duplicate replaces the existing value with an <see cref="ObjectList"/> that contains it.</remarks>
+	/// <remarks>
+	/// The first duplicate replaces the existing value with an <see cref="ObjectList"/> that contains it and the new
+	/// value, and the method writes a verbose message for each duplicate. A value that can't be converted is skipped
+	/// with the error that the dictionary's conversion callback writes.
+	/// </remarks>
 	/// <param name="cmdlet">The cmdlet that owns the dictionary.</param>
-	/// <param name="key">The key to add.</param>
-	/// <param name="value">The value to add.</param>
+	/// <param name="key">The converted key to add.</param>
+	/// <param name="value">The value to convert and add.</param>
 	private static void AddConcat(ConvertToDictionaryCmdlet cmdlet, object key, object? value)
 	{
-		if (cmdlet._dictionary.Contains(key))
+		if (cmdlet._dictionary.AddOrAppend(key, value) == DictionaryAddResult.Appended)
 		{
 			cmdlet.WriteVerbose("Key exists, concatenating next value.");
-			object? existingValue = cmdlet._dictionary[key];
-			if (existingValue is not ObjectList objList)
-			{
-				objList = [existingValue];
-
-				cmdlet._dictionary[key] = objList;
-			}
-
-			objList.Add(value);
-		}
-		else
-		{
-			cmdlet._dictionary.Add(key, value);
 		}
 	}
 	/// <summary>
 	/// Adds an entry, or writes a warning and keeps the existing value when the key exists.
 	/// </summary>
+	/// <remarks>
+	/// A value that can't be converted is skipped with the error that the dictionary's conversion callback writes.
+	/// </remarks>
 	/// <param name="cmdlet">The cmdlet that owns the dictionary.</param>
-	/// <param name="key">The key to add.</param>
-	/// <param name="value">The value to add.</param>
+	/// <param name="key">The converted key to add.</param>
+	/// <param name="value">The value to convert and add.</param>
 	private static void AddSkip(ConvertToDictionaryCmdlet cmdlet, object key, object? value)
 	{
-		if (cmdlet._dictionary.Contains(key))
+		if (cmdlet._dictionary.TryAdd(key, value) == DictionaryAddResult.KeyExists)
 		{
 			cmdlet.WriteWarning("Key already exists, skipping value.");
-			return;
 		}
-
-		cmdlet._dictionary.Add(key, value);
 	}
 	/// <summary>
 	/// Adds an entry, or writes a non-terminating error when the entry cannot be added.
 	/// </summary>
 	/// <remarks>
-	/// The method catches only <see cref="ArgumentException"/>, which the dictionary throws for a duplicate key or a
-	/// value of the wrong type.
+	/// The method catches only the <see cref="ArgumentException"/> that the dictionary throws for a key that it already
+	/// holds, and writes the error with <paramref name="key"/> as its target. A value that can't be converted is skipped
+	/// with the error that the dictionary's conversion callback writes.
 	/// </remarks>
 	/// <param name="cmdlet">The cmdlet that owns the dictionary.</param>
-	/// <param name="key">The key to add.</param>
-	/// <param name="value">The value to add.</param>
+	/// <param name="key">The converted key to add.</param>
+	/// <param name="value">The value to convert and add.</param>
 	private static void AddVolatile(ConvertToDictionaryCmdlet cmdlet, object key, object? value)
 	{
 		try
 		{
-			cmdlet._dictionary.Add(key, value);
+			_ = cmdlet._dictionary.Add(key, value);
 		}
 		catch (ArgumentException e)
 		{

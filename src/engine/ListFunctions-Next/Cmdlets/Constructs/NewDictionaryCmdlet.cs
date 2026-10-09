@@ -1,6 +1,7 @@
 using ListFunctions.Completion;
+using ListFunctions.Extensions;
+using ListFunctions.Internal;
 using ListFunctions.Modern;
-using ListFunctions.Modern.Constructors;
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
 
@@ -43,6 +44,8 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 {
 	private const string CLONE_VALUES = "CloneValues";
 	private const string STR_DICT = "StringDict";
+
+	private DictionaryWrapper _dictionary = null!;
 
 	/// <inheritdoc/>
 	protected override string CaseSensitiveParameterSetName => STR_DICT;
@@ -192,10 +195,10 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	/// Each key is converted to <see cref="KeyType"/>. Each value is cloned when <see cref="CloneValues"/> is set, and
-	/// is then converted to <see cref="ValueType"/> unless that type is <see cref="object"/>. A <see langword="null"/>
-	/// value is converted like any other value, so <see cref="string"/> values store an empty string for it, and
-	/// <see cref="int"/> values store 0.
+	/// Each key is converted to <see cref="KeyType"/>. Each value is cloned when <see cref="CloneValues"/> is set, and is
+	/// then converted to <see cref="ValueType"/>, which leaves it as it is when that type is <see cref="object"/>. A
+	/// <see langword="null"/> value is converted like any other value, so <see cref="string"/> values store an empty
+	/// string for it, and <see cref="int"/> values store 0.
 	/// </para>
 	/// <para>
 	/// A key or value that can't be converted produces a non-terminating error, and its entry is skipped. That includes a
@@ -210,35 +213,19 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	/// </para>
 	/// </remarks>
 	/// <param name="collection">The dictionary to copy entries into.</param>
-	/// <param name="collectionType">The closed generic type of the dictionary.</param>
 	/// <exception cref="RuntimeException">Thrown when adding an entry throws one, for example because <see cref="HashCodeScript"/> fails.</exception>
 	/// <exception cref="FlowControlException">Thrown when adding an entry throws one, for example because <see cref="HashCodeScript"/> runs <c>break</c>.</exception>
-	protected override void Process(IDictionary collection, Type collectionType)
+	protected override void Process(IDictionary collection)
 	{
-		if (null != this.InputObject && this.InputObject.Count > 0)
+		if (this.InputObject is null || this.InputObject.Count == 0)
 		{
-			Type keyType = this.KeyType ?? typeof(object);
-			Type valueType = this.ValueType ?? typeof(object);
-			bool convertValues = !typeof(object).Equals(valueType);
+			return;
+		}
 
-			object?[] args = new object?[2];
-			foreach (DictionaryEntry de in this.InputObject)
-			{
-				if (!this.TryConvertItem(de.Key, keyType, out object? key))
-				{
-					continue;
-				}
-
-				object? value = CloneValue(de.Value, this.CloneValues);
-				if (convertValues && !this.TryConvertItem(value, valueType, out value))
-				{
-					continue;
-				}
-
-				args[0] = key;
-				args[1] = value;
-				this.AddToCollection(collection, args);
-			}
+		// collection is the wrapper's own dictionary. The wrapper converts each entry and adds it with typed calls.
+		foreach (DictionaryEntry de in this.InputObject)
+		{
+			_ = _dictionary.Add(de.Key, CloneValue(de.Value, this.CloneValues));
 		}
 	}
 	/// <summary>
@@ -252,17 +239,35 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 
 	#region BACKEND
 	/// <summary>
-	/// Creates a <see cref="DictionaryCtor"/> for <see cref="KeyType"/> and <see cref="ValueType"/>.
+	/// Creates the dictionary for <see cref="KeyType"/> and <see cref="ValueType"/> with the specified key comparer.
 	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// The method creates the dictionary through a <see cref="DictionaryWrapper"/> and keeps the wrapper, so
+	/// <see cref="Process(IDictionary)"/> can add entries with typed calls. The dictionary gets <see cref="Capacity"/> as
+	/// its initial capacity. Without a comparer, <see cref="string"/> and <see cref="object"/> keys compare ordinally,
+	/// without regard to case unless <c>-CaseSensitive</c> is set.
+	/// </para>
+	/// <para>
+	/// The method also sets the wrapper's callbacks. One writes the non-terminating error that <c>New-List</c> writes for
+	/// each key or value that can't be converted. The other writes a non-terminating error for each entry that the
+	/// dictionary refuses, with the converted key as its target. Setting them once here means that pipeline input doesn't
+	/// allocate a delegate for each record.
+	/// </para>
+	/// </remarks>
 	/// <param name="comparer">The key equality comparer, or <see langword="null"/> to use the default for the key type.</param>
-	/// <param name="genericTypes">The generic type arguments. This implementation reads <see cref="KeyType"/> and <see cref="ValueType"/> instead.</param>
-	/// <returns>A <see cref="DictionaryCtor"/> that honors the <c>-CaseSensitive</c> switch.</returns>
-	private protected override EqualityCollectionCtor GetConstructor(IEqualityComparer? comparer, Type[]? genericTypes)
+	/// <returns>The new, empty dictionary.</returns>
+	/// <exception cref="ArgumentException">Thrown when <see cref="KeyType"/> or <see cref="ValueType"/> can't be a type argument of <see cref="Dictionary{TKey, TValue}"/>, such as a pointer type.</exception>
+	/// <exception cref="OutOfMemoryException">Thrown when <see cref="Capacity"/> exceeds the maximum array length.</exception>
+	private protected override IDictionary CreateCollection(IEqualityComparer? comparer)
 	{
-		return new DictionaryCtor(comparer, this.KeyType, this.ValueType)
-		{
-			IsCaseSensitive = this.CaseSensitive,
-		};
+		Type keyType = this.KeyType ?? typeof(object);
+		Type valueType = this.ValueType ?? typeof(object);
+		_dictionary = DictionaryWrapper.CreateTyped(keyType, valueType, (uint)this.Capacity, comparer, this.CaseSensitive);
+
+		_dictionary.ConversionFailed = (item, type, exception) => this.WriteConversionError(exception, item, type);
+		_dictionary.AddFailed = (key, exception) => this.WriteError(exception.ToRecord(ErrorCategory.InvalidOperation, key));
+		return _dictionary.AsDictionary();
 	}
 
 	/// <summary>
@@ -327,17 +332,6 @@ public sealed class NewDictionaryCmdlet : EqualityConstructingCmdlet<IDictionary
 	protected override Type GetEqualityForType()
 	{
 		return this.KeyType ??= typeof(object);
-	}
-	/// <summary>
-	/// Returns the key and value types, setting each to <see cref="object"/> when it is <see langword="null"/>.
-	/// </summary>
-	/// <returns>An array that contains <see cref="KeyType"/> and <see cref="ValueType"/>.</returns>
-	protected override Type[]? GetGenericTypes()
-	{
-		this.KeyType ??= typeof(object);
-		this.ValueType ??= typeof(object);
-
-		return [this.KeyType, this.ValueType];
 	}
 
 	#endregion

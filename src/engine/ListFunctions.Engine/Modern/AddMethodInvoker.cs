@@ -31,7 +31,7 @@ internal sealed class AddMethodInvoker
 	/// </remarks>
 	/// <param name="constructor">The constructor that describes the collection type. This value must not be <see langword="null"/>.</param>
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="constructor"/> is null.</exception>
-	/// <exception cref="ArgumentException">Thrown when the collection type isn't a supported collection or dictionary, or has the wrong number of type arguments.</exception>
+	/// <exception cref="ArgumentException">Thrown when the collection type isn't a supported collection, or doesn't have exactly one type argument.</exception>
 	public AddMethodInvoker(GenericCollectionCtor constructor)
 	{
 		ArgumentNullException.ThrowIfNull(constructor);
@@ -53,7 +53,7 @@ internal sealed class AddMethodInvoker
 	/// </para>
 	/// </remarks>
 	/// <param name="collection">The collection to add to. It must be an instance of the type that the constructor passed to this invoker creates.</param>
-	/// <param name="arguments">The arguments to pass to the <c>Add</c> method: the item for a collection, or the key and value for a dictionary. This value must not be <see langword="null"/>.</param>
+	/// <param name="arguments">The arguments to pass to the <c>Add</c> method, which is the item to add. This value must not be <see langword="null"/>.</param>
 	/// <param name="addIfNull"><see langword="true"/> to add the item even when an argument is <see langword="null"/>; <see langword="false"/> to skip it.</param>
 	/// <param name="caughtException">When the method returns <see langword="false"/>, the exception that stopped the item from being added; otherwise, <see langword="null"/>.</param>
 	/// <returns><see langword="true"/> if the method added or deliberately skipped the item; <see langword="false"/> if <paramref name="arguments"/> is <see langword="null"/> or adding the item failed.</returns>

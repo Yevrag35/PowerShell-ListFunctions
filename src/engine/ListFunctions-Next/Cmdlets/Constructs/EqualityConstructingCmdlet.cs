@@ -13,9 +13,9 @@ namespace ListFunctions.Cmdlets.Constructs;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The begin phase is sealed. It resolves the collection's generic type arguments, chooses an equality comparer, and
-/// constructs the collection. Derived classes add pipeline input in <see cref="Process(T, Type)"/> and write the
-/// finished collection in <see cref="End(T)"/>. Only classes in this assembly can derive from this class.
+/// The begin phase is sealed. It chooses an equality comparer, and the derived class creates the collection with it.
+/// Derived classes add pipeline input in <see cref="Process(T)"/> and write the finished collection in
+/// <see cref="End(T)"/>. Only classes in this assembly can derive from this class.
 /// </para>
 /// <para>
 /// When the type used for equality is <see cref="string"/> or <see cref="object"/>, the cmdlet exposes a mandatory
@@ -40,7 +40,6 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	private AddMethodInvoker _addMethod = null!;
 	private RuntimeDefinedParameter _caseSensitive = null!;
 	private T _collection = default!;
-	private Type _collectionType = null!;
 	private Type[] _genericTypes = null!;
 
 	/// <summary>
@@ -71,8 +70,9 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// Gets or sets the initial capacity requested for the collection.
 	/// </summary>
 	/// <remarks>
-	/// <see cref="BeginCore"/> passes the value to the collection's constructor, so the collection doesn't have to
-	/// grow until it holds more elements than this. Derived classes override the property to make it a parameter.
+	/// The derived class passes the value to the collection's constructor when it creates the collection, so the
+	/// collection doesn't have to grow until it holds more elements than this. Derived classes override the property to
+	/// make it a parameter.
 	/// </remarks>
 	/// <value>The requested initial capacity.</value>
 	public virtual int Capacity { get; set; }
@@ -109,44 +109,32 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 
 	#region PROCESSING
 	/// <summary>
-	/// Constructs the collection.
+	/// Creates the collection.
 	/// </summary>
 	/// <remarks>
-	/// The method resolves the generic type arguments from <see cref="GetGenericTypes"/>, gets the equality comparer
-	/// from <see cref="GetCustomEqualityComparer(Type)"/>, and constructs the collection with them, with
-	/// <see cref="Capacity"/> as its initial capacity. It also prepares the invoker that
-	/// <see cref="AddToCollection(T, object[])"/> and <see cref="AddToCollection(T, object)"/> use to call the
-	/// collection's <c>Add</c> method.
+	/// The method gets the equality comparer from <see cref="GetCustomEqualityComparer(Type)"/>, and the derived class
+	/// creates the collection with it. The collection gets <see cref="Capacity"/> as its initial capacity.
 	/// </remarks>
 	protected sealed override void BeginCore()
 	{
-		Type[]? genericTypes = this.GetGenericTypes();
 		IEqualityComparer? comparer = this.GetCustomEqualityComparer(this.GetEqualityForType());
-
-		var ctor = this.GetConstructor(comparer, genericTypes);
-		ctor.Capacity = this.Capacity;
-		_collection = (T)ctor.Construct();
-
-		_collectionType = ctor.ConstructingGenericType;
-		_genericTypes = ctor.GenericArgumentTypes;
-		_addMethod = new AddMethodInvoker(ctor);
+		_collection = this.CreateCollection(comparer);
 	}
 
 	/// <summary>
-	/// Passes the constructed collection to <see cref="Process(T, Type)"/> for the current pipeline record.
+	/// Passes the constructed collection to <see cref="Process(T)"/> for the current pipeline record.
 	/// </summary>
 	/// <returns>Always <see langword="true"/>, so all pipeline input is processed.</returns>
 	protected sealed override bool ProcessCore()
 	{
-		this.Process(_collection, _collectionType);
+		this.Process(_collection);
 		return true;
 	}
 	/// <summary>
 	/// When implemented in a derived class, adds the current pipeline input to the collection.
 	/// </summary>
 	/// <param name="collection">The collection to add input to.</param>
-	/// <param name="collectionType">The closed generic type of the collection.</param>
-	protected abstract void Process(T collection, Type collectionType);
+	protected abstract void Process(T collection);
 
 	/// <summary>
 	/// Passes the constructed collection to <see cref="End(T)"/>.
@@ -170,12 +158,41 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 
 	#region BACKEND
 	/// <summary>
-	/// When implemented in a derived class, creates the constructor object that builds the collection.
+	/// When implemented in a derived class, creates the empty collection with the specified equality comparer.
 	/// </summary>
-	/// <param name="comparer">The equality comparer for the collection, or <see langword="null"/> to use the constructor's default.</param>
-	/// <param name="genericTypes">The generic type arguments returned by <see cref="GetGenericTypes"/>, or <see langword="null"/> when none were resolved.</param>
-	/// <returns>The <see cref="EqualityCollectionCtor"/> that constructs the collection.</returns>
-	private protected abstract EqualityCollectionCtor GetConstructor(IEqualityComparer? comparer, Type[]? genericTypes);
+	/// <remarks>
+	/// <see cref="BeginCore"/> calls the method once, before any pipeline input arrives. The collection gets
+	/// <see cref="Capacity"/> as its initial capacity. A collection that the cmdlet adds to with
+	/// <see cref="AddToCollection(T, object)"/> must be created with
+	/// <see cref="ConstructCollection(EqualityCollectionCtor)"/>.
+	/// </remarks>
+	/// <param name="comparer">
+	/// The equality comparer that <see cref="GetCustomEqualityComparer(Type)"/> returned, or <see langword="null"/> to use
+	/// the default for the type used for equality.
+	/// </param>
+	/// <returns>The new collection.</returns>
+	private protected abstract T CreateCollection(IEqualityComparer? comparer);
+
+	/// <summary>
+	/// Creates the collection with the specified constructor object, and prepares the invoker that
+	/// <see cref="AddToCollection(T, object)"/> uses to call the collection's <c>Add</c> method.
+	/// </summary>
+	/// <remarks>
+	/// The method sets the constructor object's capacity to <see cref="Capacity"/> first. A derived class whose collection
+	/// is created through reflection, such as a set, calls it from <see cref="CreateCollection(IEqualityComparer)"/>.
+	/// </remarks>
+	/// <param name="ctor">The constructor object that describes the collection. This value must not be <see langword="null"/>.</param>
+	/// <returns>The new collection.</returns>
+	/// <exception cref="ListFunctions.Modern.Exceptions.ActivatorCtorException">Thrown when the collection's constructor fails.</exception>
+	private protected T ConstructCollection(EqualityCollectionCtor ctor)
+	{
+		ctor.Capacity = this.Capacity;
+		T collection = (T)ctor.Construct();
+
+		_genericTypes = ctor.GenericArgumentTypes;
+		_addMethod = new AddMethodInvoker(ctor);
+		return collection;
+	}
 
 	/// <summary>
 	/// Adds the <c>-CaseSensitive</c> switch to <see cref="DynParamLib"/> when the equality type is <see cref="string"/> or <see cref="object"/>.
@@ -227,11 +244,12 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	/// The method is for collections whose <c>Add</c> method takes a single argument, such as sets. The element type is
-	/// the collection's first generic type argument. The method does nothing when <paramref name="collection"/> or
-	/// <paramref name="item"/> is <see langword="null"/>, or when <paramref name="item"/> converts to
-	/// <see langword="null"/>. An item that can't be converted produces the non-terminating error that <c>New-List</c>
-	/// writes.
+	/// The method is for collections whose <c>Add</c> method takes a single argument, such as sets. It works only for a
+	/// collection that the derived class created with the base class's reflection helper, which also finds that method.
+	/// The element type is the collection's first generic type argument. The method does nothing when
+	/// <paramref name="collection"/> or <paramref name="item"/> is <see langword="null"/>, or when <paramref name="item"/>
+	/// converts to <see langword="null"/>. An item that can't be converted produces the non-terminating error that
+	/// <c>New-List</c> writes.
 	/// </para>
 	/// <para>
 	/// When <c>Add</c> throws a <see cref="RuntimeException"/> or a <see cref="FlowControlException"/>, such as an error
@@ -265,44 +283,6 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 			this.WriteError(caughtEx.ToRecord(ErrorCategory.InvalidOperation, item));
 		}
 	}
-	/// <summary>
-	/// Passes the specified arguments to the collection's <c>Add</c> method.
-	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// Every call reaches <c>Add</c>, even when an argument is <see langword="null"/>, so the collection decides whether
-	/// it accepts <see langword="null"/>. For example, a dictionary stores a <see langword="null"/> value when its value
-	/// type can hold one, and it rejects a <see langword="null"/> key. The method does nothing when
-	/// <paramref name="collection"/> is <see langword="null"/>.
-	/// </para>
-	/// <para>
-	/// When <c>Add</c> throws a <see cref="RuntimeException"/> or a <see cref="FlowControlException"/>, such as an error
-	/// from a script block that compares the keys, the method throws it again unchanged, so it reaches PowerShell the way
-	/// an error from a <c>ForEach-Object</c> script block does. Any other exception from <c>Add</c>, such as the one for a
-	/// duplicate key, produces a non-terminating error instead. The error's target object is the first argument, such as
-	/// a dictionary's key.
-	/// </para>
-	/// </remarks>
-	/// <param name="collection">The collection to add to.</param>
-	/// <param name="arguments">The arguments for the <c>Add</c> method, in parameter order. This value must not be <see langword="null"/>.</param>
-	/// <exception cref="RuntimeException">Thrown when <c>Add</c> throws one, for example because a script block that compares the keys fails.</exception>
-	/// <exception cref="FlowControlException">Thrown when <c>Add</c> throws one, for example because a script block that compares the keys runs <c>break</c>.</exception>
-	protected void AddToCollection(T collection, object?[] arguments)
-	{
-		if (collection is null)
-		{
-			return;
-		}
-
-		if (!_addMethod.TryInvoke(collection, arguments, addIfNull: true, out Exception? caughtEx))
-		{
-			RethrowIfPassesThrough(caughtEx);
-
-			// The caller can reuse the array for its next entry, so the record keeps the first argument instead.
-			object? target = arguments.Length > 0 ? arguments[0] : null;
-			this.WriteError(caughtEx.ToRecord(ErrorCategory.InvalidOperation, target));
-		}
-	}
 
 	/// <summary>
 	/// Returns the equality comparer to construct the collection with.
@@ -311,10 +291,10 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// For <see cref="string"/> elements, the base implementation returns <see cref="StringComparer.Ordinal"/> when
 	/// <c>-CaseSensitive</c> is set and <see cref="StringComparer.OrdinalIgnoreCase"/> otherwise. Both comparisons are
 	/// ordinal, so <c>-CaseSensitive</c> changes only whether case matters. For any other type the method returns
-	/// <see langword="null"/>, and the collection constructor chooses its default comparer.
+	/// <see langword="null"/>, and the collection uses its default comparer.
 	/// </remarks>
 	/// <param name="genericType">The type used for equality.</param>
-	/// <returns>The equality comparer to use, or <see langword="null"/> to use the constructor's default.</returns>
+	/// <returns>The equality comparer to use, or <see langword="null"/> to use the collection's default.</returns>
 	protected virtual IEqualityComparer? GetCustomEqualityComparer(Type genericType)
 	{
 		if (!typeof(string).Equals(genericType))
@@ -324,11 +304,6 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 			? StringComparer.Ordinal
 			: StringComparer.OrdinalIgnoreCase;
 	}
-	/// <summary>
-	/// When implemented in a derived class, returns the generic type arguments for the collection.
-	/// </summary>
-	/// <returns>The generic type arguments, or <see langword="null"/> to let the collection constructor use its defaults.</returns>
-	protected abstract Type[]? GetGenericTypes();
 	/// <summary>
 	/// When implemented in a derived class, returns the type whose values the collection compares for equality.
 	/// </summary>

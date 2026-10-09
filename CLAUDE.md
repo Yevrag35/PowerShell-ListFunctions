@@ -33,7 +33,8 @@ There are four projects under `src/engine/`:
 - **`ListFunctions.Engine`** targets `netstandard2.0` and `net10.0`. It holds the reusable, non-cmdlet core:
 	- `Modern/EqualityBlock`, `HashBlock`, and `ComparingBlock` (base `ComparingBase`) turn user ScriptBlocks into `IEqualityComparer` and `IComparer` implementations.
 	- `ScriptBlockFilter` evaluates predicates for `Test-AnyObject`/`Test-AllObject`.
-	- `Modern/Constructors/*Ctor` build closed generic collection types through reflection. `AddMethodInvoker` calls their `Add` method.
+	- `Internal/ListWrapper` and `Internal/DictionaryWrapper` put a non-generic front end over a `List<T>` or a `Dictionary<TKey, TValue>` whose types are known only at run time. Each closes its generic subclass once through reflection, so every conversion and add after that is a typed call. `New-List` uses the first, and `New-Dictionary` and `ConvertTo-Dictionary` use the second.
+	- `Modern/Constructors/*Ctor` build the sets' closed generic types through reflection, and `AddMethodInvoker` calls their `Add` method through reflection too.
 	- `Modern/Variables` injects the per-item context variables into the ScriptBlocks: `$_`, `$this`, and `$psitem` for single items, and `$left`/`$right` or `$x`/`$y` for equality.
 	- `Validation/` holds the parameter transformation and validation attributes: `ArgumentToTypeTransform` and `StringOrScriptBlockTransform` convert arguments, and `IsScriptBlock` and `ValidateScriptVariable` check them. It also holds a `ValidateNotNullOrWhiteSpace` polyfill for Windows PowerShell 5.1, which only the `netstandard2.0` build compiles. The `net10.0` build uses PowerShell 7's own attribute.
 	- Hand-written polyfills of other projects' types, such as that attribute, are internal, and the `net10.0` build doesn't forward them. PowerShell resolves type names against every loaded assembly, so a public polyfill reaches users' scripts and competes with other modules' copies. The `net10.0` build's two type forwarders, for `IsExternalInit` and `RequiresLocationAttribute`, come from PolySharp.
@@ -59,7 +60,7 @@ Every cmdlet derives from `Cmdlets/ListFunctionCmdletBase`.
 	- `EndCore(CmdletRunState)`
 	- `Cleanup()`
 - If `BeginCore` or `ProcessCore` throws, `Cleanup` runs first. A `RuntimeException` or `FlowControlException`, such as an error or `break` from a script block, then reaches PowerShell unchanged (see `PassesThrough`), so PowerShell handles it the way it does from a `ForEach-Object` script block. Any other exception becomes a terminating error.
-- `New-HashSet` and `New-Dictionary` derive from `EqualityConstructingCmdlet<T>`. It builds the collection in a sealed `BeginCore`, supports a custom ScriptBlock equality comparer, and adds a dynamic `-CaseSensitive` parameter when the element type, or a dictionary's key type, is `string` or `object`. `New-List`, `New-SortedSet`, and `ConvertTo-Dictionary` derive from `ListFunctionCmdletBase` directly, and `New-SortedSet` adds its own dynamic `-CaseSensitive` for `string` elements.
+- `New-HashSet` and `New-Dictionary` derive from `EqualityConstructingCmdlet<T>`. Its sealed `BeginCore` chooses the equality comparer, which can be a custom ScriptBlock one, and passes it to the derived class's `CreateCollection`. New-HashSet builds its set through `HashSetCtor` and the base class's `ConstructCollection`, and New-Dictionary builds its dictionary through `DictionaryWrapper`. The base class also adds a dynamic `-CaseSensitive` parameter when the element type, or a dictionary's key type, is `string` or `object`. `New-List`, `New-SortedSet`, and `ConvertTo-Dictionary` derive from `ListFunctionCmdletBase` directly, and `New-SortedSet` adds its own dynamic `-CaseSensitive` for `string` elements.
 
 ### PowerShell behavior
 

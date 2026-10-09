@@ -248,6 +248,28 @@ Describe 'ConvertTo-Dictionary' {
 		}
 	}
 
+	Context 'DuplicateKeyBehavior' {
+		It 'keeps the first value and writes a warning for a repeated key with Skip' {
+			$items = [pscustomobject]@{ K = 'a'; V = 1 }, [pscustomobject]@{ K = 'b'; V = 2 }, [pscustomobject]@{ K = 'a'; V = 3 }
+			$dict = $items | ConvertTo-Dictionary K V -DuplicateKeyBehavior Skip -ErrorVariable err -WarningVariable warnings -WarningAction SilentlyContinue
+			$err.Count | Should-Be 0
+			$warnings.Count | Should-Be 1
+			$dict.Count | Should-Be 2
+			$dict['a'] | Should-Be 1
+		}
+
+		# A key that appears once keeps its value. The first repeat replaces the value with a list that holds both values,
+		# and each later repeat adds to that list.
+		It 'collects the values of a repeated key in an ObjectList, in input order, with Concatenate' {
+			$items = [pscustomobject]@{ K = 'a'; V = 1 }, [pscustomobject]@{ K = 'b'; V = 2 }, [pscustomobject]@{ K = 'a'; V = 3 }, [pscustomobject]@{ K = 'a'; V = 4 }
+			$dict = $items | ConvertTo-Dictionary K V -DuplicateKeyBehavior Concatenate
+			$dict.Count | Should-Be 2
+			$dict['a'].GetType().FullName | Should-Be 'ListFunctions.Modern.ObjectList'
+			($dict['a'] -join ', ') | Should-Be '1, 3, 4'
+			Should-HaveType -Expected ([int]) -Actual $dict['b']
+		}
+	}
+
 	# A dictionary can't hold a $null key. The objects whose keys are $null used to be skipped without an error.
 	Context 'Null keys' {
 		It 'writes an error for each object whose key is $null, and adds the others, when the key comes from <Label>' -ForEach @(
