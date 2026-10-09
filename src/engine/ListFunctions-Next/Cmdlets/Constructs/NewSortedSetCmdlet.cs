@@ -1,8 +1,8 @@
 using ListFunctions.Completion;
 using ListFunctions.Components;
 using ListFunctions.Extensions;
+using ListFunctions.Internal;
 using ListFunctions.Modern;
-using ListFunctions.Modern.Constructors;
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
 
@@ -58,11 +58,8 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase, IDynamicParamet
 	/// </summary>
 	private const string WITH_COMPARING_SCRIPT = "WithComparingScript";
 
-	private AddMethodInvoker _addMethod = null!;
-	private object?[] _arr = null!;
 	private RuntimeDefinedParameter? _caseSensitive;
-	private SortingCollectorCtor _ctor = null!;
-	private object _set = null!;
+	private SetWrapper _set = null!;
 
 	/// <summary>
 	/// Gets or sets the element type of the set.
@@ -188,10 +185,17 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase, IDynamicParamet
 	/// Resolves the element type and creates the sorted set with it.
 	/// </summary>
 	/// <remarks>
+	/// <para>
 	/// With <see cref="ComparingScript"/>, the element type defaults to <see cref="object"/>, and the set compares its
 	/// elements with the script block. Without it, the element type defaults to <see cref="string"/>, and the set uses
 	/// the element type's default order, which the method checks for before it creates the set. The order of
 	/// <see cref="string"/> elements considers case when the dynamic <c>-CaseSensitive</c> switch is set.
+	/// </para>
+	/// <para>
+	/// The method also sets the callbacks that write a non-terminating error for each element that can't be converted,
+	/// and for each element that the set fails to add. Setting them once here means that pipeline input doesn't allocate
+	/// a delegate for each record.
+	/// </para>
 	/// </remarks>
 	/// <exception cref="ArgumentException">
 	/// Thrown when <see cref="ComparingScript"/> isn't supplied and <see cref="GenericType"/> has no consistent default
@@ -227,11 +231,9 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase, IDynamicParamet
 			}
 		}
 
-		_ctor = new SortingCollectorCtor(this.GenericType, comparer)
-		{
-			IsCaseSensitive = caseSensitive,
-		};
-		_set = _ctor.Construct();
+		_set = SetWrapper.CreateSortedSet(this.GenericType, comparer, caseSensitive);
+		_set.ConversionFailed = (item, exception) => this.WriteConversionError(exception, item, this.GenericType);
+		_set.AddFailed = (item, exception) => this.WriteError(exception.ToRecord(ErrorCategory.InvalidType, item));
 	}
 	/// <summary>
 	/// Converts the elements of the current <see cref="InputObject"/> and adds them to the set.
@@ -243,10 +245,10 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase, IDynamicParamet
 	/// </para>
 	/// <para>
 	/// When adding an element throws a <see cref="RuntimeException"/> or a <see cref="FlowControlException"/>, such as
-	/// an error from <see cref="ComparingScript"/>, including one for output that isn't an <see cref="int"/>, the method
-	/// throws it again unchanged, so it reaches PowerShell, and the cmdlet writes no set. Any other exception, such as one
-	/// from the element type's own comparison, produces a non-terminating error for that element, and the method goes on
-	/// with the next one.
+	/// an error from <see cref="ComparingScript"/>, including one for output that isn't an <see cref="int"/>, the
+	/// exception reaches PowerShell unchanged, and the cmdlet writes no set. Any other exception, such as one from the
+	/// element type's own comparison, produces a non-terminating error whose target is the element as it was before
+	/// conversion, and the method goes on with the next one.
 	/// </para>
 	/// </remarks>
 	/// <returns>Always <see langword="true"/>, so all pipeline input is processed.</returns>
@@ -254,32 +256,8 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase, IDynamicParamet
 	/// <exception cref="FlowControlException">Thrown when adding an element throws one, for example because <see cref="ComparingScript"/> runs <c>break</c>.</exception>
 	protected override bool ProcessCore()
 	{
-		bool flag = true;
-		object?[] elements = this.GetInputElements(this.InputObject);
-		if (elements.Length == 0)
-		{
-			return flag;
-		}
-
-		_addMethod ??= new AddMethodInvoker(_ctor);
-		_arr ??= new object?[1];
-
-		foreach (object? item in elements)
-		{
-			if (item is null || !this.TryConvertItem(item, this.GenericType, out object? result))
-			{
-				continue;
-			}
-
-			_arr[0] = result;
-			if (!_addMethod.TryInvoke(_set, _arr, false, out Exception? caught))
-			{
-				RethrowIfPassesThrough(caught);
-				this.WriteError(caught.ToRecord(ErrorCategory.InvalidType, item));
-			}
-		}
-
-		return flag;
+		_set.AddRange(this.GetInputElements(this.InputObject));
+		return true;
 	}
 	/// <summary>
 	/// Writes the set to the pipeline as a single object.
@@ -289,7 +267,7 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase, IDynamicParamet
 	{
 		if (!state.FoundMatch)
 		{
-			this.WriteObject(_set);
+			this.WriteObject(_set.AsSet());
 		}
 	}
 

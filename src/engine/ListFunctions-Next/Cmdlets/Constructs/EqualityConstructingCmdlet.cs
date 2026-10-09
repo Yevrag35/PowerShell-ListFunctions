@@ -1,7 +1,4 @@
 using ListFunctions.Components;
-using ListFunctions.Extensions;
-using ListFunctions.Modern;
-using ListFunctions.Modern.Constructors;
 
 #nullable enable
 
@@ -36,11 +33,8 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// </summary>
 	protected const string AND_COPY = WITH_CUSTOM_EQUALITY + "AndCopy";
 
-	private object?[]? _addArgs;
-	private AddMethodInvoker _addMethod = null!;
 	private RuntimeDefinedParameter _caseSensitive = null!;
 	private T _collection = default!;
-	private Type[] _genericTypes = null!;
 
 	/// <summary>
 	/// Gets the dictionary that holds the cmdlet's dynamic parameters, creating it on first access.
@@ -162,9 +156,7 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	/// </summary>
 	/// <remarks>
 	/// <see cref="BeginCore"/> calls the method once, before any pipeline input arrives. The collection gets
-	/// <see cref="Capacity"/> as its initial capacity. A collection that the cmdlet adds to with
-	/// <see cref="AddToCollection(T, object)"/> must be created with
-	/// <see cref="ConstructCollection(EqualityCollectionCtor)"/>.
+	/// <see cref="Capacity"/> as its initial capacity.
 	/// </remarks>
 	/// <param name="comparer">
 	/// The equality comparer that <see cref="GetCustomEqualityComparer(Type)"/> returned, or <see langword="null"/> to use
@@ -174,33 +166,13 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	private protected abstract T CreateCollection(IEqualityComparer? comparer);
 
 	/// <summary>
-	/// Creates the collection with the specified constructor object, and prepares the invoker that
-	/// <see cref="AddToCollection(T, object)"/> uses to call the collection's <c>Add</c> method.
-	/// </summary>
-	/// <remarks>
-	/// The method sets the constructor object's capacity to <see cref="Capacity"/> first. A derived class whose collection
-	/// is created through reflection, such as a set, calls it from <see cref="CreateCollection(IEqualityComparer)"/>.
-	/// </remarks>
-	/// <param name="ctor">The constructor object that describes the collection. This value must not be <see langword="null"/>.</param>
-	/// <returns>The new collection.</returns>
-	/// <exception cref="ListFunctions.Modern.Exceptions.ActivatorCtorException">Thrown when the collection's constructor fails.</exception>
-	private protected T ConstructCollection(EqualityCollectionCtor ctor)
-	{
-		ctor.Capacity = this.Capacity;
-		T collection = (T)ctor.Construct();
-
-		_genericTypes = ctor.GenericArgumentTypes;
-		_addMethod = new AddMethodInvoker(ctor);
-		return collection;
-	}
-
-	/// <summary>
 	/// Adds the <c>-CaseSensitive</c> switch to <see cref="DynParamLib"/> when the equality type is <see cref="string"/> or <see cref="object"/>.
 	/// </summary>
 	/// <remarks>
 	/// The switch is mandatory in <paramref name="parameterSetName"/>, and optional in
 	/// <see cref="CaseSensitiveOptionalParameterSetName"/> when that isn't <see langword="null"/>. The
-	/// <see cref="RuntimeDefinedParameter"/> is created once and reused on later calls.
+	/// <see cref="RuntimeDefinedParameter"/> is created once and reused on later calls. <see cref="GetDynamicParameters"/>
+	/// clears <see cref="DynParamLib"/> before it calls the method, so the switch is never in it already.
 	/// </remarks>
 	/// <param name="genericType">The type used for equality.</param>
 	/// <param name="parameterSetName">The name of the parameter set in which the switch is mandatory.</param>
@@ -208,7 +180,7 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 	private bool TryGetDynamicCaseParam(Type genericType, string parameterSetName)
 	{
 		bool returnLib = false;
-		if (EqualityCollectionCtor.IsTypeObjectOrString(genericType))
+		if (typeof(string).Equals(genericType) || typeof(object).Equals(genericType))
 		{
 			if (_caseSensitive is null)
 			{
@@ -232,56 +204,11 @@ public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 				_caseSensitive = new RuntimeDefinedParameter(CASE_SENSE, typeof(SwitchParameter), attributes);
 			}
 
-			returnLib = this.DynParamLib.TryAdd(CASE_SENSE, _caseSensitive);
+			this.DynParamLib[CASE_SENSE] = _caseSensitive;
+			returnLib = true;
 		}
 
 		return returnLib;
-	}
-
-	/// <summary>
-	/// Converts the specified item to the collection's element type and passes it to the collection's <c>Add</c>
-	/// method.
-	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// The method is for collections whose <c>Add</c> method takes a single argument, such as sets. It works only for a
-	/// collection that the derived class created with the base class's reflection helper, which also finds that method.
-	/// The element type is the collection's first generic type argument. The method does nothing when
-	/// <paramref name="collection"/> or <paramref name="item"/> is <see langword="null"/>, or when <paramref name="item"/>
-	/// converts to <see langword="null"/>. An item that can't be converted produces the non-terminating error that
-	/// <c>New-List</c> writes.
-	/// </para>
-	/// <para>
-	/// When <c>Add</c> throws a <see cref="RuntimeException"/> or a <see cref="FlowControlException"/>, such as an error
-	/// from a script block that compares the elements, the method throws it again unchanged, so it reaches PowerShell the
-	/// way an error from a <c>ForEach-Object</c> script block does. Any other exception from <c>Add</c>, such as one from
-	/// an element type's own <see cref="object.GetHashCode"/> method, produces a non-terminating error instead. The
-	/// error's target object is <paramref name="item"/> as it was before conversion.
-	/// </para>
-	/// <para>
-	/// <b>Performance:</b> The method reuses one argument array for every call, so it doesn't allocate an array for
-	/// each item. For the same reason, it isn't thread-safe.
-	/// </para>
-	/// </remarks>
-	/// <param name="collection">The collection to add to.</param>
-	/// <param name="item">The item to convert and add, or <see langword="null"/>.</param>
-	/// <exception cref="RuntimeException">Thrown when <c>Add</c> throws one, for example because a script block that compares the elements fails.</exception>
-	/// <exception cref="FlowControlException">Thrown when <c>Add</c> throws one, for example because a script block that compares the elements runs <c>break</c>.</exception>
-	protected void AddToCollection(T collection, object? item)
-	{
-		if (collection is null || item is null || !this.TryConvertItem(item, _genericTypes[0], out object? converted))
-		{
-			return;
-		}
-
-		object?[] args = _addArgs ??= new object?[1];
-		args[0] = converted;
-
-		if (!_addMethod.TryInvoke(collection, args, addIfNull: false, out Exception? caughtEx))
-		{
-			RethrowIfPassesThrough(caughtEx);
-			this.WriteError(caughtEx.ToRecord(ErrorCategory.InvalidOperation, item));
-		}
 	}
 
 	/// <summary>

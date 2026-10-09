@@ -141,6 +141,52 @@ Describe 'New-SortedSet' {
 		}
 	}
 
+	Context 'Errors while adding' {
+		BeforeAll {
+			# SortedSet[T].Add compares each element after the first with the elements already in the set, so a set of this
+			# type can hold only its first element. PowerShell converts an [int] to it through the constructor.
+			Add-Type -TypeDefinition @'
+namespace NewSortedSetTests
+{
+	public sealed class ThrowingCompareTo : System.IComparable<ThrowingCompareTo>
+	{
+		public ThrowingCompareTo(int value)
+		{
+			this.Value = value;
+		}
+
+		public int Value { get; private set; }
+
+		public int CompareTo(ThrowingCompareTo other)
+		{
+			throw new System.InvalidOperationException("CompareTo always fails.");
+		}
+	}
+}
+'@
+		}
+
+		# These errors don't come from -ComparingScript, so they're non-terminating, as they are in New-HashSet.
+		It 'writes an error that targets each element it fails to add, and writes the set, when the input is <Label>' -ForEach @(
+			@{ Label = 'piped'; Piped = $true }
+			@{ Label = 'passed to -InputObject'; Piped = $false }
+		) {
+			if ($Piped) {
+				$set = 1, 2, 3 | New-SortedSet ([NewSortedSetTests.ThrowingCompareTo]) -ErrorVariable err -ErrorAction SilentlyContinue
+			}
+			else {
+				$set = New-SortedSet ([NewSortedSetTests.ThrowingCompareTo]) -InputObject 1, 2, 3 -ErrorVariable err -ErrorAction SilentlyContinue
+			}
+			$err.Count | Should-Be 2
+			$err[0].TargetObject | Should-Be 2
+			$err[1].TargetObject | Should-Be 3
+			# Should-HaveType would print the whole exception on failure, which takes minutes. A type name prints quickly.
+			$err[0].Exception.GetType().FullName | Should-Be 'System.InvalidOperationException'
+			Should-HaveType -Expected ([System.Collections.Generic.SortedSet[NewSortedSetTests.ThrowingCompareTo]]) -Actual $set
+			$set.Count | Should-Be 1
+		}
+	}
+
 	# The output used to give a non-terminating error for each comparison, and a set without those elements.
 	It "ends only the statement when the output of -ComparingScript <Label>" -Tag 'Bug10' -ForEach @(
 		@{ Label = "can't be converted to [int]"; Script = "{ 'x' + `$x + `$y }" }

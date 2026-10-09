@@ -1,7 +1,7 @@
 using ListFunctions.Completion;
 using ListFunctions.Extensions;
+using ListFunctions.Internal;
 using ListFunctions.Modern;
-using ListFunctions.Modern.Constructors;
 using ListFunctions.Modern.Variables;
 using ListFunctions.Validation;
 
@@ -41,6 +41,8 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 {
 	private const string DYN_PSET_NAME = "StringSet";
 	private const string SPECIFIED_TYPE = "SpecifiedType";
+
+	private SetWrapper _set = null!;
 
 	/// <inheritdoc/>
 	protected override string CaseSensitiveParameterSetName => DYN_PSET_NAME;
@@ -149,42 +151,26 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	/// Elements are added to a set of <see cref="object"/> as they are. For a typed set, each element is first
-	/// converted to the element type, and a failed conversion produces the non-terminating error that <c>New-List</c>
-	/// writes.
+	/// Each element is converted to <see cref="GenericType"/>, which leaves it as it is when that type is
+	/// <see cref="object"/>, and a failed conversion produces the non-terminating error that <c>New-List</c> writes. A set
+	/// of <see cref="object"/> adds <see langword="null"/> elements too. A typed set skips them, along with elements that
+	/// convert to <see langword="null"/>.
 	/// </para>
 	/// <para>
 	/// An error from <see cref="EqualityScript"/> or <see cref="HashCodeScript"/>, including one for output that isn't a
 	/// hash code, reaches PowerShell unchanged, so the cmdlet ends without writing a set. Any other failure while adding
 	/// an element, such as an element type whose own <see cref="object.GetHashCode"/> method throws, produces a
-	/// non-terminating error for that element, and the cmdlet goes on with the next one.
+	/// non-terminating error whose target is the element as it was before conversion, and the cmdlet goes on with the next
+	/// one.
 	/// </para>
 	/// </remarks>
 	/// <param name="collection">The set to add elements to.</param>
+	/// <exception cref="RuntimeException">Thrown when adding an element throws one, for example because <see cref="HashCodeScript"/> fails.</exception>
+	/// <exception cref="FlowControlException">Thrown when adding an element throws one, for example because <see cref="EqualityScript"/> runs <c>break</c>.</exception>
 	protected override void Process(object collection)
 	{
-		object?[] elements = this.GetInputElements(this.InputObject);
-		if (collection is ICollection<object?> objCol)
-		{
-			foreach (object? item in elements)
-			{
-				try
-				{
-					objCol.Add(item);
-				}
-				catch (Exception e) when (!PassesThrough(e))
-				{
-					this.WriteError(e.ToRecord(ErrorCategory.InvalidOperation, item));
-				}
-			}
-		}
-		else
-		{
-			foreach (object? item in elements)
-			{
-				this.AddToCollection(collection, item);
-			}
-		}
+		// collection is the wrapper's own set. The wrapper converts each element and adds it with typed calls.
+		_set.AddRange(this.GetInputElements(this.InputObject));
 	}
 
 	/// <summary>
@@ -200,25 +186,37 @@ public sealed class NewHashSetCmdlet : EqualityConstructingCmdlet<object>, IDyna
 
 	#region BACKEND
 	/// <summary>
-	/// Creates the set through a <see cref="HashSetCtor"/> for <see cref="GenericType"/>.
+	/// Creates the set for <see cref="GenericType"/> with the specified element comparer.
 	/// </summary>
 	/// <remarks>
-	/// The <see cref="HashSetCtor"/> honors the <c>-CaseSensitive</c> switch. The set is created through the base class's
-	/// <see cref="EqualityConstructingCmdlet{T}.ConstructCollection(EqualityCollectionCtor)"/>, so
-	/// <see cref="Process(object)"/> can add elements with
-	/// <see cref="EqualityConstructingCmdlet{T}.AddToCollection(T, object)"/>.
+	/// <para>
+	/// The method creates the set through a <see cref="SetWrapper"/> and keeps the wrapper, so
+	/// <see cref="Process(object)"/> can add elements with typed calls. The set gets <see cref="Capacity"/> as its initial
+	/// capacity. Without a comparer, <see cref="string"/> and <see cref="object"/> elements compare ordinally, without
+	/// regard to case unless <c>-CaseSensitive</c> is set. Only a set of <see cref="object"/> adds
+	/// <see langword="null"/> elements, so a typed set doesn't hold a value that wasn't in the input, such as 0 in a set of
+	/// <see cref="int"/>.
+	/// </para>
+	/// <para>
+	/// The method also sets the wrapper's callbacks. One writes the non-terminating error that <c>New-List</c> writes for
+	/// each element that can't be converted. The other writes a non-terminating error for each element that the set fails
+	/// to add, whose target is the element as it was before conversion. Setting them once here means that pipeline input
+	/// doesn't allocate a delegate for each record.
+	/// </para>
 	/// </remarks>
 	/// <param name="comparer">The element equality comparer, or <see langword="null"/> to use the default for the element type.</param>
 	/// <returns>The new, empty set.</returns>
-	/// <exception cref="ListFunctions.Modern.Exceptions.ActivatorCtorException">Thrown when the set's constructor fails.</exception>
+	/// <exception cref="ArgumentException">Thrown when <see cref="GenericType"/> can't be a type argument of <see cref="HashSet{T}"/>, such as a pointer type.</exception>
+	/// <exception cref="OutOfMemoryException">Thrown when <see cref="Capacity"/> exceeds the maximum array length.</exception>
 	private protected override object CreateCollection(IEqualityComparer? comparer)
 	{
-		var ctor = new HashSetCtor(this.GenericType, comparer)
-		{
-			IsCaseSensitive = this.CaseSensitive,
-		};
+		Type elementType = this.GetEqualityForType();
+		_set = SetWrapper.CreateHashSet(elementType, (uint)this.Capacity, comparer, this.CaseSensitive);
 
-		return this.ConstructCollection(ctor);
+		_set.IncludeNulls = typeof(object).Equals(elementType);
+		_set.ConversionFailed = (item, exception) => this.WriteConversionError(exception, item, this.GenericType);
+		_set.AddFailed = (item, exception) => this.WriteError(exception.ToRecord(ErrorCategory.InvalidOperation, item));
+		return _set.AsSet();
 	}
 	/// <summary>
 	/// Returns the element equality comparer, building one from <see cref="EqualityScript"/> and
