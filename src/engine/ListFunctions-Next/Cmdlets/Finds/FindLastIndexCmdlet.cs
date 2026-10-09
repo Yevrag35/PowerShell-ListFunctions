@@ -45,7 +45,7 @@ namespace ListFunctions.Cmdlets.Finds;
 public sealed class FindLastIndexCmdlet : ListFunctionCmdletBase
 {
 	private ScriptBlockFilter _filter = null!;
-	private readonly List<object?> _list = new(0);
+	private readonly List<object?> _list = [];
 
 	/// <summary>
 	/// Gets or sets the script block that tests each input element.
@@ -140,4 +140,3 @@ public sealed class FindLastIndexCmdlet : ListFunctionCmdletBase
 		this.WriteObject(-1);
 	}
 }
-

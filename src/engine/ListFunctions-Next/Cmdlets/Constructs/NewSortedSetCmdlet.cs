@@ -311,4 +311,3 @@ public sealed class NewSortedSetCmdlet : ListFunctionCmdletBase, IDynamicParamet
 		return typeof(IComparable<>).MakeGenericType(type).IsAssignableFrom(type);
 	}
 }
-

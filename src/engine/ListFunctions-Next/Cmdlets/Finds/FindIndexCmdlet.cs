@@ -143,4 +143,3 @@ public sealed class FindIndexCmdlet : ListFunctionCmdletBase
 		this.WriteObject(index);
 	}
 }
-

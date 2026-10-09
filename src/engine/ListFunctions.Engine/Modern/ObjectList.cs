@@ -19,4 +19,3 @@ public sealed class ObjectList : List<object?>
 	/// </summary>
 	public ObjectList() : base(2) { }
 }
-

@@ -196,5 +196,4 @@ internal static class NullGuardExtensions
 		}
 	}
 }
-
 #endif

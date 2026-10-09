@@ -156,4 +156,3 @@ public abstract class TestObjectCmdlet : ListFunctionCmdletBase
 	/// </param>
 	protected abstract void End(bool scriptResult);
 }
-
