@@ -76,4 +76,3 @@ internal static class ReflectionResolver
 		return ((MethodCallExpression)callExpression.Body).Method;
 	}
 }
-

@@ -224,7 +224,11 @@ internal abstract class DictionaryWrapper
 		comparer ??= GetDefaultComparer(keyType, caseSensitive);
 		var create = (Factory)s_createDefinition
 			.MakeGenericMethod(keyType, valueType)
+#if NETCOREAPP
+			.CreateDelegate<Factory>();
+#else
 			.CreateDelegate(typeof(Factory));
+#endif
 
 		return create((int)Math.Min(capacity, int.MaxValue), comparer);
 	}
