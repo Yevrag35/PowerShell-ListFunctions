@@ -1,0 +1,1985 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	Help for the ListFunctions cmdlets. PowerShell 7 reads it as ListFunctions.Next.dll-Help.xml, and Windows PowerShell
+	5.1 reads the copy that ListFunctions-NETFramework makes, ListFunctions.NETFramework.dll-Help.xml.
+
+	Get-Help shows the syntax blocks and parameter attributes as this file writes them, not as the cmdlets declare them,
+	so they have to match the cmdlets. tests/Module.Tests.ps1 compares them. In command:parameters, a parameter is
+	required="true" when it is mandatory in every parameter set that has it.
+
+	Every example has remarks, and they end with an empty paragraph. Without remarks, Get-Help indents the next title by a
+	space, and without the empty paragraph, the next title follows the remarks without a blank line.
+-->
+<helpItems schema="maml" xmlns="http://msh">
+	<command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" xmlns:MSHelp="http://msdn.microsoft.com/mshelp">
+		<command:details>
+			<command:name>Test-AnyObject</command:name>
+			<command:verb>Test</command:verb>
+			<command:noun>AnyObject</command:noun>
+			<maml:description>
+				<maml:para>Tests whether any input element satisfies a condition, or whether there are any elements at all.</maml:para>
+			</maml:description>
+		</command:details>
+		<maml:description>
+			<maml:para>The Test-AnyObject cmdlet returns $true if at least one input element satisfies the -Condition script block, and $false if none does. Without a condition, it returns $true if the input has at least one element that isn't $null.</maml:para>
+			<maml:para>After the first match, the cmdlet stops. It doesn't test the remaining elements, and it stops the commands that send it pipeline input, the same way Select-Object -First does. Those commands produce no more output and don't run their end blocks, although an advanced function's clean block still runs in PowerShell 7.3 and later. Only the pipeline that contains the cmdlet stops, so the statements after it still run. With -InputObject, there's nothing to stop, because PowerShell evaluates the whole argument before the cmdlet starts. To stop a slow source early, pipe it instead.</maml:para>
+			<maml:para>Each object that comes through the pipeline is one element, even when it's $null or an array, the same as with ForEach-Object. An array or a list that you pass to -InputObject supplies its elements, and $null supplies none. Any other value, such as a string or a hashtable, is one element.</maml:para>
+			<maml:para>The cmdlet takes its input from the pipeline or from -InputObject, not from both. When it gets both, it writes an error before it reads any input, and outputs nothing.</maml:para>
+			<maml:para>The cmdlet passes a $null element to -Condition like any other element, so your condition decides what $null means.</maml:para>
+			<maml:para>By default, an error in -Condition becomes a warning, and the element doesn't satisfy the condition. To have errors reach PowerShell instead, use -ScriptBlockErrorAction.</maml:para>
+		</maml:description>
+		<command:syntax>
+			<command:syntaxItem>
+				<maml:name>Test-AnyObject</maml:name>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="ScriptBlock, FilterScript">
+					<maml:name>Condition</maml:name>
+					<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="none">
+					<maml:name>InputObject</maml:name>
+					<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="ScriptErrorAction">
+					<maml:name>ScriptBlockErrorAction</maml:name>
+					<command:parameterValue required="true" variableLength="false">ActionPreference</command:parameterValue>
+				</command:parameter>
+			</command:syntaxItem>
+		</command:syntax>
+		<command:parameters>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="ScriptBlock, FilterScript">
+				<maml:name>Condition</maml:name>
+				<maml:description>
+					<maml:para>The test to run on each element. The cmdlet returns $true at the first element for which the script block returns a value that PowerShell treats as $true.</maml:para>
+					<maml:para>The script block receives each element as $_, $PSItem, and $this, and as its first argument: $args[0], or the first parameter of its param() block. It has to use at least one of these, or the cmdlet fails with a parameter validation error. A variable that appears only in a nested script block doesn't count. Neither does one that appears only in a function that the script block calls, so pass the element to the function as an argument, as in { Test-Big $_ }. You can also pass a function's script block, such as ${function:Test-Big}, whose first parameter receives the element.</maml:para>
+					<maml:para>Only the first value that the script block outputs counts. PowerShell converts it to [bool] by its usual rules, so 0, '', $null, and no output at all count as $false.</maml:para>
+					<maml:para>Passing $null is the same as leaving the parameter out, so the cmdlet then tests for elements that aren't $null.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				<dev:type>
+					<maml:name>ScriptBlock</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="none">
+				<maml:name>InputObject</maml:name>
+				<maml:description>
+					<maml:para>The elements to test. You can pipe them, or pass them to this parameter, but not both.</maml:para>
+					<maml:para>Each piped object is one element, even when it's $null or an array. An array or a list that you pass to this parameter supplies its elements, and $null supplies none. Any other value, such as a string or a hashtable, is one element.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				<dev:type>
+					<maml:name>Object</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="ScriptErrorAction">
+				<maml:name>ScriptBlockErrorAction</maml:name>
+				<maml:description>
+					<maml:para>What happens to errors in -Condition. The default is SilentlyContinue.</maml:para>
+					<maml:para>With SilentlyContinue or Ignore, each error becomes a warning. The cmdlet runs -Condition with $ErrorActionPreference set to Stop, so the first error that the condition doesn't handle itself, such as an error that a command writes, a failed method call, or a throw, ends the condition for that element. The cmdlet writes the error's message as a warning, and the element doesn't satisfy the condition. An error that the condition handles itself, in a try block or with a command's own -ErrorAction SilentlyContinue or -ErrorAction Ignore, isn't a warning. The warnings follow the cmdlet's -WarningAction, so -WarningAction SilentlyContinue hides them, and -WarningAction Stop makes the first one end the script.</maml:para>
+					<maml:para>With any other value, -Condition runs with $ErrorActionPreference set to that value, and its errors reach PowerShell unchanged, the same as errors in a ForEach-Object script block. With Stop, an error that the condition writes ends the whole script, as -ErrorAction Stop would, and a failed method call, such as $null.Foo(), ends only the statement that runs the cmdlet. A throw ends the whole script. With Continue, an error that the condition writes appears, and the condition goes on, so the cmdlet uses its output.</maml:para>
+					<maml:para>With any value, break in the condition leaves the loop that runs the cmdlet. The cmdlet's own -ErrorAction doesn't change any of this, because these errors come from your script block, not from the cmdlet.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">ActionPreference</command:parameterValue>
+				<dev:type>
+					<maml:name>ActionPreference</maml:name>
+				</dev:type>
+				<dev:defaultValue>SilentlyContinue</dev:defaultValue>
+			</command:parameter>
+		</command:parameters>
+		<command:inputTypes>
+			<command:inputType>
+				<dev:type>
+					<maml:name>System.Object</maml:name>
+				</dev:type>
+				<maml:description>
+					<maml:para>You can pipe objects of any type to this cmdlet. Each piped object is one element.</maml:para>
+				</maml:description>
+			</command:inputType>
+		</command:inputTypes>
+		<command:returnValues>
+			<command:returnValue>
+				<dev:type>
+					<maml:name>System.Boolean</maml:name>
+				</dev:type>
+				<maml:description>
+					<maml:para>The cmdlet returns $true or $false.</maml:para>
+				</maml:description>
+			</command:returnValue>
+		</command:returnValues>
+		<maml:alertSet>
+			<maml:alert>
+				<maml:para>ListFunctions includes these aliases for Test-AnyObject: Any, Any-Object, Assert-Any, and Assert-AnyObject. Assert-AnyObject was the cmdlet's name before ListFunctions 4.0.</maml:para>
+				<maml:para>The cmdlet runs one block of each script block that you pass: its process block if it has one, and otherwise its end block, which holds the statements of a script block that has no named blocks. So a script block can't have a begin block, a clean block, or both a process block and an end block, and the block that runs has to contain at least one statement. A script block that breaks these rules fails parameter validation before the cmdlet reads any input.</maml:para>
+			</maml:alert>
+		</maml:alertSet>
+		<command:examples>
+			<command:example>
+				<maml:title>----- Example 1: Test whether any element satisfies a condition -----</maml:title>
+				<dev:code>$numbers = 1, 2, 3
+$numbers | Test-AnyObject { $_ -gt 2 }   # True
+$numbers | Test-AnyObject { $_ -gt 5 }   # False</dev:code>
+				<dev:remarks>
+					<maml:para>The first command returns True, because 3 is greater than 2. The second command returns False, because no element is greater than 5.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>--------- Example 2: Test whether the input has any elements ---------</maml:title>
+				<dev:code>1, 2, 3 | Test-AnyObject           # True
+@($null, $null) | Test-AnyObject   # False
+@() | Test-AnyObject               # False</dev:code>
+				<dev:remarks>
+					<maml:para>Without a condition, the cmdlet returns True when the input has at least one element that isn't $null.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>---------- Example 3: Stop searching after the first match ----------</maml:title>
+				<dev:code>Get-ChildItem -Path $HOME -File -Recurse |
+    Test-AnyObject { $_.Length -gt 1GB }</dev:code>
+				<dev:remarks>
+					<maml:para>Get-ChildItem stops walking the directory tree as soon as Test-AnyObject finds a file larger than 1 GB.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>---------- Example 4: Use the Any alias in an if statement ----------</maml:title>
+				<dev:code>if (Get-ChildItem -File | Any { $_.Length -gt 1GB }) {
+    'At least one file is larger than 1 GB.'
+}</dev:code>
+				<dev:remarks>
+					<maml:para>Any is an alias of Test-AnyObject.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>----------- Example 5: Receive the element as a parameter -----------</maml:title>
+				<dev:code>1, 2, 3 | Test-AnyObject { param($n) $n -gt 2 }   # True
+
+function Test-Big { param($n) $n -gt 2 }
+1, 2, 3 | Test-AnyObject ${function:Test-Big}     # True
+1, 2, 3 | Test-AnyObject { Test-Big $_ }          # True</dev:code>
+				<dev:remarks>
+					<maml:para>The first parameter of a param() block receives the element, and so does the first parameter of a function's script block. A variable that appears only in a function that the script block calls doesn't count, so the last command passes $_ to the function.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>------------- Example 6: Handle errors in the condition -------------</maml:title>
+				<dev:code>$files = 'missing-1.txt', 'missing-2.txt'
+$files | Test-AnyObject { (Get-Item $_).Length -gt 0 }
+# WARNING: Cannot find path '...\missing-1.txt' because it does not exist.
+# WARNING: Cannot find path '...\missing-2.txt' because it does not exist.
+# False
+
+$files | Test-AnyObject { $null -ne (Get-Item $_ -ErrorAction Ignore) }
+# False, with no warnings</dev:code>
+				<dev:remarks>
+					<maml:para>By default, an error in the condition becomes a warning, and the element doesn't satisfy the condition. An error that the condition handles itself isn't a warning, as the second command shows. To have the first error end the script instead, pass -ScriptBlockErrorAction Stop.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+		</command:examples>
+		<command:relatedLinks>
+			<maml:navigationLink>
+				<maml:linkText>Test-AllObject</maml:linkText>
+				<maml:uri />
+			</maml:navigationLink>
+			<maml:navigationLink>
+				<maml:linkText>Find-Index</maml:linkText>
+				<maml:uri />
+			</maml:navigationLink>
+		</command:relatedLinks>
+	</command:command>
+	<command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" xmlns:MSHelp="http://msdn.microsoft.com/mshelp">
+		<command:details>
+			<command:name>Test-AllObject</command:name>
+			<command:verb>Test</command:verb>
+			<command:noun>AllObject</command:noun>
+			<maml:description>
+				<maml:para>Tests whether every input element satisfies a condition.</maml:para>
+			</maml:description>
+		</command:details>
+		<maml:description>
+			<maml:para>The Test-AllObject cmdlet returns $true if every input element satisfies the -Condition script block, and $false if any element doesn't. When there are no elements, it returns $true, the same as List[T].TrueForAll.</maml:para>
+			<maml:para>After the first element that fails, the cmdlet stops. It doesn't test the remaining elements, and it stops the commands that send it pipeline input, the same way Select-Object -First does. Those commands produce no more output and don't run their end blocks, although an advanced function's clean block still runs in PowerShell 7.3 and later. Only the pipeline that contains the cmdlet stops, so the statements after it still run. With -InputObject, there's nothing to stop, because PowerShell evaluates the whole argument before the cmdlet starts. To stop a slow source early, pipe it instead.</maml:para>
+			<maml:para>Each object that comes through the pipeline is one element, even when it's $null or an array, the same as with ForEach-Object. An array or a list that you pass to -InputObject supplies its elements, and $null supplies none. Any other value, such as a string or a hashtable, is one element.</maml:para>
+			<maml:para>The cmdlet takes its input from the pipeline or from -InputObject, not from both. When it gets both, it writes an error before it reads any input, and outputs nothing.</maml:para>
+			<maml:para>The cmdlet passes a $null element to -Condition like any other element, so your condition decides what $null means.</maml:para>
+			<maml:para>By default, an error in -Condition becomes a warning, and the element doesn't satisfy the condition, so the cmdlet returns $false. To have errors reach PowerShell instead, use -ScriptBlockErrorAction.</maml:para>
+		</maml:description>
+		<command:syntax>
+			<command:syntaxItem>
+				<maml:name>Test-AllObject</maml:name>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="ScriptBlock, FilterScript">
+					<maml:name>Condition</maml:name>
+					<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="none">
+					<maml:name>InputObject</maml:name>
+					<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="ScriptErrorAction">
+					<maml:name>ScriptBlockErrorAction</maml:name>
+					<command:parameterValue required="true" variableLength="false">ActionPreference</command:parameterValue>
+				</command:parameter>
+			</command:syntaxItem>
+		</command:syntax>
+		<command:parameters>
+			<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="ScriptBlock, FilterScript">
+				<maml:name>Condition</maml:name>
+				<maml:description>
+					<maml:para>The test to run on each element. The cmdlet returns $false at the first element for which the script block returns a value that PowerShell treats as $false.</maml:para>
+					<maml:para>The script block receives each element as $_, $PSItem, and $this, and as its first argument: $args[0], or the first parameter of its param() block. It has to use at least one of these, or the cmdlet fails with a parameter validation error. A variable that appears only in a nested script block doesn't count. Neither does one that appears only in a function that the script block calls, so pass the element to the function as an argument, as in { Test-Big $_ }. You can also pass a function's script block, such as ${function:Test-Big}, whose first parameter receives the element.</maml:para>
+					<maml:para>Only the first value that the script block outputs counts. PowerShell converts it to [bool] by its usual rules, so 0, '', $null, and no output at all count as $false.</maml:para>
+					<maml:para>The parameter is required, so PowerShell rejects $null with a parameter binding error, even when there's no input to test.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				<dev:type>
+					<maml:name>ScriptBlock</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="none">
+				<maml:name>InputObject</maml:name>
+				<maml:description>
+					<maml:para>The elements to test. You can pipe them, or pass them to this parameter, but not both.</maml:para>
+					<maml:para>Each piped object is one element, even when it's $null or an array. An array or a list that you pass to this parameter supplies its elements, and $null supplies none. Any other value, such as a string or a hashtable, is one element.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				<dev:type>
+					<maml:name>Object</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="ScriptErrorAction">
+				<maml:name>ScriptBlockErrorAction</maml:name>
+				<maml:description>
+					<maml:para>What happens to errors in -Condition. The default is SilentlyContinue.</maml:para>
+					<maml:para>With SilentlyContinue or Ignore, each error becomes a warning. The cmdlet runs -Condition with $ErrorActionPreference set to Stop, so the first error that the condition doesn't handle itself, such as an error that a command writes, a failed method call, or a throw, ends the condition for that element. The cmdlet writes the error's message as a warning, and the element doesn't satisfy the condition. An error that the condition handles itself, in a try block or with a command's own -ErrorAction SilentlyContinue or -ErrorAction Ignore, isn't a warning. The warnings follow the cmdlet's -WarningAction, so -WarningAction SilentlyContinue hides them, and -WarningAction Stop makes the first one end the script.</maml:para>
+					<maml:para>With any other value, -Condition runs with $ErrorActionPreference set to that value, and its errors reach PowerShell unchanged, the same as errors in a ForEach-Object script block. With Stop, an error that the condition writes ends the whole script, as -ErrorAction Stop would, and a failed method call, such as $null.Foo(), ends only the statement that runs the cmdlet. A throw ends the whole script. With Continue, an error that the condition writes appears, and the condition goes on, so the cmdlet uses its output.</maml:para>
+					<maml:para>With any value, break in the condition leaves the loop that runs the cmdlet. The cmdlet's own -ErrorAction doesn't change any of this, because these errors come from your script block, not from the cmdlet.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">ActionPreference</command:parameterValue>
+				<dev:type>
+					<maml:name>ActionPreference</maml:name>
+				</dev:type>
+				<dev:defaultValue>SilentlyContinue</dev:defaultValue>
+			</command:parameter>
+		</command:parameters>
+		<command:inputTypes>
+			<command:inputType>
+				<dev:type>
+					<maml:name>System.Object</maml:name>
+				</dev:type>
+				<maml:description>
+					<maml:para>You can pipe objects of any type to this cmdlet. Each piped object is one element.</maml:para>
+				</maml:description>
+			</command:inputType>
+		</command:inputTypes>
+		<command:returnValues>
+			<command:returnValue>
+				<dev:type>
+					<maml:name>System.Boolean</maml:name>
+				</dev:type>
+				<maml:description>
+					<maml:para>The cmdlet returns $true or $false.</maml:para>
+				</maml:description>
+			</command:returnValue>
+		</command:returnValues>
+		<maml:alertSet>
+			<maml:alert>
+				<maml:para>ListFunctions includes these aliases for Test-AllObject: All, All-Object, All-Objects, Assert-All, Assert-AllObject, and Assert-AllObjects. Assert-AllObject was the cmdlet's name before ListFunctions 4.0.</maml:para>
+				<maml:para>The cmdlet runs one block of each script block that you pass: its process block if it has one, and otherwise its end block, which holds the statements of a script block that has no named blocks. So a script block can't have a begin block, a clean block, or both a process block and an end block, and the block that runs has to contain at least one statement. A script block that breaks these rules fails parameter validation before the cmdlet reads any input.</maml:para>
+			</maml:alert>
+		</maml:alertSet>
+		<command:examples>
+			<command:example>
+				<maml:title>---- Example 1: Test whether every element satisfies a condition ----</maml:title>
+				<dev:code>1, 2, 3 | Test-AllObject { $_ -is [int] }        # True
+1, 2, 'John' | Test-AllObject { $_ -is [int] }   # False</dev:code>
+				<dev:remarks>
+					<maml:para>The second command returns False, because 'John' isn't an [int].</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>------------------- Example 2: Test an empty input -------------------</maml:title>
+				<dev:code>@() | Test-AllObject { $_ -is [int] }   # True</dev:code>
+				<dev:remarks>
+					<maml:para>With no elements, no element fails the condition, so the cmdlet returns True, the same as List[T].TrueForAll.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>---------- Example 3: Use the All alias in an if statement ----------</maml:title>
+				<dev:code>$array = 1, 2, 'John'
+if (-not ($array | All { $_ -is [int] })) {
+    'At least one element is not an [int].'
+}</dev:code>
+				<dev:remarks>
+					<maml:para>All is an alias of Test-AllObject.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>------------ Example 4: Pass the elements to -InputObject ------------</maml:title>
+				<dev:code>Test-AllObject -InputObject 2, 4, 6 { $_ % 2 -eq 0 }   # True</dev:code>
+				<dev:remarks>
+					<maml:para>An array that you pass to -InputObject supplies its elements.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+		</command:examples>
+		<command:relatedLinks>
+			<maml:navigationLink>
+				<maml:linkText>Test-AnyObject</maml:linkText>
+				<maml:uri />
+			</maml:navigationLink>
+			<maml:navigationLink>
+				<maml:linkText>Find-Index</maml:linkText>
+				<maml:uri />
+			</maml:navigationLink>
+		</command:relatedLinks>
+	</command:command>
+	<command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" xmlns:MSHelp="http://msdn.microsoft.com/mshelp">
+		<command:details>
+			<command:name>Find-Index</command:name>
+			<command:verb>Find</command:verb>
+			<command:noun>Index</command:noun>
+			<maml:description>
+				<maml:para>Finds the index of the first input element that satisfies a condition.</maml:para>
+			</maml:description>
+		</command:details>
+		<maml:description>
+			<maml:para>The Find-Index cmdlet returns the zero-based index of the first input element that satisfies the -Condition script block, or -1 if no element does, the same as List[T].FindIndex. The index counts every element of the input, including $null elements, so it's the position of the match in the input.</maml:para>
+			<maml:para>After the first match, the cmdlet stops. It doesn't test the remaining elements, and it stops the commands that send it pipeline input, the same way Select-Object -First does. Those commands produce no more output and don't run their end blocks, although an advanced function's clean block still runs in PowerShell 7.3 and later. Only the pipeline that contains the cmdlet stops, so the statements after it still run. With -InputObject, there's nothing to stop, because PowerShell evaluates the whole argument before the cmdlet starts. To stop a slow source early, pipe it instead.</maml:para>
+			<maml:para>Each object that comes through the pipeline is one element, even when it's $null or an array, the same as with ForEach-Object. The cmdlet searches what you pass to -InputObject the same way it would search it piped, so an array, a list, a set, a queue, or any other collection supplies its elements, and $null supplies none. A value that isn't a collection is one element, and the cmdlet writes a warning for it, unless it's a string, which PowerShell never treats as a collection. For a dictionary, such as a hashtable, the warning suggests the dictionary's GetEnumerator() method, which supplies the entries.</maml:para>
+			<maml:para>The cmdlet takes its input from the pipeline or from -InputObject, not from both. When it gets both, it writes an error before it reads any input, and outputs nothing.</maml:para>
+			<maml:para>By default, an error in -Condition becomes a warning, the element doesn't match, and the search goes on with the next element. To have errors reach PowerShell instead, use -ScriptBlockErrorAction.</maml:para>
+		</maml:description>
+		<command:syntax>
+			<command:syntaxItem>
+				<maml:name>Find-Index</maml:name>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="ScriptBlock, FilterScript">
+					<maml:name>Condition</maml:name>
+					<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="List">
+					<maml:name>InputObject</maml:name>
+					<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="ScriptErrorAction">
+					<maml:name>ScriptBlockErrorAction</maml:name>
+					<command:parameterValue required="true" variableLength="false">ActionPreference</command:parameterValue>
+				</command:parameter>
+			</command:syntaxItem>
+		</command:syntax>
+		<command:parameters>
+			<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="ScriptBlock, FilterScript">
+				<maml:name>Condition</maml:name>
+				<maml:description>
+					<maml:para>The test to run on each element. The cmdlet returns the index of the first element for which the script block returns a value that PowerShell treats as $true.</maml:para>
+					<maml:para>The script block receives each element as $_, $PSItem, and $this, and as its first argument: $args[0], or the first parameter of its param() block. It has to use at least one of these, or the cmdlet fails with a parameter validation error. A variable that appears only in a nested script block doesn't count. Neither does one that appears only in a function that the script block calls, so pass the element to the function as an argument, as in { Test-Big $_ }. You can also pass a function's script block, such as ${function:Test-Big}, whose first parameter receives the element.</maml:para>
+					<maml:para>Only the first value that the script block outputs counts. PowerShell converts it to [bool] by its usual rules, so 0, '', $null, and no output at all count as $false.</maml:para>
+					<maml:para>The parameter is required, so PowerShell rejects $null with a parameter binding error.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				<dev:type>
+					<maml:name>ScriptBlock</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="List">
+				<maml:name>InputObject</maml:name>
+				<maml:description>
+					<maml:para>The elements to search. You can pipe them, or pass them to this parameter, but not both.</maml:para>
+					<maml:para>Each piped object is one element, even when it's $null or an array. A collection that you pass to this parameter, such as an array, a list, or a set, supplies its elements, the same as when you pipe it, and $null supplies none. Any other value is one element, and for a value that isn't a string, the cmdlet writes a warning that says so.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				<dev:type>
+					<maml:name>Object</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="ScriptErrorAction">
+				<maml:name>ScriptBlockErrorAction</maml:name>
+				<maml:description>
+					<maml:para>What happens to errors in -Condition. The default is SilentlyContinue.</maml:para>
+					<maml:para>With SilentlyContinue or Ignore, each error becomes a warning. The cmdlet runs -Condition with $ErrorActionPreference set to Stop, so the first error that the condition doesn't handle itself, such as an error that a command writes, a failed method call, or a throw, ends the condition for that element. The cmdlet writes the error's message as a warning, and the element doesn't satisfy the condition. An error that the condition handles itself, in a try block or with a command's own -ErrorAction SilentlyContinue or -ErrorAction Ignore, isn't a warning. The warnings follow the cmdlet's -WarningAction, so -WarningAction SilentlyContinue hides them, and -WarningAction Stop makes the first one end the script.</maml:para>
+					<maml:para>With any other value, -Condition runs with $ErrorActionPreference set to that value, and its errors reach PowerShell unchanged, the same as errors in a ForEach-Object script block. With Stop, an error that the condition writes ends the whole script, as -ErrorAction Stop would, and a failed method call, such as $null.Foo(), ends only the statement that runs the cmdlet. A throw ends the whole script. With Continue, an error that the condition writes appears, and the condition goes on, so the cmdlet uses its output.</maml:para>
+					<maml:para>With any value, break in the condition leaves the loop that runs the cmdlet. The cmdlet's own -ErrorAction doesn't change any of this, because these errors come from your script block, not from the cmdlet.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">ActionPreference</command:parameterValue>
+				<dev:type>
+					<maml:name>ActionPreference</maml:name>
+				</dev:type>
+				<dev:defaultValue>SilentlyContinue</dev:defaultValue>
+			</command:parameter>
+		</command:parameters>
+		<command:inputTypes>
+			<command:inputType>
+				<dev:type>
+					<maml:name>System.Object</maml:name>
+				</dev:type>
+				<maml:description>
+					<maml:para>You can pipe objects of any type to this cmdlet. Each piped object is one element.</maml:para>
+				</maml:description>
+			</command:inputType>
+		</command:inputTypes>
+		<command:returnValues>
+			<command:returnValue>
+				<dev:type>
+					<maml:name>System.Int32</maml:name>
+				</dev:type>
+				<maml:description>
+					<maml:para>The cmdlet returns the zero-based index of the first element that satisfies the condition, or -1 if no element does.</maml:para>
+				</maml:description>
+			</command:returnValue>
+		</command:returnValues>
+		<maml:alertSet>
+			<maml:alert>
+				<maml:para>ListFunctions includes these aliases for Find-Index: Find-IndexOf and IndexOf. Find-IndexOf was the cmdlet's name before ListFunctions 4.0.</maml:para>
+				<maml:para>The cmdlet runs one block of each script block that you pass: its process block if it has one, and otherwise its end block, which holds the statements of a script block that has no named blocks. So a script block can't have a begin block, a clean block, or both a process block and an end block, and the block that runs has to contain at least one statement. A script block that breaks these rules fails parameter validation before the cmdlet reads any input.</maml:para>
+			</maml:alert>
+		</maml:alertSet>
+		<command:examples>
+			<command:example>
+				<maml:title>------------------ Example 1: Find the first match ------------------</maml:title>
+				<dev:code>$names = 'Ann', 'Bob', 'Cid', 'Bob'
+$names | Find-Index { $_ -eq 'Bob' }    # 1
+$names | Find-Index { $_ -like 'Z*' }   # -1</dev:code>
+				<dev:remarks>
+					<maml:para>The first command returns 1, the index of the first 'Bob'. The second command returns -1, because no name starts with Z.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>----------- Example 2: Search the elements of a collection -----------</maml:title>
+				<dev:code>$names = 'Ann', 'Bob', 'Cid', 'Bob'
+Find-Index -InputObject $names -Condition { $_ -like 'C*' }   # 2
+
+$set = 1, 2, 3 | New-HashSet [int]
+Find-Index -InputObject $set { $_ -eq 2 }   # 1</dev:code>
+				<dev:remarks>
+					<maml:para>A collection that you pass to -InputObject supplies its elements, the same as when you pipe it, so the cmdlet searches the elements of the set too.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>------- Example 3: Count $null elements and arrays as elements -------</maml:title>
+				<dev:code>1, $null, 3 | Find-Index { $_ -eq 3 }              # 2
+@(1, @(2, 3), 4) | Find-Index { $_ -is [array] }   # 1</dev:code>
+				<dev:remarks>
+					<maml:para>Each piped object is one element, even when it's $null or an array, so 3 is at index 2, and the nested array is at index 1.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+		</command:examples>
+		<command:relatedLinks>
+			<maml:navigationLink>
+				<maml:linkText>Find-LastIndex</maml:linkText>
+				<maml:uri />
+			</maml:navigationLink>
+			<maml:navigationLink>
+				<maml:linkText>Test-AnyObject</maml:linkText>
+				<maml:uri />
+			</maml:navigationLink>
+		</command:relatedLinks>
+	</command:command>
+	<command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" xmlns:MSHelp="http://msdn.microsoft.com/mshelp">
+		<command:details>
+			<command:name>Find-LastIndex</command:name>
+			<command:verb>Find</command:verb>
+			<command:noun>LastIndex</command:noun>
+			<maml:description>
+				<maml:para>Finds the index of the last input element that satisfies a condition.</maml:para>
+			</maml:description>
+		</command:details>
+		<maml:description>
+			<maml:para>The Find-LastIndex cmdlet returns the zero-based index of the last input element that satisfies the -Condition script block, or -1 if no element does, the same as List[T].FindLastIndex. The index counts every element of the input, including $null elements, so it's the position of the match in the input.</maml:para>
+			<maml:para>The cmdlet collects all of its input before it searches backward from the end, so it always reads all of its input and keeps it in memory. The condition runs only for the elements from the end of the input through the last match.</maml:para>
+			<maml:para>Each object that comes through the pipeline is one element, even when it's $null or an array, the same as with ForEach-Object. The cmdlet searches what you pass to -InputObject the same way it would search it piped, so an array, a list, a set, a queue, or any other collection supplies its elements, and $null supplies none. A value that isn't a collection is one element, and the cmdlet writes a warning for it, unless it's a string, which PowerShell never treats as a collection. For a dictionary, such as a hashtable, the warning suggests the dictionary's GetEnumerator() method, which supplies the entries.</maml:para>
+			<maml:para>The cmdlet takes its input from the pipeline or from -InputObject, not from both. When it gets both, it writes an error before it reads any input, and outputs nothing.</maml:para>
+			<maml:para>By default, an error in -Condition becomes a warning, the element doesn't match, and the search goes on with the element before it. To have errors reach PowerShell instead, use -ScriptBlockErrorAction.</maml:para>
+		</maml:description>
+		<command:syntax>
+			<command:syntaxItem>
+				<maml:name>Find-LastIndex</maml:name>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="ScriptBlock, FilterScript">
+					<maml:name>Condition</maml:name>
+					<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="List">
+					<maml:name>InputObject</maml:name>
+					<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="ScriptErrorAction">
+					<maml:name>ScriptBlockErrorAction</maml:name>
+					<command:parameterValue required="true" variableLength="false">ActionPreference</command:parameterValue>
+				</command:parameter>
+			</command:syntaxItem>
+		</command:syntax>
+		<command:parameters>
+			<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="ScriptBlock, FilterScript">
+				<maml:name>Condition</maml:name>
+				<maml:description>
+					<maml:para>The test to run on each element. The cmdlet returns the index of the last element for which the script block returns a value that PowerShell treats as $true.</maml:para>
+					<maml:para>The script block receives each element as $_, $PSItem, and $this, and as its first argument: $args[0], or the first parameter of its param() block. It has to use at least one of these, or the cmdlet fails with a parameter validation error. A variable that appears only in a nested script block doesn't count. Neither does one that appears only in a function that the script block calls, so pass the element to the function as an argument, as in { Test-Big $_ }. You can also pass a function's script block, such as ${function:Test-Big}, whose first parameter receives the element.</maml:para>
+					<maml:para>Only the first value that the script block outputs counts. PowerShell converts it to [bool] by its usual rules, so 0, '', $null, and no output at all count as $false.</maml:para>
+					<maml:para>The parameter is required, so PowerShell rejects $null with a parameter binding error.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				<dev:type>
+					<maml:name>ScriptBlock</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="List">
+				<maml:name>InputObject</maml:name>
+				<maml:description>
+					<maml:para>The elements to search. You can pipe them, or pass them to this parameter, but not both.</maml:para>
+					<maml:para>Each piped object is one element, even when it's $null or an array. A collection that you pass to this parameter, such as an array, a list, or a set, supplies its elements, the same as when you pipe it, and $null supplies none. Any other value is one element, and for a value that isn't a string, the cmdlet writes a warning that says so.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				<dev:type>
+					<maml:name>Object</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="ScriptErrorAction">
+				<maml:name>ScriptBlockErrorAction</maml:name>
+				<maml:description>
+					<maml:para>What happens to errors in -Condition. The default is SilentlyContinue.</maml:para>
+					<maml:para>With SilentlyContinue or Ignore, each error becomes a warning. The cmdlet runs -Condition with $ErrorActionPreference set to Stop, so the first error that the condition doesn't handle itself, such as an error that a command writes, a failed method call, or a throw, ends the condition for that element. The cmdlet writes the error's message as a warning, and the element doesn't satisfy the condition. An error that the condition handles itself, in a try block or with a command's own -ErrorAction SilentlyContinue or -ErrorAction Ignore, isn't a warning. The warnings follow the cmdlet's -WarningAction, so -WarningAction SilentlyContinue hides them, and -WarningAction Stop makes the first one end the script.</maml:para>
+					<maml:para>With any other value, -Condition runs with $ErrorActionPreference set to that value, and its errors reach PowerShell unchanged, the same as errors in a ForEach-Object script block. With Stop, an error that the condition writes ends the whole script, as -ErrorAction Stop would, and a failed method call, such as $null.Foo(), ends only the statement that runs the cmdlet. A throw ends the whole script. With Continue, an error that the condition writes appears, and the condition goes on, so the cmdlet uses its output.</maml:para>
+					<maml:para>With any value, break in the condition leaves the loop that runs the cmdlet. The cmdlet's own -ErrorAction doesn't change any of this, because these errors come from your script block, not from the cmdlet.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">ActionPreference</command:parameterValue>
+				<dev:type>
+					<maml:name>ActionPreference</maml:name>
+				</dev:type>
+				<dev:defaultValue>SilentlyContinue</dev:defaultValue>
+			</command:parameter>
+		</command:parameters>
+		<command:inputTypes>
+			<command:inputType>
+				<dev:type>
+					<maml:name>System.Object</maml:name>
+				</dev:type>
+				<maml:description>
+					<maml:para>You can pipe objects of any type to this cmdlet. Each piped object is one element.</maml:para>
+				</maml:description>
+			</command:inputType>
+		</command:inputTypes>
+		<command:returnValues>
+			<command:returnValue>
+				<dev:type>
+					<maml:name>System.Int32</maml:name>
+				</dev:type>
+				<maml:description>
+					<maml:para>The cmdlet returns the zero-based index of the last element that satisfies the condition, or -1 if no element does.</maml:para>
+				</maml:description>
+			</command:returnValue>
+		</command:returnValues>
+		<maml:alertSet>
+			<maml:alert>
+				<maml:para>ListFunctions includes these aliases for Find-LastIndex: Find-LastIndexOf and LastIndexOf. Find-LastIndexOf was the cmdlet's name before ListFunctions 4.0.</maml:para>
+				<maml:para>The cmdlet runs one block of each script block that you pass: its process block if it has one, and otherwise its end block, which holds the statements of a script block that has no named blocks. So a script block can't have a begin block, a clean block, or both a process block and an end block, and the block that runs has to contain at least one statement. A script block that breaks these rules fails parameter validation before the cmdlet reads any input.</maml:para>
+			</maml:alert>
+		</maml:alertSet>
+		<command:examples>
+			<command:example>
+				<maml:title>------------------- Example 1: Find the last match -------------------</maml:title>
+				<dev:code>$names = 'Ann', 'Bob', 'Cid', 'Bob'
+$names | Find-LastIndex { $_ -eq 'Bob' }   # 3</dev:code>
+				<dev:remarks>
+					<maml:para>The command returns 3, the index of the last 'Bob'.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>-------------- Example 2: Search the elements of a list --------------</maml:title>
+				<dev:code>$list = 1, 5, 2, 6, 3 | New-List [int]
+Find-LastIndex -InputObject $list { $_ -gt 4 }   # 3</dev:code>
+				<dev:remarks>
+					<maml:para>A collection that you pass to -InputObject supplies its elements, so the command returns 3, the index of 6.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+		</command:examples>
+		<command:relatedLinks>
+			<maml:navigationLink>
+				<maml:linkText>Find-Index</maml:linkText>
+				<maml:uri />
+			</maml:navigationLink>
+			<maml:navigationLink>
+				<maml:linkText>Test-AnyObject</maml:linkText>
+				<maml:uri />
+			</maml:navigationLink>
+		</command:relatedLinks>
+	</command:command>
+	<command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" xmlns:MSHelp="http://msdn.microsoft.com/mshelp">
+		<command:details>
+			<command:name>New-List</command:name>
+			<command:verb>New</command:verb>
+			<command:noun>List</command:noun>
+			<maml:description>
+				<maml:para>Creates a List[T] and adds the input elements to it.</maml:para>
+			</maml:description>
+		</command:details>
+		<maml:description>
+			<maml:para>The New-List cmdlet creates a System.Collections.Generic.List[T]. T is the type that -GenericType names, or [object] if you don't pass it. A List[object], like an ArrayList, holds elements of any type.</maml:para>
+			<maml:para>Input elements are converted to T as they're added. An element that can't be converted writes a non-terminating error and isn't added.</maml:para>
+			<maml:para>The cmdlet skips $null elements unless you pass -IncludeNullElements. A list keeps every element it's given, so $null elements, which usually stand for missing values, would pile up in it. Pass the switch when they matter, for example to keep the list's positions in step with the input.</maml:para>
+			<maml:para>Each object that comes through the pipeline is one element, even when it's $null or an array, the same as with ForEach-Object. An array or a list that you pass to -InputObject supplies its elements, and $null supplies none. Any other value, such as a string or a hashtable, is one element.</maml:para>
+			<maml:para>The cmdlet takes its input from the pipeline or from -InputObject, not from both. When it gets both, it writes an error before it reads any input, and outputs nothing.</maml:para>
+			<maml:para>The cmdlet outputs the list as a single object. When you assign the output to a variable, you get the list itself, even if it's empty or holds only one element.</maml:para>
+		</maml:description>
+		<command:syntax>
+			<command:syntaxItem>
+				<maml:name>New-List</maml:name>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="Type">
+					<maml:name>GenericType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="Size">
+					<maml:name>Capacity</maml:name>
+					<command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+				</command:parameter>
+			</command:syntaxItem>
+			<command:syntaxItem>
+				<maml:name>New-List</maml:name>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="Type">
+					<maml:name>GenericType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="none">
+					<maml:name>InputObject</maml:name>
+					<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="Size">
+					<maml:name>Capacity</maml:name>
+					<command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="IncludeNulls">
+					<maml:name>IncludeNullElements</maml:name>
+				</command:parameter>
+			</command:syntaxItem>
+		</command:syntax>
+		<command:parameters>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="Type">
+				<maml:name>GenericType</maml:name>
+				<maml:description>
+					<maml:para>The element type, T. The default is [object].</maml:para>
+					<maml:para>You can write the type in any of these forms: a type literal, such as [guid], which PowerShell passes as the string '[guid]'; a type name, with or without brackets, such as guid, '[guid]', or 'System.Guid'; a System.Type object, such as ([guid]); or a script block that contains a type literal, such as { [guid] }. A type literal that contains a comma, as some generic types do, works as it is: PowerShell splits the argument at each comma, and the cmdlet joins the parts back together, as long as they make up a single type.</maml:para>
+					<maml:para>Press Tab to complete a type name, with or without its brackets and quotes.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				<dev:type>
+					<maml:name>Type</maml:name>
+				</dev:type>
+				<dev:defaultValue>[object]</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="Size">
+				<maml:name>Capacity</maml:name>
+				<maml:description>
+					<maml:para>The initial capacity, which is how many elements the list can hold before it has to grow. The default is 0. The list grows as it needs to either way, so a capacity only saves the work of growing when you know about how many elements the list will hold.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+				<dev:type>
+					<maml:name>Int32</maml:name>
+				</dev:type>
+				<dev:defaultValue>0</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="none">
+				<maml:name>InputObject</maml:name>
+				<maml:description>
+					<maml:para>The elements to add. You can pipe them, or pass them to this parameter, but not both.</maml:para>
+					<maml:para>Each piped object is one element, even when it's $null or an array. An array or a list that you pass to this parameter supplies its elements, and $null supplies none. Any other value, such as a string or a hashtable, is one element.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				<dev:type>
+					<maml:name>Object</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="IncludeNulls">
+				<maml:name>IncludeNullElements</maml:name>
+				<maml:description>
+					<maml:para>Adds $null elements instead of skipping them. In a typed list, a $null element becomes what $list.Add($null) would store, such as 0 in a List[int] or '' in a List[string].</maml:para>
+				</maml:description>
+				<command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+				<dev:type>
+					<maml:name>SwitchParameter</maml:name>
+				</dev:type>
+				<dev:defaultValue>False</dev:defaultValue>
+			</command:parameter>
+		</command:parameters>
+		<command:inputTypes>
+			<command:inputType>
+				<dev:type>
+					<maml:name>System.Object</maml:name>
+				</dev:type>
+				<maml:description>
+					<maml:para>You can pipe objects of any type to this cmdlet. Each piped object is one element.</maml:para>
+				</maml:description>
+			</command:inputType>
+		</command:inputTypes>
+		<command:returnValues>
+			<command:returnValue>
+				<dev:type>
+					<maml:name>System.Collections.Generic.List[T]</maml:name>
+				</dev:type>
+				<maml:description>
+					<maml:para>The cmdlet returns the list, whose element type is the type that -GenericType names.</maml:para>
+				</maml:description>
+			</command:returnValue>
+		</command:returnValues>
+		<command:examples>
+			<command:example>
+				<maml:title>------ Example 1: Create a list that holds elements of any type ------</maml:title>
+				<dev:code>$list = New-List
+$list.Add('a')
+$list.Add(1)
+$list.Count   # 2</dev:code>
+				<dev:remarks>
+					<maml:para>Without -GenericType, the cmdlet creates a List[object].</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>------ Example 2: Create a typed list with an initial capacity ------</maml:title>
+				<dev:code>$list = New-List [guid] -Capacity 10000</dev:code>
+				<dev:remarks>
+					<maml:para>The list holds [guid] elements and has room for 10,000 of them before it has to grow.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>-------------------- Example 3: Fill a typed list --------------------</maml:title>
+				<dev:code>$list = 1, 2, '3' | New-List [int]
+$list = New-List [int] -InputObject 1, 2, '3'</dev:code>
+				<dev:remarks>
+					<maml:para>Both commands create the same List[int], one from the pipeline and one through -InputObject. The string '3' is converted to 3.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>------------------- Example 4: Keep $null elements -------------------</maml:title>
+				<dev:code>$list = 1, $null, 3 | New-List [int]
+$list -join ', '   # 1, 3
+
+$list = 1, $null, 3 | New-List [int] -IncludeNullElements
+$list -join ', '   # 1, 0, 3</dev:code>
+				<dev:remarks>
+					<maml:para>Without -IncludeNullElements, the cmdlet skips the $null element. With it, the $null element becomes 0, which is what a List[int] stores for $null.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>------------ Example 5: Add an array as a single element ------------</maml:title>
+				<dev:code>$list = @(1, @(2, 3)) | New-List
+$list.Count   # 2</dev:code>
+				<dev:remarks>
+					<maml:para>Each piped object is one element, so the nested array is the list's second element.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>--- Example 6: Create a list of a generic type that contains a comma ---</maml:title>
+				<dev:code>$list = New-List [System.Collections.Generic.KeyValuePair[string, int]]</dev:code>
+				<dev:remarks>
+					<maml:para>PowerShell splits the argument at the comma, and the cmdlet joins the parts back together.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+		</command:examples>
+		<command:relatedLinks>
+			<maml:navigationLink>
+				<maml:linkText>New-HashSet</maml:linkText>
+				<maml:uri />
+			</maml:navigationLink>
+			<maml:navigationLink>
+				<maml:linkText>New-SortedSet</maml:linkText>
+				<maml:uri />
+			</maml:navigationLink>
+			<maml:navigationLink>
+				<maml:linkText>New-Dictionary</maml:linkText>
+				<maml:uri />
+			</maml:navigationLink>
+		</command:relatedLinks>
+	</command:command>
+	<command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" xmlns:MSHelp="http://msdn.microsoft.com/mshelp">
+		<command:details>
+			<command:name>New-HashSet</command:name>
+			<command:verb>New</command:verb>
+			<command:noun>HashSet</command:noun>
+			<maml:description>
+				<maml:para>Creates a HashSet[T], a set of distinct elements, optionally with equality that script blocks define.</maml:para>
+			</maml:description>
+		</command:details>
+		<maml:description>
+			<maml:para>The New-HashSet cmdlet creates a System.Collections.Generic.HashSet[T], which holds each distinct element once. T is the type that -GenericType names, or [object] if you don't pass it. Input elements are converted to T as they're added, and the set drops each element that it already holds. An element that can't be converted writes a non-terminating error and isn't added.</maml:para>
+			<maml:para>Unless you pass -EqualityScript and -HashCodeScript, the set compares elements like this:</maml:para>
+			<maml:para>- [object], the default: two strings are compared the same way as [string] elements, and any other two elements with their own Equals method. Values aren't converted before they're compared, so 1, '1', and [long]1 are three different elements.</maml:para>
+			<maml:para>- [string]: ordinally, without regard to case. -CaseSensitive makes the comparison case-sensitive.</maml:para>
+			<maml:para>- Any other type: the type's default equality.</maml:para>
+			<maml:para>To decide for yourself which elements are equal, pass -EqualityScript and -HashCodeScript together. You don't need a compiled IEqualityComparer[T] class, and T can be any type.</maml:para>
+			<maml:para>An [object] set adds a $null element, which it stores as it is, and only once, so $set.Contains($null) tells you whether the input had one. A set of any other type skips $null elements, because in most types, $null would become a value that wasn't in the input, such as 0 in an [int] set.</maml:para>
+			<maml:para>Each object that comes through the pipeline is one element, even when it's $null or an array, the same as with ForEach-Object. An array or a list that you pass to -InputObject supplies its elements, and $null supplies none. Any other value, such as a string or a hashtable, is one element.</maml:para>
+			<maml:para>The cmdlet takes its input from the pipeline or from -InputObject, not from both. When it gets both, it writes an error before it reads any input, and outputs nothing.</maml:para>
+			<maml:para>Errors in -EqualityScript and -HashCodeScript reach PowerShell unchanged, and the cmdlet then outputs no set. See -ScriptBlockErrorAction. The cmdlet's other errors are non-terminating, such as an element that can't be converted to T: the cmdlet writes the error, skips that element, and goes on with the rest.</maml:para>
+			<maml:para>The cmdlet outputs the set as a single object. When you assign the output to a variable, you get the set itself, even if it's empty or holds only one element.</maml:para>
+		</maml:description>
+		<command:syntax>
+			<command:syntaxItem>
+				<maml:name>New-HashSet</maml:name>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="Type">
+					<maml:name>GenericType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="Size">
+					<maml:name>Capacity</maml:name>
+					<command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="none">
+					<maml:name>InputObject</maml:name>
+					<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				</command:parameter>
+			</command:syntaxItem>
+			<command:syntaxItem>
+				<maml:name>New-HashSet</maml:name>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="Type">
+					<maml:name>GenericType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>CaseSensitive</maml:name>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="Size">
+					<maml:name>Capacity</maml:name>
+					<command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="none">
+					<maml:name>InputObject</maml:name>
+					<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				</command:parameter>
+			</command:syntaxItem>
+			<command:syntaxItem>
+				<maml:name>New-HashSet</maml:name>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="Type">
+					<maml:name>GenericType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>EqualityScript</maml:name>
+					<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>HashCodeScript</maml:name>
+					<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="Size">
+					<maml:name>Capacity</maml:name>
+					<command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="none">
+					<maml:name>InputObject</maml:name>
+					<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="ScriptErrorAction">
+					<maml:name>ScriptBlockErrorAction</maml:name>
+					<command:parameterValue required="true" variableLength="false">ActionPreference</command:parameterValue>
+				</command:parameter>
+			</command:syntaxItem>
+		</command:syntax>
+		<command:parameters>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="Type">
+				<maml:name>GenericType</maml:name>
+				<maml:description>
+					<maml:para>The element type, T. The default is [object]. With -EqualityScript and -HashCodeScript, the script blocks receive elements of this type.</maml:para>
+					<maml:para>You can write the type in any of these forms: a type literal, such as [guid], which PowerShell passes as the string '[guid]'; a type name, with or without brackets, such as guid, '[guid]', or 'System.Guid'; a System.Type object, such as ([guid]); or a script block that contains a type literal, such as { [guid] }. A type literal that contains a comma, as some generic types do, works as it is: PowerShell splits the argument at each comma, and the cmdlet joins the parts back together, as long as they make up a single type.</maml:para>
+					<maml:para>Press Tab to complete a type name, with or without its brackets and quotes.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				<dev:type>
+					<maml:name>Type</maml:name>
+				</dev:type>
+				<dev:defaultValue>[object]</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="Size">
+				<maml:name>Capacity</maml:name>
+				<maml:description>
+					<maml:para>The initial capacity, which is how many elements the set can hold before it has to grow. The default is 0.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+				<dev:type>
+					<maml:name>Int32</maml:name>
+				</dev:type>
+				<dev:defaultValue>0</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="none">
+				<maml:name>InputObject</maml:name>
+				<maml:description>
+					<maml:para>The elements to add. You can pipe them, or pass them to this parameter, but not both.</maml:para>
+					<maml:para>Each piped object is one element, even when it's $null or an array. An array or a list that you pass to this parameter supplies its elements, and $null supplies none. Any other value, such as a string or a hashtable, is one element.</maml:para>
+					<maml:para>An [object] set adds $null elements, and a set of any other type skips them.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				<dev:type>
+					<maml:name>Object</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+				<maml:name>CaseSensitive</maml:name>
+				<maml:description>
+					<maml:para>Compares strings with regard to case. The parameter is available when the element type is [object], the default, or [string]. You can't use it with -EqualityScript and -HashCodeScript.</maml:para>
+				</maml:description>
+				<command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+				<dev:type>
+					<maml:name>SwitchParameter</maml:name>
+				</dev:type>
+				<dev:defaultValue>False</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+				<maml:name>EqualityScript</maml:name>
+				<maml:description>
+					<maml:para>A script block that returns whether two elements are equal. It requires -HashCodeScript.</maml:para>
+					<maml:para>The script block receives the two elements as $x and $y, or as $left and $right, and as its two arguments: $args[0] and $args[1], or the parameters of its param() block, in order. It has to use one of these for each element, or the cmdlet fails with a parameter validation error. A variable that appears only in a nested script block doesn't count.</maml:para>
+					<maml:para>Only the first value that the script block outputs counts. PowerShell converts it to [bool] by its usual rules, so 0, '', $null, and no output at all count as $false.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				<dev:type>
+					<maml:name>ScriptBlock</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+				<maml:name>HashCodeScript</maml:name>
+				<maml:description>
+					<maml:para>A script block that returns an element's hash code. It requires -EqualityScript. Elements that -EqualityScript considers equal have to return the same hash code, so if your equality ignores case, for example, the hash code has to ignore case too.</maml:para>
+					<maml:para>The script block receives the element as $_, $PSItem, and $this, and as its first argument: $args[0], or the first parameter of its param() block. It has to use at least one of these, or the cmdlet fails with a parameter validation error. A variable that appears only in a nested script block doesn't count.</maml:para>
+					<maml:para>The script block has to output an [int], or a value that converts to one, and only its first value counts. When it outputs nothing, $null, or a value that can't be converted, the error ends the statement that runs the cmdlet, the same as a failed method call.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				<dev:type>
+					<maml:name>ScriptBlock</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="ScriptErrorAction">
+				<maml:name>ScriptBlockErrorAction</maml:name>
+				<maml:description>
+					<maml:para>The $ErrorActionPreference inside -EqualityScript and -HashCodeScript. The default is Stop.</maml:para>
+					<maml:para>Errors in these script blocks reach PowerShell unchanged, the same as errors in a ForEach-Object script block, and the cmdlet then outputs no set. With Stop, an error that a script block writes ends the whole script, as -ErrorAction Stop would. To handle it, run the cmdlet in a try block. A failed method call, such as $null.Foo(), ends only the statement that runs the cmdlet. A throw ends the whole script unless this parameter is SilentlyContinue, and break leaves the loop that runs the cmdlet. With Continue, an error that a script block writes appears, and the script block goes on, so the cmdlet uses its output.</maml:para>
+					<maml:para>The cmdlet's own -ErrorAction doesn't change any of this, because these errors come from your script blocks, not from the cmdlet.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">ActionPreference</command:parameterValue>
+				<dev:type>
+					<maml:name>ActionPreference</maml:name>
+				</dev:type>
+				<dev:defaultValue>Stop</dev:defaultValue>
+			</command:parameter>
+		</command:parameters>
+		<command:inputTypes>
+			<command:inputType>
+				<dev:type>
+					<maml:name>System.Object</maml:name>
+				</dev:type>
+				<maml:description>
+					<maml:para>You can pipe objects of any type to this cmdlet. Each piped object is one element.</maml:para>
+				</maml:description>
+			</command:inputType>
+		</command:inputTypes>
+		<command:returnValues>
+			<command:returnValue>
+				<dev:type>
+					<maml:name>System.Collections.Generic.HashSet[T]</maml:name>
+				</dev:type>
+				<maml:description>
+					<maml:para>The cmdlet returns the set, whose element type is the type that -GenericType names.</maml:para>
+				</maml:description>
+			</command:returnValue>
+		</command:returnValues>
+		<maml:alertSet>
+			<maml:alert>
+				<maml:para>The cmdlet runs one block of each script block that you pass: its process block if it has one, and otherwise its end block, which holds the statements of a script block that has no named blocks. So a script block can't have a begin block, a clean block, or both a process block and an end block, and the block that runs has to contain at least one statement. A script block that breaks these rules fails parameter validation before the cmdlet reads any input.</maml:para>
+			</maml:alert>
+		</maml:alertSet>
+		<command:examples>
+			<command:example>
+				<maml:title>------ Example 1: Create a set that ignores the case of strings ------</maml:title>
+				<dev:code>$set = New-HashSet
+$set.Add('apple')   # True
+$set.Add('APPLE')   # False, because the set already holds 'apple'</dev:code>
+				<dev:remarks>
+					<maml:para>Without -GenericType, the cmdlet creates a HashSet[object], which compares two strings ordinally, without regard to case.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>--- Example 2: Create a set that compares strings with regard to case ---</maml:title>
+				<dev:code>$set = New-HashSet -CaseSensitive
+$set.Add('apple')   # True
+$set.Add('APPLE')   # True</dev:code>
+				<dev:remarks>
+					<maml:para>With -CaseSensitive, 'apple' and 'APPLE' are different elements.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>------------ Example 3: Drop duplicates as the set fills ------------</maml:title>
+				<dev:code>$set = 1, 2, 2, 3, '3' | New-HashSet [int]
+$set.Count   # 3</dev:code>
+				<dev:remarks>
+					<maml:para>The string '3' is converted to 3, which the set already holds.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>--- Example 4: Decide which elements are equal with script blocks ---</maml:title>
+				<dev:code>$csv = @'
+"Id","Name","Job"
+"1","John","The Guy"
+"1","John","The Guy?"
+"2","Jane","[redacted]"
+'@ | ConvertFrom-Csv
+
+$equality = {
+    $left.Id -eq $right.Id -and $left.Name -eq $right.Name
+}
+$hashCode = {
+    # -eq ignores case, so the hash code has to ignore case as well.
+    "$($_.Id)|$($_.Name.ToUpperInvariant())".GetHashCode()
+}
+
+$set = $csv |
+    New-HashSet -EqualityScript $equality -HashCodeScript $hashCode
+$set.Count   # 2</dev:code>
+				<dev:remarks>
+					<maml:para>Two rows describe the same employee when their Id and Name columns match, so the set keeps only the first row for John.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>--- Example 5: Compare elements of a given type with script blocks ---</maml:title>
+				<dev:code>$lastDigit = @{
+    EqualityScript = { $x % 10 -eq $y % 10 }
+    HashCodeScript = { $_ % 10 }
+}
+$set = 1, 2, 11, 21 | New-HashSet [int] @lastDigit
+$set.Count   # 2</dev:code>
+				<dev:remarks>
+					<maml:para>Numbers that end in the same digit are equal, so 11 and 21 are duplicates of 1. The script blocks receive [int] elements.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+		</command:examples>
+		<command:relatedLinks>
+			<maml:navigationLink>
+				<maml:linkText>New-SortedSet</maml:linkText>
+				<maml:uri />
+			</maml:navigationLink>
+			<maml:navigationLink>
+				<maml:linkText>New-List</maml:linkText>
+				<maml:uri />
+			</maml:navigationLink>
+			<maml:navigationLink>
+				<maml:linkText>New-Dictionary</maml:linkText>
+				<maml:uri />
+			</maml:navigationLink>
+		</command:relatedLinks>
+	</command:command>
+	<command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" xmlns:MSHelp="http://msdn.microsoft.com/mshelp">
+		<command:details>
+			<command:name>New-SortedSet</command:name>
+			<command:verb>New</command:verb>
+			<command:noun>SortedSet</command:noun>
+			<maml:description>
+				<maml:para>Creates a SortedSet[T], a set of distinct elements in sorted order, optionally with a sort order that a script block defines.</maml:para>
+			</maml:description>
+		</command:details>
+		<maml:description>
+			<maml:para>The New-SortedSet cmdlet creates a System.Collections.Generic.SortedSet[T], which holds each distinct element once and keeps the elements in sorted order. Input elements are converted to T as they're added, and elements that compare as equal are duplicates, so the set keeps only the first of them. An element that can't be converted writes a non-terminating error and isn't added.</maml:para>
+			<maml:para>Unless you pass -ComparingScript, the set uses the default order of T, which is [string] unless you pass -GenericType. A [string] set compares strings ordinally, without regard to case: it orders them by the codes of their characters, as if they were uppercase. So digits sort before letters, and punctuation such as _ and letters outside ASCII, such as &#xE9;, sort after Z. The order doesn't depend on your culture or on the PowerShell edition, and a [string] set holds only one of 'a' and 'A'. With -CaseSensitive, a [string] set compares the codes of the characters as they are, so 'a' and 'A' are different elements, and the uppercase letters A to Z sort before the lowercase ones.</maml:para>
+			<maml:para>T needs a default order: it has to implement IComparable[T], as [int] implements IComparable[int], or be an enum, or be a Nullable[U] whose U qualifies. [string], [int], [datetime], and [version] all qualify. Any other type, such as [object] or [psobject], is an error before the cmdlet reads any input. To sort elements of those types, pass -ComparingScript.</maml:para>
+			<maml:para>With -ComparingScript, the script block decides the order, and T can be any type. T is then [object] unless you pass -GenericType.</maml:para>
+			<maml:para>The cmdlet skips $null elements, whatever the element type. In the default [string] set, $null would become '', a value that wasn't in the input, and in an [object] set, the set would put it first without running your -ComparingScript.</maml:para>
+			<maml:para>Each object that comes through the pipeline is one element, even when it's $null or an array, the same as with ForEach-Object. An array or a list that you pass to -InputObject supplies its elements, and $null supplies none. Any other value, such as a string or a hashtable, is one element.</maml:para>
+			<maml:para>The cmdlet takes its input from the pipeline or from -InputObject, not from both. When it gets both, it writes an error before it reads any input, and outputs nothing.</maml:para>
+			<maml:para>Errors in -ComparingScript reach PowerShell unchanged, and the cmdlet then outputs no set. See -ScriptBlockErrorAction. The cmdlet's other errors are non-terminating, such as an element that can't be converted to T: the cmdlet writes the error, skips that element, and goes on with the rest.</maml:para>
+			<maml:para>The cmdlet outputs the set as a single object. When you assign the output to a variable, you get the set itself, even if it's empty or holds only one element.</maml:para>
+		</maml:description>
+		<command:syntax>
+			<command:syntaxItem>
+				<maml:name>New-SortedSet</maml:name>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="Type">
+					<maml:name>GenericType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="none">
+					<maml:name>InputObject</maml:name>
+					<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>CaseSensitive</maml:name>
+				</command:parameter>
+			</command:syntaxItem>
+			<command:syntaxItem>
+				<maml:name>New-SortedSet</maml:name>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="Type">
+					<maml:name>GenericType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>ComparingScript</maml:name>
+					<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="none">
+					<maml:name>InputObject</maml:name>
+					<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="ScriptErrorAction">
+					<maml:name>ScriptBlockErrorAction</maml:name>
+					<command:parameterValue required="true" variableLength="false">ActionPreference</command:parameterValue>
+				</command:parameter>
+			</command:syntaxItem>
+		</command:syntax>
+		<command:parameters>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="Type">
+				<maml:name>GenericType</maml:name>
+				<maml:description>
+					<maml:para>The element type, T. The default is [string], or [object] with -ComparingScript. Without -ComparingScript, the type needs a default order, as the description explains.</maml:para>
+					<maml:para>You can write the type in any of these forms: a type literal, such as [guid], which PowerShell passes as the string '[guid]'; a type name, with or without brackets, such as guid, '[guid]', or 'System.Guid'; a System.Type object, such as ([guid]); or a script block that contains a type literal, such as { [guid] }. A type literal that contains a comma, as some generic types do, works as it is: PowerShell splits the argument at each comma, and the cmdlet joins the parts back together, as long as they make up a single type.</maml:para>
+					<maml:para>Press Tab to complete a type name, with or without its brackets and quotes.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				<dev:type>
+					<maml:name>Type</maml:name>
+				</dev:type>
+				<dev:defaultValue>[string], or [object] with -ComparingScript</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="none">
+				<maml:name>InputObject</maml:name>
+				<maml:description>
+					<maml:para>The elements to add. You can pipe them, or pass them to this parameter, but not both.</maml:para>
+					<maml:para>Each piped object is one element, even when it's $null or an array. An array or a list that you pass to this parameter supplies its elements, and $null supplies none. Any other value, such as a string or a hashtable, is one element.</maml:para>
+					<maml:para>The cmdlet skips $null elements.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				<dev:type>
+					<maml:name>Object</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+				<maml:name>CaseSensitive</maml:name>
+				<maml:description>
+					<maml:para>Compares strings with regard to case, so 'a' and 'A' are different elements, and uppercase letters sort before lowercase ones. The parameter is available when the element type is [string], the default. You can't use it with -ComparingScript.</maml:para>
+				</maml:description>
+				<command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+				<dev:type>
+					<maml:name>SwitchParameter</maml:name>
+				</dev:type>
+				<dev:defaultValue>False</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+				<maml:name>ComparingScript</maml:name>
+				<maml:description>
+					<maml:para>A script block that returns the sort order of two elements: an [int] that's less than zero if the first element sorts before the second, zero if they're equal, and greater than zero if the first element sorts after the second. Elements that compare as equal are duplicates.</maml:para>
+					<maml:para>The script block receives the two elements as $x and $y, or as $left and $right, and as its two arguments: $args[0] and $args[1], or the parameters of its param() block, in order. It has to use one of these for each element, or the cmdlet fails with a parameter validation error. A variable that appears only in a nested script block doesn't count.</maml:para>
+					<maml:para>The script block has to output an [int], or a value that converts to one, and only its first value counts. When it outputs nothing, $null, or a value that can't be converted, the error ends the statement that runs the cmdlet, the same as a failed method call.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				<dev:type>
+					<maml:name>ScriptBlock</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="ScriptErrorAction">
+				<maml:name>ScriptBlockErrorAction</maml:name>
+				<maml:description>
+					<maml:para>The $ErrorActionPreference inside -ComparingScript. The default is Stop.</maml:para>
+					<maml:para>Errors in the script block reach PowerShell unchanged, the same as errors in a ForEach-Object script block, and the cmdlet then outputs no set. With Stop, an error that the script block writes ends the whole script, as -ErrorAction Stop would. To handle it, run the cmdlet in a try block. A failed method call, such as $null.Foo(), ends only the statement that runs the cmdlet. A throw ends the whole script unless this parameter is SilentlyContinue, and break leaves the loop that runs the cmdlet. With Continue, an error that the script block writes appears, and the script block goes on, so the cmdlet uses its output.</maml:para>
+					<maml:para>The cmdlet's own -ErrorAction doesn't change any of this, because these errors come from your script block, not from the cmdlet.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">ActionPreference</command:parameterValue>
+				<dev:type>
+					<maml:name>ActionPreference</maml:name>
+				</dev:type>
+				<dev:defaultValue>Stop</dev:defaultValue>
+			</command:parameter>
+		</command:parameters>
+		<command:inputTypes>
+			<command:inputType>
+				<dev:type>
+					<maml:name>System.Object</maml:name>
+				</dev:type>
+				<maml:description>
+					<maml:para>You can pipe objects of any type to this cmdlet. Each piped object is one element.</maml:para>
+				</maml:description>
+			</command:inputType>
+		</command:inputTypes>
+		<command:returnValues>
+			<command:returnValue>
+				<dev:type>
+					<maml:name>System.Collections.Generic.SortedSet[T]</maml:name>
+				</dev:type>
+				<maml:description>
+					<maml:para>The cmdlet returns the set, whose element type is the type that -GenericType names.</maml:para>
+				</maml:description>
+			</command:returnValue>
+		</command:returnValues>
+		<maml:alertSet>
+			<maml:alert>
+				<maml:para>The cmdlet runs one block of each script block that you pass: its process block if it has one, and otherwise its end block, which holds the statements of a script block that has no named blocks. So a script block can't have a begin block, a clean block, or both a process block and an end block, and the block that runs has to contain at least one statement. A script block that breaks these rules fails parameter validation before the cmdlet reads any input.</maml:para>
+			</maml:alert>
+		</maml:alertSet>
+		<command:examples>
+			<command:example>
+				<maml:title>---------------------- Example 1: Sort numbers ----------------------</maml:title>
+				<dev:code>$set = 5, 3, 1, 3 | New-SortedSet [int]
+$set -join ', '   # 1, 3, 5</dev:code>
+				<dev:remarks>
+					<maml:para>The set holds each number once, in ascending order.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>---------------------- Example 2: Sort strings ----------------------</maml:title>
+				<dev:code>$set = 5, 3, 10 | New-SortedSet
+$set -join ', '   # 10, 3, 5
+
+$set = 'b', '_x', 'a', 'Z' | New-SortedSet
+$set -join ', '   # a, b, Z, _x</dev:code>
+				<dev:remarks>
+					<maml:para>Without -GenericType, the elements are strings, so numbers sort as text. Strings sort by the codes of their characters, as if they were uppercase, so _ sorts after Z.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>----------- Example 3: Compare strings with regard to case -----------</maml:title>
+				<dev:code>$set = 'b', 'a', 'B', 'A' | New-SortedSet -CaseSensitive
+$set -join ', '   # A, B, a, b</dev:code>
+				<dev:remarks>
+					<maml:para>With -CaseSensitive, 'a' and 'A' are different elements, and uppercase letters sort first.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>---------------- Example 4: Sort in descending order ----------------</maml:title>
+				<dev:code>$set = 5, 3, 1 | New-SortedSet [int] -ComparingScript { $y.CompareTo($x) }
+$set -join ', '   # 5, 3, 1
+
+$descending = { param($a, $b) $b.CompareTo($a) }
+$set = 5, 3, 1 | New-SortedSet [int] -ComparingScript $descending
+$set -join ', '   # 5, 3, 1</dev:code>
+				<dev:remarks>
+					<maml:para>Both script blocks compare the second element with the first, which reverses the order. The second one receives the elements as the parameters of its param() block.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>--------------- Example 5: Sort objects by a property ---------------</maml:title>
+				<dev:code>$people = @(
+    [pscustomobject]@{ Name = 'Ann'; Age = 30 }
+    [pscustomobject]@{ Name = 'Bob'; Age = 20 }
+    [pscustomobject]@{ Name = 'Jim'; Age = 30 }
+)
+$byAge = { $x.Age.CompareTo($y.Age) }
+$set = $people | New-SortedSet -ComparingScript $byAge
+$set.Name -join ', '   # Bob, Ann</dev:code>
+				<dev:remarks>
+					<maml:para>Jim is the same age as Ann, so the set treats him as a duplicate and keeps Ann, who came first.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+		</command:examples>
+		<command:relatedLinks>
+			<maml:navigationLink>
+				<maml:linkText>New-HashSet</maml:linkText>
+				<maml:uri />
+			</maml:navigationLink>
+			<maml:navigationLink>
+				<maml:linkText>New-List</maml:linkText>
+				<maml:uri />
+			</maml:navigationLink>
+		</command:relatedLinks>
+	</command:command>
+	<command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" xmlns:MSHelp="http://msdn.microsoft.com/mshelp">
+		<command:details>
+			<command:name>New-Dictionary</command:name>
+			<command:verb>New</command:verb>
+			<command:noun>Dictionary</command:noun>
+			<maml:description>
+				<maml:para>Creates a Dictionary[TKey, TValue], optionally with key equality that script blocks define.</maml:para>
+			</maml:description>
+		</command:details>
+		<maml:description>
+			<maml:para>The New-Dictionary cmdlet creates a System.Collections.Generic.Dictionary[TKey, TValue]. TKey is the type that -KeyType names, and TValue is the type that -ValueType names. Both are [object] unless you pass them.</maml:para>
+			<maml:para>[string] keys are compared ordinally, without regard to case unless you pass -CaseSensitive. [object] keys are compared the same way when both are strings, and with their own Equals method otherwise, so 1 and '1' are different keys. Keys of any other type use the type's default equality. To decide for yourself which keys are equal, pass -EqualityScript and -HashCodeScript together.</maml:para>
+			<maml:para>With [object] keys, PowerShell's dot notation, such as $dict.apple, doesn't read or set keys. Use the indexer, $dict['apple'], or pass [string] as the key type.</maml:para>
+			<maml:para>To start with entries, pipe a hashtable or another dictionary to the cmdlet, or pass it to -InputObject. The cmdlet copies its entries, and converts each key to TKey and each value to TValue. A $null value is copied too, because it may be intentional, and it's converted like any other value, so it becomes '' for [string] and 0 for [int]. An entry whose key or value can't be converted, or that can't be added, such as one whose key is already in the dictionary, writes a non-terminating error and isn't copied.</maml:para>
+			<maml:para>Errors in -EqualityScript and -HashCodeScript reach PowerShell unchanged, and the cmdlet then outputs no dictionary. See -ScriptBlockErrorAction.</maml:para>
+			<maml:para>The cmdlet outputs the dictionary as a single object. When you assign the output to a variable, you get the dictionary itself, even if it's empty or holds only one entry.</maml:para>
+		</maml:description>
+		<command:syntax>
+			<command:syntaxItem>
+				<maml:name>New-Dictionary</maml:name>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="none">
+					<maml:name>KeyType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="1" aliases="none">
+					<maml:name>ValueType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="Size">
+					<maml:name>Capacity</maml:name>
+					<command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+				</command:parameter>
+			</command:syntaxItem>
+			<command:syntaxItem>
+				<maml:name>New-Dictionary</maml:name>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="none">
+					<maml:name>KeyType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="1" aliases="none">
+					<maml:name>ValueType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="CopyFrom">
+					<maml:name>InputObject</maml:name>
+					<command:parameterValue required="true" variableLength="false">IDictionary</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="Size">
+					<maml:name>Capacity</maml:name>
+					<command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>CloneValues</maml:name>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>CaseSensitive</maml:name>
+				</command:parameter>
+			</command:syntaxItem>
+			<command:syntaxItem>
+				<maml:name>New-Dictionary</maml:name>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="none">
+					<maml:name>KeyType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="1" aliases="none">
+					<maml:name>ValueType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="CopyFrom">
+					<maml:name>InputObject</maml:name>
+					<command:parameterValue required="true" variableLength="false">IDictionary</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>EqualityScript</maml:name>
+					<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>HashCodeScript</maml:name>
+					<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="Size">
+					<maml:name>Capacity</maml:name>
+					<command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>CloneValues</maml:name>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="ScriptErrorAction">
+					<maml:name>ScriptBlockErrorAction</maml:name>
+					<command:parameterValue required="true" variableLength="false">ActionPreference</command:parameterValue>
+				</command:parameter>
+			</command:syntaxItem>
+			<command:syntaxItem>
+				<maml:name>New-Dictionary</maml:name>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="none">
+					<maml:name>KeyType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="1" aliases="none">
+					<maml:name>ValueType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>EqualityScript</maml:name>
+					<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>HashCodeScript</maml:name>
+					<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="Size">
+					<maml:name>Capacity</maml:name>
+					<command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="ScriptErrorAction">
+					<maml:name>ScriptBlockErrorAction</maml:name>
+					<command:parameterValue required="true" variableLength="false">ActionPreference</command:parameterValue>
+				</command:parameter>
+			</command:syntaxItem>
+			<command:syntaxItem>
+				<maml:name>New-Dictionary</maml:name>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="none">
+					<maml:name>KeyType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="1" aliases="none">
+					<maml:name>ValueType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>CaseSensitive</maml:name>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="Size">
+					<maml:name>Capacity</maml:name>
+					<command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+				</command:parameter>
+			</command:syntaxItem>
+		</command:syntax>
+		<command:parameters>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="none">
+				<maml:name>KeyType</maml:name>
+				<maml:description>
+					<maml:para>The key type, TKey. The default is [object].</maml:para>
+					<maml:para>You can write the type in any of these forms: a type literal, such as [guid], which PowerShell passes as the string '[guid]'; a type name, with or without brackets, such as guid, '[guid]', or 'System.Guid'; a System.Type object, such as ([guid]); or a script block that contains a type literal, such as { [guid] }. A type literal that contains a comma, as some generic types do, works as it is: PowerShell splits the argument at each comma, and the cmdlet joins the parts back together, as long as they make up a single type.</maml:para>
+					<maml:para>Press Tab to complete a type name, with or without its brackets and quotes.</maml:para>
+					<maml:para>To pass a key type and a value type, separate them with a space, as in New-Dictionary [string] [int]. A comma doesn't work: New-Dictionary [string],[int] fails, because the parts of an argument that PowerShell splits at its commas have to make up a single type.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				<dev:type>
+					<maml:name>Type</maml:name>
+				</dev:type>
+				<dev:defaultValue>[object]</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="1" aliases="none">
+				<maml:name>ValueType</maml:name>
+				<maml:description>
+					<maml:para>The value type, TValue. The default is [object].</maml:para>
+					<maml:para>You can write the type in any of these forms: a type literal, such as [guid], which PowerShell passes as the string '[guid]'; a type name, with or without brackets, such as guid, '[guid]', or 'System.Guid'; a System.Type object, such as ([guid]); or a script block that contains a type literal, such as { [guid] }. A type literal that contains a comma, as some generic types do, works as it is: PowerShell splits the argument at each comma, and the cmdlet joins the parts back together, as long as they make up a single type.</maml:para>
+					<maml:para>Press Tab to complete a type name, with or without its brackets and quotes.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				<dev:type>
+					<maml:name>Type</maml:name>
+				</dev:type>
+				<dev:defaultValue>[object]</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="Size">
+				<maml:name>Capacity</maml:name>
+				<maml:description>
+					<maml:para>The initial capacity, which is how many entries the dictionary can hold before it has to grow. The default is 0.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+				<dev:type>
+					<maml:name>Int32</maml:name>
+				</dev:type>
+				<dev:defaultValue>0</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="CopyFrom">
+				<maml:name>InputObject</maml:name>
+				<maml:description>
+					<maml:para>A hashtable or another dictionary whose entries the cmdlet copies into the new dictionary. You can pipe it, or pass it to this parameter, but not both. When you pipe several dictionaries, the cmdlet copies the entries of each one.</maml:para>
+					<maml:para>Each key is converted to TKey, and each value to TValue. A $null value is converted too, to what $dict.Add($key, $null) would store, such as '' for [string] and 0 for [int]. An entry that can't be converted, or that can't be added, writes a non-terminating error and isn't copied. $null isn't a dictionary, so passing $null is a parameter binding error.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">IDictionary</command:parameterValue>
+				<dev:type>
+					<maml:name>IDictionary</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+				<maml:name>CloneValues</maml:name>
+				<maml:description>
+					<maml:para>Clones the values that the cmdlet copies from -InputObject, so the new dictionary doesn't share them with the source. A value that implements ICloneable is replaced with the result of its Clone() method, and a PSObject is replaced with a copy. Other values are copied as they are.</maml:para>
+				</maml:description>
+				<command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+				<dev:type>
+					<maml:name>SwitchParameter</maml:name>
+				</dev:type>
+				<dev:defaultValue>False</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+				<maml:name>CaseSensitive</maml:name>
+				<maml:description>
+					<maml:para>Compares string keys with regard to case. The parameter is available when the key type is [object], the default, or [string]. You can't use it with -EqualityScript and -HashCodeScript.</maml:para>
+				</maml:description>
+				<command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+				<dev:type>
+					<maml:name>SwitchParameter</maml:name>
+				</dev:type>
+				<dev:defaultValue>False</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+				<maml:name>EqualityScript</maml:name>
+				<maml:description>
+					<maml:para>A script block that returns whether two keys are equal. It requires -HashCodeScript.</maml:para>
+					<maml:para>The script block receives the two keys as $x and $y, or as $left and $right, and as its two arguments: $args[0] and $args[1], or the parameters of its param() block, in order. It has to use one of these for each key, or the cmdlet fails with a parameter validation error. A variable that appears only in a nested script block doesn't count.</maml:para>
+					<maml:para>Only the first value that the script block outputs counts. PowerShell converts it to [bool] by its usual rules, so 0, '', $null, and no output at all count as $false.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				<dev:type>
+					<maml:name>ScriptBlock</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+				<maml:name>HashCodeScript</maml:name>
+				<maml:description>
+					<maml:para>A script block that returns a key's hash code. It requires -EqualityScript. Keys that -EqualityScript considers equal have to return the same hash code.</maml:para>
+					<maml:para>The script block receives the key as $_, $PSItem, and $this, and as its first argument: $args[0], or the first parameter of its param() block. It has to use at least one of these, or the cmdlet fails with a parameter validation error. A variable that appears only in a nested script block doesn't count.</maml:para>
+					<maml:para>The script block has to output an [int], or a value that converts to one, and only its first value counts. When it outputs nothing, $null, or a value that can't be converted, the error ends the statement that runs the cmdlet, the same as a failed method call.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				<dev:type>
+					<maml:name>ScriptBlock</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="ScriptErrorAction">
+				<maml:name>ScriptBlockErrorAction</maml:name>
+				<maml:description>
+					<maml:para>The $ErrorActionPreference inside -EqualityScript and -HashCodeScript. The default is Stop.</maml:para>
+					<maml:para>Errors in these script blocks reach PowerShell unchanged, the same as errors in a ForEach-Object script block, and the cmdlet then outputs no dictionary. With Stop, an error that a script block writes ends the whole script, as -ErrorAction Stop would. To handle it, run the cmdlet in a try block. A failed method call, such as $null.Foo(), ends only the statement that runs the cmdlet. A throw ends the whole script unless this parameter is SilentlyContinue, and break leaves the loop that runs the cmdlet. With Continue, an error that a script block writes appears, and the script block goes on, so the cmdlet uses its output.</maml:para>
+					<maml:para>The cmdlet's own -ErrorAction doesn't change any of this, because these errors come from your script blocks, not from the cmdlet.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">ActionPreference</command:parameterValue>
+				<dev:type>
+					<maml:name>ActionPreference</maml:name>
+				</dev:type>
+				<dev:defaultValue>Stop</dev:defaultValue>
+			</command:parameter>
+		</command:parameters>
+		<command:inputTypes>
+			<command:inputType>
+				<dev:type>
+					<maml:name>System.Collections.IDictionary</maml:name>
+				</dev:type>
+				<maml:description>
+					<maml:para>You can pipe a hashtable or another dictionary to this cmdlet. The cmdlet copies its entries into the new dictionary.</maml:para>
+				</maml:description>
+			</command:inputType>
+		</command:inputTypes>
+		<command:returnValues>
+			<command:returnValue>
+				<dev:type>
+					<maml:name>System.Collections.Generic.Dictionary[TKey, TValue]</maml:name>
+				</dev:type>
+				<maml:description>
+					<maml:para>The cmdlet returns the dictionary, whose key and value types are the types that -KeyType and -ValueType name.</maml:para>
+				</maml:description>
+			</command:returnValue>
+		</command:returnValues>
+		<maml:alertSet>
+			<maml:alert>
+				<maml:para>The cmdlet runs one block of each script block that you pass: its process block if it has one, and otherwise its end block, which holds the statements of a script block that has no named blocks. So a script block can't have a begin block, a clean block, or both a process block and an end block, and the block that runs has to contain at least one statement. A script block that breaks these rules fails parameter validation before the cmdlet reads any input.</maml:para>
+			</maml:alert>
+		</maml:alertSet>
+		<command:examples>
+			<command:example>
+				<maml:title>--- Example 1: Create a dictionary that holds keys and values of any type ---</maml:title>
+				<dev:code>$dict = New-Dictionary
+$dict['apple'] = 1
+$dict['APPLE']   # 1</dev:code>
+				<dev:remarks>
+					<maml:para>Without types, the cmdlet creates a Dictionary[object, object]. Its string keys are compared without regard to case.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>---------------- Example 2: Create a typed dictionary ----------------</maml:title>
+				<dev:code>$dict = New-Dictionary [string] [int]
+$dict.apple = 1
+$dict['APPLE']   # 1</dev:code>
+				<dev:remarks>
+					<maml:para>The cmdlet creates a Dictionary[string, int]. With [string] keys, dot notation reads and sets keys too.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>------------ Example 3: Compare keys with regard to case ------------</maml:title>
+				<dev:code>$dict = New-Dictionary [string] [int] -CaseSensitive
+$dict['apple'] = 1
+$dict.ContainsKey('APPLE')   # False</dev:code>
+				<dev:remarks>
+					<maml:para>With -CaseSensitive, 'apple' and 'APPLE' are different keys.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>------------- Example 4: Copy the entries of a hashtable -------------</maml:title>
+				<dev:code>$dict = @{ one = 1; two = 2 } | New-Dictionary [string] [int]
+$dict['two']   # 2</dev:code>
+				<dev:remarks>
+					<maml:para>The cmdlet creates a Dictionary[string, int] that starts with a copy of the hashtable's entries.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>----------------- Example 5: Clone the copied values -----------------</maml:title>
+				<dev:code>$source = @{ Items = [System.Collections.ArrayList]@(1, 2) }
+$copy = $source | New-Dictionary -CloneValues
+$null = $source.Items.Add(3)
+$copy['Items'].Count   # 2</dev:code>
+				<dev:remarks>
+					<maml:para>-CloneValues gives the copy its own ArrayList, so changes to $source.Items don't show up in $copy['Items'].</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>----- Example 6: Decide which keys are equal with script blocks -----</maml:title>
+				<dev:code>$byId = @{
+    EqualityScript = { $x.Id -eq $y.Id }
+    HashCodeScript = { $_.Id.GetHashCode() }
+}
+$dict = New-Dictionary @byId
+$dict.Add([pscustomobject]@{ Id = 1; Name = 'first' }, 'a')
+$dict.Add([pscustomobject]@{ Id = 1; Name = 'second' }, 'b')
+# Error, because the dictionary already holds a key whose Id is 1</dev:code>
+				<dev:remarks>
+					<maml:para>Two keys are equal when their Id properties match.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+		</command:examples>
+		<command:relatedLinks>
+			<maml:navigationLink>
+				<maml:linkText>ConvertTo-Dictionary</maml:linkText>
+				<maml:uri />
+			</maml:navigationLink>
+			<maml:navigationLink>
+				<maml:linkText>New-HashSet</maml:linkText>
+				<maml:uri />
+			</maml:navigationLink>
+		</command:relatedLinks>
+	</command:command>
+	<command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" xmlns:MSHelp="http://msdn.microsoft.com/mshelp">
+		<command:details>
+			<command:name>ConvertTo-Dictionary</command:name>
+			<command:verb>ConvertTo</command:verb>
+			<command:noun>Dictionary</command:noun>
+			<maml:description>
+				<maml:para>Indexes objects in a dictionary by a property or a computed key.</maml:para>
+			</maml:description>
+		</command:details>
+		<maml:description>
+			<maml:para>The ConvertTo-Dictionary cmdlet builds a System.Collections.Generic.Dictionary[TKey, TValue] that indexes the input objects by a key: either the value of the property that -KeyPropertyName names, or the value that the -KeySelector script block returns. Each dictionary value is the input object itself, unless you choose a property with -ValuePropertyName or a script block with -ValueSelector.</maml:para>
+			<maml:para>TKey and TValue are [object] unless you pass -KeyType and -ValueType, whatever the input objects are. Every key and value is converted to these types the way $dict.Add($key, $value) would convert it, including an input object that is its own value. An object whose key or value can't be converted writes a non-terminating error and isn't added. When a value is $null, the dictionary stores what $dict.Add($key, $null) would store: $null for [object], '' for [string], and 0 for [int].</maml:para>
+			<maml:para>[string] keys are compared ordinally, without regard to case. [object] keys are compared the same way when both are strings, and with their own Equals method otherwise, so 1 and '1' are different keys. To compare keys another way, pass -KeyComparer. With [object] keys, PowerShell's dot notation, such as $byName.Jane, doesn't read or set keys. Use the indexer, $byName['Jane'], or pass [string] as -KeyType.</maml:para>
+			<maml:para>-DuplicateKeyBehavior decides what happens when two input objects have the same key.</maml:para>
+			<maml:para>The cmdlet skips input objects that are $null, which have no key or value to select. An object whose key is $null, such as one that doesn't have the property that -KeyPropertyName names, writes a non-terminating error and isn't added, because a dictionary can't hold a $null key, and the error tells you which objects lack a key. A $null value is stored, because it may be intentional, such as a property that's empty on some of the objects. With no input, the cmdlet returns an empty dictionary.</maml:para>
+			<maml:para>Each object that comes through the pipeline is one input object, even when it's an array, the same as with ForEach-Object. An array or a list that you pass to -InputObject supplies its elements, and $null supplies none. Any other value, such as a string or a hashtable, is one input object.</maml:para>
+			<maml:para>The cmdlet takes its input from the pipeline or from -InputObject, not from both. When it gets both, it writes an error before it reads any input, and outputs nothing.</maml:para>
+			<maml:para>-KeySelector and -ValueSelector run under your own $ErrorActionPreference, and their errors reach PowerShell unchanged, the same as errors in a ForEach-Object script block. For example, a throw ends the whole script, and break leaves the loop that runs the cmdlet.</maml:para>
+			<maml:para>The cmdlet outputs the dictionary as a single object. When you assign the output to a variable, you get the dictionary itself, even if it's empty or holds only one entry.</maml:para>
+		</maml:description>
+		<command:syntax>
+			<command:syntaxItem>
+				<maml:name>ConvertTo-Dictionary</maml:name>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="KeyName, Key">
+					<maml:name>KeyPropertyName</maml:name>
+					<command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="1" aliases="ValueName, Value">
+					<maml:name>ValuePropertyName</maml:name>
+					<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="none">
+					<maml:name>InputObject</maml:name>
+					<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>DuplicateKeyBehavior</maml:name>
+					<command:parameterValue required="true" variableLength="false">DuplicateKeyBehavior</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>KeyComparer</maml:name>
+					<command:parameterValue required="true" variableLength="false">IEqualityComparer</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>KeyType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>ValueSelector</maml:name>
+					<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>ValueType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+			</command:syntaxItem>
+			<command:syntaxItem>
+				<maml:name>ConvertTo-Dictionary</maml:name>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="none">
+					<maml:name>KeySelector</maml:name>
+					<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="1" aliases="ValueName, Value">
+					<maml:name>ValuePropertyName</maml:name>
+					<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="none">
+					<maml:name>InputObject</maml:name>
+					<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>DuplicateKeyBehavior</maml:name>
+					<command:parameterValue required="true" variableLength="false">DuplicateKeyBehavior</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>KeyComparer</maml:name>
+					<command:parameterValue required="true" variableLength="false">IEqualityComparer</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>KeyType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>ValueSelector</maml:name>
+					<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				</command:parameter>
+				<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+					<maml:name>ValueType</maml:name>
+					<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				</command:parameter>
+			</command:syntaxItem>
+		</command:syntax>
+		<command:parameters>
+			<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByValue)" position="named" aliases="none">
+				<maml:name>InputObject</maml:name>
+				<maml:description>
+					<maml:para>The objects to index. You can pipe them, or pass them to this parameter, but not both.</maml:para>
+					<maml:para>Each piped object is one input object, even when it's an array. An array or a list that you pass to this parameter supplies its elements, and $null supplies none. Any other value, such as a string or a hashtable, is one input object. The cmdlet skips input objects that are $null.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				<dev:type>
+					<maml:name>Object</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="KeyName, Key">
+				<maml:name>KeyPropertyName</maml:name>
+				<maml:description>
+					<maml:para>The name of the property that holds each object's key. You need either this parameter or -KeySelector. The name can't be empty or white space.</maml:para>
+					<maml:para>To compute keys with a script block, use -KeySelector. A script block that you pass by position binds to -KeySelector, and one that you pass to this parameter by name is an error.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+				<dev:type>
+					<maml:name>String</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="none">
+				<maml:name>KeySelector</maml:name>
+				<maml:description>
+					<maml:para>A script block that returns each object's key. Use it instead of -KeyPropertyName.</maml:para>
+					<maml:para>The script block receives each object as $_, $PSItem, and $this, and as its first argument: $args[0], or the first parameter of its param() block. It has to use at least one of these, or the cmdlet fails with a parameter validation error. A variable that appears only in a nested script block doesn't count.</maml:para>
+					<maml:para>The first object that the script block outputs is the key. When it outputs nothing or $null, the cmdlet writes a non-terminating error for the object and doesn't add it.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				<dev:type>
+					<maml:name>ScriptBlock</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="1" aliases="ValueName, Value">
+				<maml:name>ValuePropertyName</maml:name>
+				<maml:description>
+					<maml:para>The name of the property that holds each object's value, or a script block that returns the value, the same as -ValueSelector. $null, an empty string, and white space select nothing, so each object is its own value. Any other value, such as a number or an array of names, is a parameter binding error. You can't use a property name or a script block here together with -ValueSelector.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+				<dev:type>
+					<maml:name>Object</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+				<maml:name>ValueSelector</maml:name>
+				<maml:description>
+					<maml:para>A script block that returns each object's value. You can't use it with a property name or a script block in -ValuePropertyName.</maml:para>
+					<maml:para>The script block receives each object as $_, $PSItem, and $this, and as its first argument: $args[0], or the first parameter of its param() block. It has to use at least one of these, or the cmdlet fails with a parameter validation error. A variable that appears only in a nested script block doesn't count.</maml:para>
+					<maml:para>The first object that the script block outputs is the value. When it outputs nothing or $null, the value is $null, converted to TValue the same way as any other value.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+				<dev:type>
+					<maml:name>ScriptBlock</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+				<maml:name>KeyType</maml:name>
+				<maml:description>
+					<maml:para>The key type, TKey. The default is [object].</maml:para>
+					<maml:para>You can write the type in any of these forms: a type literal, such as [guid], which PowerShell passes as the string '[guid]'; a type name, with or without brackets, such as guid, '[guid]', or 'System.Guid'; a System.Type object, such as ([guid]); or a script block that contains a type literal, such as { [guid] }. A type literal that contains a comma, as some generic types do, works as it is: PowerShell splits the argument at each comma, and the cmdlet joins the parts back together, as long as they make up a single type.</maml:para>
+					<maml:para>Press Tab to complete a type name, with or without its brackets and quotes.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				<dev:type>
+					<maml:name>Type</maml:name>
+				</dev:type>
+				<dev:defaultValue>[object]</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+				<maml:name>ValueType</maml:name>
+				<maml:description>
+					<maml:para>The value type, TValue. The default is [object]. When -DuplicateKeyBehavior is Concatenate, the value type is always [object], and the cmdlet writes a warning if you pass another type.</maml:para>
+					<maml:para>You can write the type in any of these forms: a type literal, such as [guid], which PowerShell passes as the string '[guid]'; a type name, with or without brackets, such as guid, '[guid]', or 'System.Guid'; a System.Type object, such as ([guid]); or a script block that contains a type literal, such as { [guid] }. A type literal that contains a comma, as some generic types do, works as it is: PowerShell splits the argument at each comma, and the cmdlet joins the parts back together, as long as they make up a single type.</maml:para>
+					<maml:para>Press Tab to complete a type name, with or without its brackets and quotes.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">Type</command:parameterValue>
+				<dev:type>
+					<maml:name>Type</maml:name>
+				</dev:type>
+				<dev:defaultValue>[object]</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+				<maml:name>KeyComparer</maml:name>
+				<maml:description>
+					<maml:para>The IEqualityComparer that compares the keys, such as ([System.StringComparer]::Ordinal) for case-sensitive string keys. It works with any key type. A StringComparer compares two strings as strings, and any other two keys with their own Equals method.</maml:para>
+					<maml:para>Without -KeyComparer, [string] and [object] keys are compared ordinally, without regard to case when both are strings, and keys of other types with the type's default equality.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">IEqualityComparer</command:parameterValue>
+				<dev:type>
+					<maml:name>IEqualityComparer</maml:name>
+				</dev:type>
+				<dev:defaultValue>None</dev:defaultValue>
+			</command:parameter>
+			<command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+				<maml:name>DuplicateKeyBehavior</maml:name>
+				<maml:description>
+					<maml:para>What happens when two input objects have the same key. The default is Error. The values are:</maml:para>
+					<maml:para>- Error: writes a non-terminating error and keeps the first value.</maml:para>
+					<maml:para>- Skip: writes a warning and keeps the first value.</maml:para>
+					<maml:para>- Concatenate: keeps every value. A key with more than one value holds a list of them. The value type is then [object], and the cmdlet ignores -ValueType.</maml:para>
+				</maml:description>
+				<command:parameterValue required="true" variableLength="false">DuplicateKeyBehavior</command:parameterValue>
+				<dev:type>
+					<maml:name>DuplicateKeyBehavior</maml:name>
+				</dev:type>
+				<dev:defaultValue>Error</dev:defaultValue>
+			</command:parameter>
+		</command:parameters>
+		<command:inputTypes>
+			<command:inputType>
+				<dev:type>
+					<maml:name>System.Object</maml:name>
+				</dev:type>
+				<maml:description>
+					<maml:para>You can pipe objects of any type to this cmdlet. Each piped object adds one entry, unless the cmdlet skips it.</maml:para>
+				</maml:description>
+			</command:inputType>
+		</command:inputTypes>
+		<command:returnValues>
+			<command:returnValue>
+				<dev:type>
+					<maml:name>System.Collections.Generic.Dictionary[TKey, TValue]</maml:name>
+				</dev:type>
+				<maml:description>
+					<maml:para>The cmdlet returns the dictionary, whose key and value types are the types that -KeyType and -ValueType name.</maml:para>
+				</maml:description>
+			</command:returnValue>
+		</command:returnValues>
+		<maml:alertSet>
+			<maml:alert>
+				<maml:para>The cmdlet runs one block of each script block that you pass: its process block if it has one, and otherwise its end block, which holds the statements of a script block that has no named blocks. So a script block can't have a begin block, a clean block, or both a process block and an end block, and the block that runs has to contain at least one statement. A script block that breaks these rules fails parameter validation before the cmdlet reads any input.</maml:para>
+			</maml:alert>
+		</maml:alertSet>
+		<command:examples>
+			<command:example>
+				<maml:title>--------------- Example 1: Index objects by a property ---------------</maml:title>
+				<dev:code>$people = @(
+    [pscustomobject]@{ Id = 1; Name = 'John'; Dept = 'IT' }
+    [pscustomobject]@{ Id = 2; Name = 'Jane'; Dept = 'HR' }
+    [pscustomobject]@{ Id = 3; Name = 'Jim'; Dept = 'IT' }
+)
+$byId = $people | ConvertTo-Dictionary -KeyPropertyName Id
+$byId[2].Name   # Jane</dev:code>
+				<dev:remarks>
+					<maml:para>The cmdlet creates a Dictionary[object, object] whose values are the people, keyed by their Id properties. The next examples use the same $people array.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>------------ Example 2: Choose a property for the values ------------</maml:title>
+				<dev:code>$names = $people | ConvertTo-Dictionary Id Name
+$names[3]   # Jim</dev:code>
+				<dev:remarks>
+					<maml:para>The first positional argument is -KeyPropertyName, and the second is -ValuePropertyName.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>------------- Example 3: Choose the key and value types -------------</maml:title>
+				<dev:code>$names = $people |
+    ConvertTo-Dictionary Id Name -KeyType [int] -ValueType [string]
+$names[1]   # John</dev:code>
+				<dev:remarks>
+					<maml:para>The cmdlet creates a Dictionary[int, string] of names, keyed by Id.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>------- Example 4: Compute keys and values with script blocks -------</maml:title>
+				<dev:code>$selectors = @{
+    KeySelector   = { $_.Name.ToLower() }
+    ValueSelector = { $_.Id }
+}
+$ids = $people | ConvertTo-Dictionary @selectors
+$ids['jane']   # 2</dev:code>
+				<dev:remarks>
+					<maml:para>The keys are the names in lowercase, and the values are the Ids.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>----------- Example 5: Keep every value of a duplicate key -----------</maml:title>
+				<dev:code>$byDept = $people |
+    ConvertTo-Dictionary Dept Name -DuplicateKeyBehavior Concatenate
+$byDept['IT'] -join ', '   # John, Jim
+$byDept['HR']              # Jane</dev:code>
+				<dev:remarks>
+					<maml:para>The key 'IT' holds a list of both names, and the key 'HR' holds Jane's name alone.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>--------- Example 6: Compare string keys with regard to case ---------</maml:title>
+				<dev:code>$ordinal = [System.StringComparer]::Ordinal
+$byName = $people | ConvertTo-Dictionary Name -KeyComparer $ordinal
+$byName.ContainsKey('Jane')   # True
+$byName.ContainsKey('jane')   # False</dev:code>
+				<dev:remarks>
+					<maml:para>With an ordinal comparer, 'Jane' and 'jane' are different keys.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+			<command:example>
+				<maml:title>-------------- Example 7: Index processes by their IDs --------------</maml:title>
+				<dev:code>$processes = Get-Process |
+    ConvertTo-Dictionary Id -KeyType [int] -ValueType [Diagnostics.Process]
+$processes[$PID].ProcessName</dev:code>
+				<dev:remarks>
+					<maml:para>The cmdlet creates a Dictionary[int, System.Diagnostics.Process], and the last command gets the name of the current PowerShell process.</maml:para>
+					<maml:para></maml:para>
+				</dev:remarks>
+			</command:example>
+		</command:examples>
+		<command:relatedLinks>
+			<maml:navigationLink>
+				<maml:linkText>New-Dictionary</maml:linkText>
+				<maml:uri />
+			</maml:navigationLink>
+		</command:relatedLinks>
+	</command:command>
+</helpItems>

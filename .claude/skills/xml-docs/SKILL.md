@@ -1,15 +1,22 @@
 ---
 name: xml-docs
-description: XML documentation rules for the ListFunctions solution — tag order, placement relative to attributes, American English / present tense / active voice, cross-reference syntax (including crefs that clash with ZLinq's internal types), constructor phrasing, public-API hygiene. Trigger when writing or editing `<summary>`, `<remarks>`, `<param>`, `<returns>`, `<exception>`, `<typeparam>`, `<value>`, or `<example>` blocks on public, internal, or protected members, or when fixing CS0419 or CS1574 cref warnings. Defers to `.github/copilot-instructions.md` for full detail.
+description: XML documentation rules for the ListFunctions solution — tag order, placement relative to attributes, wording (American English, third-person singular present tense, active voice, and how each kind of symbol's summary starts), cross-reference syntax (including `<c>` for PowerShell syntax and crefs that clash with ZLinq's internal types), extension block docs, constructor and property phrasing, public-API hygiene. Trigger when writing or editing `<summary>`, `<remarks>`, `<param>`, `<returns>`, `<exception>`, `<typeparam>`, `<value>`, or `<example>` blocks on any type or member, or when fixing CS0419 or CS1574 cref warnings. Defers to `.github/copilot-instructions.md` for full detail.
 ---
 
-# Realta XML Documentation Standards
+# ListFunctions XML Documentation Standards
 
 Follow the rules in `.github/copilot-instructions.md` exactly. Key points:
 
+## Scope
+
+Document every type, every public, protected, or internal member, and every private method.
+
 ## Tag order
 
-`<summary>` → `<remarks>` → `<typeparam>` → `<param>` → `<returns>` → `<exception>` → `<value>` (properties) → `<example>`
+`<summary>` → `<remarks>` → `<typeparam>` → `<param>` → `<returns>` → `<exception>` → `<value>` (properties and indexers) → `<example>`
+
+- `<returns>` and `<value>` never appear together. `<value>` keeps its place after `<exception>`.
+- Write one `<exception>` tag per exception type, covering every condition that throws it.
 
 ## Placement
 
@@ -24,15 +31,24 @@ public void Foo() { }
 
 ## Language
 
-- American English, present tense, active voice.
-- Prefer "Gets", "Sets", "Creates", "Returns".
+- American English, concise, active voice, present tense, in the third-person singular: "Gets the comparer.", not the imperative "Get the comparer."
+- How a `<summary>` starts depends on the kind of symbol:
+  - Methods: a verb, such as "Gets ...", "Creates ...", "Returns ...", or "Determines whether ...".
+  - Abstract and virtual members: "When implemented in a derived class, ..." or "When overridden in a derived class, ...", then the verb.
+  - Types: "Represents ..." or "Provides ...".
+  - Fields, constants, and enum members: a noun phrase or a short sentence, such as "The shared empty collection."
+  - Constructors and properties: see their sections below.
+- `<typeparam>`, `<param>`, `<returns>`, and `<value>` are noun phrases, such as "The element type." A Boolean result reads "`<see langword="true"/>` if ...; otherwise, `<see langword="false"/>`."
+- `<exception>` text starts with "Thrown when ...". That form and the "When implemented/overridden in a derived class" openings are the only exceptions to active voice.
+- Doc comments use ASCII punctuation: straight quotes, not smart quotes, and three periods, not an ellipsis character.
 
 ## Cross-references
 
-- `<see langword="null"/>`, `<see langword="true"/>`, `<see langword="false"/>`, `<see langword="ref"/>` for keywords.
+- `<see langword="null"/>`, `<see langword="true"/>`, `<see langword="false"/>`, `<see langword="ref"/>` for C# keywords.
 - `<see cref="Type.Member"/>` for types/members.
 - `<paramref name="..."/>` for parameter references inside docs.
 - `<typeparamref name="..."/>` for type-parameter references.
+- `<c>...</c>` for inline code that isn't a reference to a symbol: PowerShell syntax such as `$_`, `-CaseSensitive`, and `begin`, and C# expressions. PowerShell's `break` is `<c>break</c>`; `<see langword="break"/>` would mean C#'s.
 - **Never** `<see langword="..."/>` inside an `<exception>` tag — write the keyword as plain text there:
   `<exception cref="ArgumentNullException">Thrown when <paramref name="key"/> is null.</exception>`
 
@@ -51,6 +67,12 @@ In a file with `using ZLinq;`, write every cref to `ArgumentNullException` as `S
 - Code isn't affected. `throw new ArgumentNullException(...)` and `GC.KeepAlive(...)` compile without the namespace; only crefs need it.
 - Files without `using ZLinq;` keep the short form. When you add `using ZLinq;` to a file, qualify the `ArgumentNullException` and `GC` crefs it already has.
 
+## Extension blocks
+
+- A C# 14 `extension(...)` block gets its own doc comment above the `extension` keyword: a `<summary>`, an optional `<remarks>`, a `<typeparam>` for each of the block's own type parameters, and a `<param>` for the receiver when the block names one. A block that leaves its receiver unnamed, such as `extension(ArgumentNullException)` in `src/engine/ListFunctions.Engine/Extensions/NullGuardExtensions.cs`, has no `<param>`.
+- Members inside the block never add a `<param>` for the receiver. They refer to a named receiver with `<paramref>`.
+- A cref to an extension member names the block, as in `<see cref="ContainingClass.extension(ReceiverType).Member(ParameterTypes)"/>`. The pre-C# 14 static form and the bare member signature both give CS1574.
+
 ## Public API hygiene
 
 Do not reference internal/private symbols in public docs. The reader of generated XML doc files only sees public surface — references to private types render as broken `cref` warnings.
@@ -61,11 +83,11 @@ Always state if a member is or isn't thread-safe when it's non-obvious.
 
 ## Constructor phrasing
 
-"Initializes a new instance of `<see cref="ClassName"/>` …"
+"Initializes a new `<see cref="TypeName"/>` instance ...", where `TypeName` is the constructor's own type. When the constructor has parameters, say what they supply, so the summary tells it apart from the type's other constructors: "Initializes a new `<see cref="HashBlock"/>` instance with the specified script block."
 
 ## Property phrasing
 
-"Gets ..." (read-only) or "Gets or sets ..." (read/write). Use `<value>` to describe what the property holds when it's not obvious from the summary.
+"Gets ..." (read-only) or "Gets or sets ..." (read/write). A Boolean property uses "Gets a value that indicates whether ...". Every property, indexers included, also gets a `<value>` that describes what it holds.
 
 ## Reference
 
