@@ -1,0 +1,67 @@
+<Project>
+
+	<!-- Authorship and repository metadata shared by every assembly. -->
+	<PropertyGroup>
+		<Authors>Mike Garvey</Authors>
+		<Company>Yevrag35, LLC.</Company>
+		<Copyright>Copyright © 2020-2026 Yevrag35, LLC. All rights reserved.</Copyright>
+		<PackageProjectUrl>https://github.com/Yevrag35/PowerShell-ListFunctions</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/Yevrag35/PowerShell-ListFunctions.git</RepositoryUrl>
+		<RepositoryType>Git</RepositoryType>
+	</PropertyGroup>
+
+	<!--
+		AssemblyVersion and FileVersion reuse Version verbatim so the SDK does not pad them to four parts.
+		Keep Version in sync with ModuleVersion in ListFunctions/ListFunctions.psd1.
+	-->
+	<PropertyGroup>
+		<Version>4.0.0</Version>
+		<AssemblyVersion>$(Version)</AssemblyVersion>
+		<FileVersion>$(Version)</FileVersion>
+	</PropertyGroup>
+
+	<!-- Compiler settings shared by every project. -->
+	<PropertyGroup>
+		<RootNamespace>ListFunctions</RootNamespace>
+		<LangVersion>14</LangVersion>
+		<ImplicitUsings>disable</ImplicitUsings>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
+
+	<!--
+		Global usings shared by every project. Keep them unconditional so every target framework gets the same set.
+		System.Diagnostics.CodeAnalysis and System.Management.Automation both define AllowNullAttribute, so a bare
+		[AllowNull] fails with CS0104. Use the AllowsNull and PSAllowNull aliases instead.
+	-->
+	<ItemGroup>
+		<Using Include="System" />
+		<Using Include="System.Collections" />
+		<Using Include="System.Collections.Generic" />
+		<Using Include="System.Collections.Immutable" />
+		<Using Include="System.Collections.ObjectModel" />
+		<Using Include="System.Diagnostics" />
+		<Using Include="System.Diagnostics.CodeAnalysis" />
+		<Using Include="System.Diagnostics.CodeAnalysis.AllowNullAttribute" Alias="AllowsNull" />
+		<Using Include="System.Globalization" />
+		<Using Include="System.Linq" />
+		<Using Include="System.Linq.Expressions" />
+		<Using Include="System.Management.Automation" />
+		<Using Include="System.Management.Automation.AllowNullAttribute" Alias="PSAllowNull" />
+		<Using Include="System.Management.Automation.Language" />
+		<Using Include="System.Reflection" />
+		<Using Include="System.Runtime.CompilerServices" />
+		<Using Include="System.Runtime.InteropServices" />
+		<Using Include="System.Runtime.Serialization" />
+		<Using Include="System.Text" />
+	</ItemGroup>
+
+	<!--
+		PowerShell loads a module's dependencies from the module's folder and ignores its deps.json, so every
+		build output needs its NuGet packages' runtime assemblies. The SDK copies them by default only for net48.
+		PowerShell's own packages exclude their runtime and native assets so that no part of PowerShell is copied.
+	-->
+	<PropertyGroup>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+	</PropertyGroup>
+
+</Project>

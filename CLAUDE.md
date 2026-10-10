@@ -1,0 +1,105 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code when working with code in this repository.
+
+ListFunctions is a PowerShell binary module (published to the PowerShell Gallery) that provides cmdlets for asserting over, searching, and constructing generic .NET collections (`List[T]`, `HashSet[T]`, `SortedSet[T]`, `Dictionary[K,V]`). Its main feature is equality comparers, hash functions, and comparers written as PowerShell ScriptBlocks. It ships for both Windows PowerShell 5.1 and PowerShell 7.
+
+## Build
+
+The solution is `src/engine/ListFunctions.Engine.slnx`. Run commands from the repo root in Bash:
+
+```bash
+dotnet build src/engine/ListFunctions.Engine.slnx -c Debug
+dotnet build src/engine/ListFunctions-Next/ListFunctions-Next.csproj -c Debug   # PS 7 module only
+```
+
+- All four projects are SDK-style and use central package management. Package versions live only in `src/engine/Directory.Packages.props`.
+- `ListFunctions-NETFramework` gets its runtime dependencies (ZLinq, System.Memory, System.Collections.Immutable, and so on) from Engine's `netstandard2.0` package references. Its only direct package references are `Microsoft.PowerShell.5.ReferenceAssemblies`, with `ExcludeAssets="runtime"`, and `PolySharp`. As of PolySharp 1.16.0, Engine's generated polyfills (the nullable attributes and others) are not visible to it through InternalsVisibleTo, so it generates its own.
+- `Directory.Build.props` sets `CopyLocalLockFileAssemblies` to `true`, so every Debug and Release output folder contains its NuGet runtime dependencies, such as `ZLinq.dll`. By default the SDK copies them only for `net48`.
+- Keep PowerShell itself out of the build outputs. `System.Management.Automation` is referenced with `ExcludeAssets="runtime;native"`. Without `native`, PowerShell's native binaries still land under `runtimes/`. Engine's `PowerShellStandard.Library` uses `ExcludeAssets="runtime"`, and `PrivateAssets="all"` so that it doesn't flow to `ListFunctions-NETFramework`. `ListFunctions.Engine.Tests` is the exception: it hosts PowerShell to run its tests.
+
+## Tests
+
+`tests/` holds the Pester 6 tests, which run the cmdlets, and `src/engine/ListFunctions.Engine.Tests/` holds the xUnit.net v3 tests, which call `ListFunctions.Engine` directly. Both suites run every test in Windows PowerShell 5.1 and PowerShell 7. Load the `lf-testing` skill before you run, write, or change a test, try a cmdlet in a repro or smoke test, or report test results. It covers the commands and their traps, which PowerShell versions to use, when a change needs tests and which suite they go in, and how to write them.
+
+## Debugging
+
+`ListFunctions.Engine`, `ListFunctions-Next`, and `ListFunctions-NETFramework` each contain a `Debug.ps1` that is copied to the output folder in non-Release builds. The `Properties/launchSettings.json` files start `Debug.ps1` in the output folder: `ListFunctions-Next` uses `pwsh -NoExit`, and `ListFunctions-NETFramework` uses Windows PowerShell 5.1 (`powershell.exe -NoExit -NoProfile`). `ListFunctions-Next`'s script imports `ListFunctions.Engine.dll` and `ListFunctions.Next.dll`. The build already puts their dependencies in the output folder, so none of the scripts copy files.
+
+## Architecture
+
+There are four projects under `src/engine/`:
+
+- **`ListFunctions.Engine`** targets `netstandard2.0` and `net10.0`. It holds the reusable, non-cmdlet core:
+	- `Modern/EqualityBlock`, `HashBlock`, and `ComparingBlock` (base `ComparingBase`) turn user ScriptBlocks into `IEqualityComparer` and `IComparer` implementations.
+	- `ScriptBlockFilter` evaluates predicates for `Test-AnyObject`/`Test-AllObject`.
+	- `Internal/ListWrapper`, `Internal/DictionaryWrapper`, and `Internal/SetWrapper` put a non-generic front end over a `List<T>`, a `Dictionary<TKey, TValue>`, or a `HashSet<T>` or `SortedSet<T>` whose types are known only at run time. Each closes its generic subclass once through reflection, so every conversion and add after that is a typed call. `New-List` uses the first, `New-Dictionary` and `ConvertTo-Dictionary` use the second, and `New-HashSet` and `New-SortedSet` use the third.
+	- `Modern/Variables` injects the per-item context variables into the ScriptBlocks: `$_`, `$this`, and `$psitem` for single items, and `$left`/`$right` or `$x`/`$y` for equality.
+	- `Validation/` holds the parameter transformation and validation attributes: `ArgumentToTypeTransform` and `StringOrScriptBlockTransform` convert arguments, and `IsScriptBlock` and `ValidateScriptVariable` check them. It also holds a `ValidateNotNullOrWhiteSpace` polyfill for Windows PowerShell 5.1, which only the `netstandard2.0` build compiles. The `net10.0` build uses PowerShell 7's own attribute.
+	- Hand-written polyfills of other projects' types, such as that attribute, are internal, and the `net10.0` build doesn't forward them. PowerShell resolves type names against every loaded assembly, so a public polyfill reaches users' scripts and competes with other modules' copies. The `net10.0` build's two type forwarders, for `IsExternalInit` and `RequiresLocationAttribute`, come from PolySharp.
+	- `Completion/TypeNameCompleter` is the `[ArgumentCompleter]` of every parameter that has `[ArgumentToTypeTransform]`, so a new type parameter needs both attributes. It completes the argument as a type literal through `CommandCompletion.CompleteInput`, because `CompletionCompleters.CompleteType` throws in Windows PowerShell 5.1. The `lf-pwsh-internals` skill's `references/completion.md` records what PowerShell passes to a completer and what it does with the results.
+	- `Extensions/NullGuardExtensions.cs` gives the `netstandard2.0` build .NET's static argument guards as C# 14 static extension members in the `System` namespace. As a result, `ArgumentNullException.ThrowIfNull`, `ArgumentException.ThrowIfNullOrEmpty`, and `ArgumentException.ThrowIfNullOrWhiteSpace` compile on every target, including Next's code in the `net48` build. Use them for argument checks.
+		- They throw the same exception types as .NET, but an `ArgumentException` they throw on `netstandard2.0` has the parameter name only in its message, so its `ParamName` is `null`.
+		- .NET has no `ArgumentOutOfRangeException.ThrowIfNegativeOrGreaterThan`, so the extension of that name compiles only for `netstandard2.0`. Code that builds for every target calls `Guard.ThrowIfNegativeOrGreaterThan`, which is all that `Modern/Guard.cs` still holds.
+	- Its internals are exposed to `ListFunctions.Next`, `ListFunctions.NETFramework`, and `ListFunctions.Engine.Tests` through `<AssemblyAttribute>` InternalsVisibleTo items in the csproj.
+- **`ListFunctions-Next`** targets `net10.0` and builds `ListFunctions.Next.dll`, the PowerShell 7 binary module. All cmdlets live here, under `Cmdlets/Assertions`, `Cmdlets/Constructs`, and `Cmdlets/Finds`, and so does their help, in `en-US/ListFunctions.Next.dll-Help.xml` (see Help).
+- **`ListFunctions-NETFramework`** is an SDK-style project that targets `net48` and builds `ListFunctions.NETFramework.dll`, the Windows PowerShell 5.1 module. It has almost no code of its own, only a `ModuleInitializer` that adds an `AssemblyResolve` hook to load dependencies from its own folder. It compiles **every `.cs` file in `ListFunctions-Next`** through a wildcard `<Compile Include>`, and it copies Next's help file into its output as `en-US/ListFunctions.NETFramework.dll-Help.xml`.
+	- As a result, all code in `ListFunctions-Next` must also compile for .NET Framework 4.8 against the PowerShell 5 reference assemblies.
+	- Wrap newer BCL or PowerShell 7 APIs in `#if NETCOREAPP` or `#if NET9_0_OR_GREATER`, as the existing code does.
+	- Building only `ListFunctions-Next` does not catch these errors. Build the full solution.
+- **`ListFunctions.Engine.Tests`** targets `net10.0` and `net48` and holds the xUnit.net v3 tests for Engine (see the `lf-testing` skill). It isn't part of the module.
+
+### Cmdlet lifecycle
+
+Every cmdlet derives from `Cmdlets/ListFunctionCmdletBase`.
+
+- The base class seals `BeginProcessing`, `ProcessRecord`, and `EndProcessing`. Subclasses override these instead:
+	- `BeginCore()`
+	- `ProcessCore()`, which returns `false` to stop processing further pipeline input. The base class records this as `CmdletRunFlags.FoundMatch`.
+	- `EndCore(CmdletRunState)`
+	- `Cleanup()`
+- If `BeginCore` or `ProcessCore` throws, `Cleanup` runs first. A `RuntimeException` or `FlowControlException`, such as an error or `break` from a script block, then reaches PowerShell unchanged (see `PassesThrough`), so PowerShell handles it the way it does from a `ForEach-Object` script block. Any other exception becomes a terminating error.
+- `New-HashSet` and `New-Dictionary` derive from `EqualityConstructingCmdlet<T>`. Its sealed `BeginCore` chooses the equality comparer, which can be a custom ScriptBlock one, and passes it to the derived class's `CreateCollection`. New-HashSet builds its set through `SetWrapper`, and New-Dictionary builds its dictionary through `DictionaryWrapper`. The base class also adds a dynamic `-CaseSensitive` parameter when the element type, or a dictionary's key type, is `string` or `object`. `New-List`, `New-SortedSet`, and `ConvertTo-Dictionary` derive from `ListFunctionCmdletBase` directly, and `New-SortedSet` adds its own dynamic `-CaseSensitive` for `string` elements.
+
+### PowerShell behavior
+
+The cmdlets mirror native PowerShell wherever they can: they read input the way PowerShell binds it, errors from their script blocks end a command the way they do in `ForEach-Object`, and conversions store what `$list.Add($x)` stores. Load the `lf-pwsh-internals` skill before you change code that depends on how PowerShell behaves, answer a question about it, or measure it. The skill records the engine behavior that the code relies on, as measured in both editions.
+
+### Help
+
+The cmdlets' help is MAML, written by hand in `src/engine/ListFunctions-Next/en-US/ListFunctions.Next.dll-Help.xml`. Get-Help looks for a binary module's help in a culture folder beside the assembly, in a file named after the assembly, so each project copies the file into an `en-US` folder in its output under its own assembly's name.
+
+- Get-Help shows the syntax blocks and parameter attributes as the file writes them, not as the cmdlet declares them. When you change a cmdlet's parameters, parameter sets, aliases, positions, or pipeline input, change the file to match. `tests/Module.Tests.ps1` compares the two in both editions.
+- The help text follows the README. When a cmdlet's behavior changes, update its description, parameters, and examples in both.
+- The comment at the top of the file states its formatting rules. The `lf-pwsh-internals` skill's `references/help.md` records how Get-Help finds and shows the file.
+
+### Shipped module layout
+
+The `ListFunctions/` directory is the publishable module, and it contains committed build outputs.
+
+- `ListFunctions.psm1` checks `$PSVersionTable.PSVersion.Major`. On 5 it imports `Desk/ListFunctions.NETFramework.dll`; on 7 it imports `Core/ListFunctions.Next.dll`.
+- `Core/` holds the `net10.0` builds of Engine, Next, and ZLinq. `Desk/` holds the `netstandard2.0` Engine and the NETFramework DLL. Each also holds the help file of its module DLL in an `en-US` folder.
+- Copy these files in by hand from the Release output folders, including the `en-US` folders. Those folders include the NuGet dependencies, so nothing has to come from the NuGet cache.
+- When cmdlets, aliases, or shipped files change, update `CmdletsToExport`, `AliasesToExport`, and `FileList` in `ListFunctions.psd1`.
+- The version (currently `4.0.0`) is set in two places: `<Version>` in `src/engine/Directory.Build.props` and `ModuleVersion` in the `.psd1`. Change both together. `AssemblyVersion` and `FileVersion` are set to `$(Version)` so they stay exactly three-part.
+- `Directory.Build.props` also holds the shared authorship and repository metadata and the common compiler settings (`RootNamespace`, `LangVersion`, `ImplicitUsings`, `AllowUnsafeBlocks`), plus `CopyLocalLockFileAssemblies`.
+	- It declares the global usings as `<Using>` items: `System`, `System.Collections`, `System.Collections.Generic`, `System.Collections.Immutable`, `System.Collections.ObjectModel`, `System.Diagnostics`, `System.Diagnostics.CodeAnalysis`, `System.Globalization`, `System.Linq`, `System.Linq.Expressions`, `System.Management.Automation`, `System.Management.Automation.Language`, `System.Reflection`, `System.Runtime.CompilerServices`, `System.Runtime.InteropServices`, `System.Runtime.Serialization`, and `System.Text`. It also declares the `AllowsNull` and `PSAllowNull` aliases (see Code style). `ImplicitUsings` stays disabled. The `<Using>` items are not conditioned on target framework, so every target gets the same set, and they sit in this shared file because `ListFunctions-NETFramework` compiles Next's files but doesn't inherit Next's MSBuild items.
+- Each csproj keeps only what differs between projects: target frameworks, `Nullable`, assembly name, and title/product.
+
+## Code style
+
+`src/engine/.editorconfig` is the authority. **Most existing C# does not follow it yet:** files use 4-space indentation, CRLF line endings, block-scoped namespaces, and sometimes a BOM. Don't treat that as the house style, and don't copy it from nearby code. Code you write or change must use:
+
+- Tabs for indentation (tab width 4) in C#.
+- LF line endings (`.gitattributes` also sets `* text=auto eol=lf`) and UTF-8.
+- File-scoped namespaces, with `using` directives outside the namespace.
+- `this.` qualification on methods, properties, and events, and never on fields (`dotnet_style_qualification_for_field = false:error`).
+- Regular constructors, not primary constructors (`csharp_style_prefer_primary_constructors = false:warning`).
+- Block-bodied methods, constructors, and operators. Expression bodies are allowed for single-line properties, indexers, and accessors.
+- `[PSAllowNull]` for PowerShell's parameter attribute (`System.Management.Automation.AllowNullAttribute`) and `[AllowsNull]` for the nullable-analysis attribute (`System.Diagnostics.CodeAnalysis.AllowNullAttribute`). Both namespaces are global usings, so a bare `[AllowNull]` fails with CS0104. The aliases are global too, so don't redeclare them in a file.
+
+Ask before reformatting whole files that you are not otherwise changing.
+
+XML documentation follows `.github/copilot-instructions.md`. It covers tag order, `<see langword>` rules (never inside `<exception>`), public-surface hygiene, C# 14 `extension(...)` block documentation, and present-tense, active-voice wording. Read it before writing or editing doc comments.
+
+Commit titles use third-person singular simple present tense, for example "Updates …" or "Adds …".
