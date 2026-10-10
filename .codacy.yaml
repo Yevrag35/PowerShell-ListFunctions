@@ -1,0 +1,19 @@
+---
+exclude_paths:
+  # Files that aren't code, at any depth. Codacy's Java globs need '**.md', not
+  # '**/*.md', to match files at the repo root as well.
+  - '**.json'
+  - '**.md'
+  - '**.xml'
+  - '**.yaml'
+  - '**.yml'
+  # AI assistant instructions and working notes
+  - '.claude/**'
+  - '.github/**'
+  - '.work/**'
+  # Committed build outputs; ListFunctions.psm1 and ListFunctions.psd1 are still scanned
+  - 'ListFunctions/Core/**'
+  - 'ListFunctions/Desk/**'
+  # Tests
+  - 'src/engine/ListFunctions.Engine.Tests/**'
+  - 'tests/**'

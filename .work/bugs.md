@@ -28,7 +28,7 @@ Found while rewriting `README.md` on 2026-09-28. The README describes how the mo
 
 **Release**
 
-- [ ] 15 — Update the manifest and the shipped DLLs for 4.0.0
+- [x] 15 — Update the manifest and the shipped DLLs for 4.0.0
 
 **Minor**
 
@@ -381,13 +381,24 @@ The others guard cleanup and reflection fallbacks: `ListFunctionCmdletBase.Clean
 
 ### 15 — Update the manifest and the shipped DLLs for 4.0.0
 
-- [ ] `ListFunctions/Core/` and `ListFunctions/Desk/` still hold the v3.1.0 build (commit `b459e4c`), and its Core DLLs target .NET 9. Copy in the 4.0.0 Release outputs: `Core/` from `src/engine/ListFunctions-Next/bin/Release/net10.0/`, and `Desk/` from `src/engine/ListFunctions-NETFramework/bin/Release/net48/`.
-- [ ] The 4.0.0 `net48` Release output also contains `ZLinq.dll`, `System.Memory.dll`, `System.Collections.Immutable.dll`, `Microsoft.Bcl.Memory.dll`, `System.Buffers.dll`, `System.Numerics.Vectors.dll`, and `System.Runtime.CompilerServices.Unsafe.dll`. `Desk/` doesn't ship them, and `FileList` doesn't list them.
-- [ ] Both Release outputs also hold the cmdlets' help, which `review-4.0.md` item 50 added: `en-US/ListFunctions.Next.dll-Help.xml` in `net10.0/`, and `en-US/ListFunctions.NETFramework.dll-Help.xml` in `net48/`. Copy each `en-US` folder into `Core/` or `Desk/` with the DLLs, and add `Core\en-US\ListFunctions.Next.dll-Help.xml` and `Desk\en-US\ListFunctions.NETFramework.dll-Help.xml` to `FileList`.
-- [ ] `DotNetFrameworkVersion = '4.7.1'` in `ListFunctions/ListFunctions.psd1` doesn't match the `net48` target.
-- [ ] Nothing enforces PowerShell 7.6 or later, which the README states. `ListFunctions/ListFunctions.psm1` imports `Core\ListFunctions.Next.dll` on any 7.x, but a `net10.0` assembly can't load on PowerShell 7.5 (.NET 9) or earlier.
-- [ ] `Tags` includes `Remove` and `Modify`, but no command removes or modifies anything. `Remove-All` and `Remove-At` existed only in the legacy scripts under `src/public`, which `review-4.0.md` item 51 deleted.
-- [ ] `ReleaseNotes` is still the 3.x text.
+- [x] `ListFunctions/Core/` and `ListFunctions/Desk/` still hold the v3.1.0 build (commit `b459e4c`), and its Core DLLs target .NET 9. Copy in the 4.0.0 Release outputs: `Core/` from `src/engine/ListFunctions-Next/bin/Release/net10.0/`, and `Desk/` from `src/engine/ListFunctions-NETFramework/bin/Release/net48/`.
+- [x] The 4.0.0 `net48` Release output also contains `ZLinq.dll`, `System.Memory.dll`, `System.Collections.Immutable.dll`, `Microsoft.Bcl.Memory.dll`, `System.Buffers.dll`, `System.Numerics.Vectors.dll`, and `System.Runtime.CompilerServices.Unsafe.dll`. `Desk/` doesn't ship them, and `FileList` doesn't list them.
+- [x] Both Release outputs also hold the cmdlets' help, which `review-4.0.md` item 50 added: `en-US/ListFunctions.Next.dll-Help.xml` in `net10.0/`, and `en-US/ListFunctions.NETFramework.dll-Help.xml` in `net48/`. Copy each `en-US` folder into `Core/` or `Desk/` with the DLLs, and add `Core\en-US\ListFunctions.Next.dll-Help.xml` and `Desk\en-US\ListFunctions.NETFramework.dll-Help.xml` to `FileList`.
+- [x] `DotNetFrameworkVersion = '4.7.1'` in `ListFunctions/ListFunctions.psd1` doesn't match the `net48` target.
+- [x] Nothing enforces PowerShell 7.6 or later, which the README states. `ListFunctions/ListFunctions.psm1` imports `Core\ListFunctions.Next.dll` on any 7.x, but a `net10.0` assembly can't load on PowerShell 7.5 (.NET 9) or earlier.
+- [x] `Tags` includes `Remove` and `Modify`, but no command removes or modifies anything. `Remove-All` and `Remove-At` existed only in the legacy scripts under `src/public`, which `review-4.0.md` item 51 deleted.
+- [x] `ReleaseNotes` is still the 3.x text.
+
+**Fixed:** on 2026-10-10, on the `4.0.0-release` branch, from a full Release rebuild.
+
+- **Shipped files:** `ListFunctions/Core/` holds `ListFunctions.Engine.dll`, `ListFunctions.Next.dll`, and `ZLinq.dll` from the `net10.0` Release output. `ListFunctions/Desk/` holds every DLL in the `net48` Release output: `ListFunctions.NETFramework.dll`, the `netstandard2.0` Engine, and the seven dependencies above. Each folder has its output's `en-US` help file. The outputs' `.pdb`, XML documentation, and `.deps.json` files aren't shipped.
+- **`FileList`** lists `ListFunctions.psm1` and all 14 files under `Core/` and `Desk/`.
+- **`DotNetFrameworkVersion`** was already `'4.8'`.
+- **`ListFunctions.psm1`** loads the `Desk` build in the Desktop edition and the `Core` build when `$PSVersionTable.PSVersion -ge [version]'7.6'`. Any other PowerShell, such as 7.5 or 6.2, gets an error that names the versions the module supports and the version that's running. The check is also `False` for 7.6 previews and release candidates. The `.psm1` also loses its commented-out loop, which used variables that no longer exist.
+- **`Tags`** no longer include `Remove` and `Modify`.
+- **`ReleaseNotes`** summarizes 4.0.0: the supported versions, the renamed cmdlets and their aliases, the help and type name completion, and the bug fixes that change behavior.
+- **Also changed:** the manifest's `Description`, which `review-4.0.md` item 51 noted and this item didn't list. It follows the README's first paragraph instead of describing functions that manipulate arrays.
+- **Docs:** `CLAUDE.md`'s Shipped module layout lists the DLLs in `Desk/` and the files to leave out. The `lf-pwsh-internals` skill's `references/assembly-loading.md` records which `System.Management.Automation` version the `net10.0` builds reference and how the version check compares versions.
 
 **Tests:** None. This is a release checklist, and the Pester tests import the build output, not the DLLs shipped under `ListFunctions/`. `tests/Module.Tests.ps1` already checks the build's exports against the manifest's `CmdletsToExport` and `AliasesToExport`.
 

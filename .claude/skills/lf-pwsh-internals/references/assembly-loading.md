@@ -24,6 +24,14 @@ To inspect a build, such as counting the public types each build exports with `A
 - Load each Engine build in its own PowerShell 7 process. Both are `ListFunctions.Engine, Version=4.0.0.0`, so a second `LoadFrom` in the same process throws "Assembly with same name is already loaded". In a `foreach` loop that error doesn't stop the script, the variable keeps the first assembly, and the second path prints the first build's results under its own name (found 2026-10-07). DLLs whose assembly names differ, such as an Engine build and `ListFunctions.Next.dll`, can share a process.
 - In Windows PowerShell 5.1, `GetExportedTypes()` on the `netstandard2.0` Engine throws `FileNotFoundException` for `System.Collections.Immutable, Version=10.0.0.0`, because nothing runs the module's resolver (found 2026-10-07). `ListFunctions.NETFramework.dll` itself works in 5.1, and PowerShell 7 loads the `netstandard2.0` Engine without help.
 
+## The PowerShell 7 version
+
+Measured 2026-10-10 on PowerShell 7.6.6 with the Release build.
+
+- PowerShell 7.6.6 runs `System.Management.Automation` 7.6.0.500. The `net10.0` Engine and `ListFunctions.Next.dll`, compiled against the 7.6.6 package, reference 7.6.0.500 too, so the reference doesn't name the package's patch release.
+- `$PSVersionTable.PSVersion` is a `SemanticVersion`, and `-ge [version]'7.6'` compares it with 7.6.0. It's `True` for 7.6.0, 7.6.6, 7.7.0-preview.1, and 8.0.0, and `False` for 6.2.7, 7.4.13, 7.5.4, 7.6.0-preview.5, and 7.6.0-rc.1.
+- A child scope can't shadow `$PSVersionTable`: assigning to it fails with "Cannot overwrite variable PSVersionTable because it is read-only or constant." To try a version check with other versions, run its text with the variable renamed.
+
 ## In ListFunctions
 
 Engine's `netstandard2.0` build and ZLinq, which ships only for `netstandard2.0`, reference the assembly versions of their dependencies' `netstandard2.0` builds. The `net48` output holds the `net462` builds of the same packages, which have higher assembly versions. For example, System.Memory 4.6.3 is 4.0.2.0 versus 4.0.5.0, and System.Collections.Immutable 10.0.12 is 10.0.0.0 versus 10.0.0.12. An application would add binding redirects, but a module can't. Running all nine cmdlets raises five resolve events that only ListFunctions answers: System.Memory 4.0.2.0, System.Collections.Immutable 10.0.0.0, Microsoft.Bcl.Memory 10.0.0.5, System.Runtime.CompilerServices.Unsafe 6.0.0.0, and System.Buffers 4.0.2.0. Four of them come from ZLinq's references.
@@ -32,3 +40,4 @@ Engine's `netstandard2.0` build and ZLinq, which ships only for `netstandard2.0`
 - Its uncached scan takes about 157 microseconds when it finds the identity and 463 when it doesn't, and it runs about five times per session, because the runtime reuses each answer.
 - Don't build the list of references in `OnImport`. Right after the import, only `ListFunctions.NETFramework` is loaded, and it references none of the five identities.
 - `OnImport` registers the handler only on its first call, because PowerShell calls it on every import.
+- `ListFunctions/ListFunctions.psm1` imports the `Core` build only when `$PSVersionTable.PSVersion -ge [version]'7.6'`, because PowerShell 7.5 and earlier run on .NET 9 or earlier, which can't load a `net10.0` assembly. Any other PowerShell 7 or 6 gets the module's own error, which names the versions the module supports.
