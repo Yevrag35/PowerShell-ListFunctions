@@ -1,3 +1,10 @@
+BeforeDiscovery {
+	$cmdletCases = @(
+		(Import-PowerShellDataFile -LiteralPath "$PSScriptRoot/../ListFunctions/ListFunctions.psd1").CmdletsToExport |
+			ForEach-Object { @{ Name = $_ } }
+	)
+}
+
 BeforeAll {
 	$module = & "$PSScriptRoot/Import-ListFunctions.ps1" -PassThru
 	$manifest = Import-PowerShellDataFile -LiteralPath "$PSScriptRoot/../ListFunctions/ListFunctions.psd1"
@@ -102,5 +109,113 @@ Describe 'ListFunctions module' {
 		}
 
 		$completion.CompletionMatches.Count | Should-Be 0
+	}
+
+	# Get-Help shows the syntax blocks and parameter attributes that the help file writes, not the ones that the cmdlet
+	# declares, so a parameter that changes without the help file shows the wrong usage. These tests compare the help with
+	# each cmdlet. Without a help file beside the module, Get-Help makes up help from the cmdlet, whose type is
+	# CmdletHelpInfo, so the first test also fails when the build doesn't copy the help file.
+	Context 'Help' {
+		BeforeAll {
+			$commonParameters = [System.Management.Automation.Cmdlet]::CommonParameters +
+				[System.Management.Automation.Cmdlet]::OptionalCommonParameters
+
+			# The name is module-qualified, so an installed ListFunctions 3.x can't answer for a cmdlet that it has too.
+			function Get-BuildHelp([string] $Name) {
+				Get-Help -Name "$($module.Name)\$Name" -Full
+			}
+
+			function Get-PositionText($Parameter) {
+				if ($Parameter.Position -ge 0) {
+					return [string]$Parameter.Position
+				}
+				'named'
+			}
+
+			function Get-PipelineInputText($Parameter) {
+				$kinds = @()
+				if ($Parameter.ValueFromPipeline) {
+					$kinds += 'ByValue'
+				}
+				if ($Parameter.ValueFromPipelineByPropertyName) {
+					$kinds += 'ByPropertyName'
+				}
+				if ($kinds.Count -eq 0) {
+					return 'False'
+				}
+				'True ({0})' -f ($kinds -join ', ')
+			}
+
+			# Formats a parameter of a syntax block. A switch has no value type.
+			function Format-SyntaxParameter([string] $Name, [string] $ValueType, [string] $Required, [string] $Position) {
+				$text = "-$Name"
+				if ($ValueType) {
+					$text += " <$ValueType>"
+				}
+				'{0} required={1} position={2}' -f $text, $Required, $Position
+			}
+		}
+
+		It 'shows the help file for <Name>' -ForEach $cmdletCases {
+			$help = Get-BuildHelp $Name
+			Should-ContainCollection -Expected "MamlCommandHelpInfo#$($module.Name)#$Name" -Actual $help.PSObject.TypeNames
+		}
+
+		# A parameter is required in the help when it's mandatory in every parameter set that has it.
+		It 'describes the parameters of <Name> as the cmdlet declares them' -ForEach $cmdletCases {
+			$command = Get-Command -Name $Name
+			$expected = foreach ($parameter in $command.Parameters.Values) {
+				if ($commonParameters -contains $parameter.Name) {
+					continue
+				}
+
+				$inSets = @($command.ParameterSets | ForEach-Object { $_.Parameters } | Where-Object Name -eq $parameter.Name)
+				$required = @($inSets | Where-Object { -not $_.IsMandatory }).Count -eq 0
+				$position = @($inSets | ForEach-Object { Get-PositionText $_ } | Sort-Object -Unique) -join ','
+				$pipelineInput = @($inSets | ForEach-Object { Get-PipelineInputText $_ } | Sort-Object -Unique) -join ','
+				$aliases = 'none'
+				if ($parameter.Aliases.Count -gt 0) {
+					$aliases = $parameter.Aliases -join ', '
+				}
+
+				'-{0} <{1}> required={2} position={3} pipelineInput={4} aliases={5}' -f $parameter.Name,
+					$parameter.ParameterType.Name, $required.ToString().ToLowerInvariant(), $position, $pipelineInput, $aliases
+			}
+
+			$actual = foreach ($parameter in (Get-BuildHelp $Name).parameters.parameter) {
+				'-{0} <{1}> required={2} position={3} pipelineInput={4} aliases={5}' -f $parameter.name, $parameter.type.name,
+					$parameter.required, $parameter.position, $parameter.pipelineInput, $parameter.aliases
+			}
+
+			Should-BeCollection -Expected @($expected) -Actual @($actual)
+		}
+
+		It 'has a syntax block for each parameter set of <Name>' -ForEach $cmdletCases {
+			$command = Get-Command -Name $Name
+			$expected = foreach ($set in $command.ParameterSets) {
+				$parameters = foreach ($parameter in $set.Parameters) {
+					if ($commonParameters -contains $parameter.Name) {
+						continue
+					}
+
+					$valueType = $parameter.ParameterType.Name
+					if ($parameter.ParameterType -eq [switch]) {
+						$valueType = ''
+					}
+					$required = $parameter.IsMandatory.ToString().ToLowerInvariant()
+					Format-SyntaxParameter $parameter.Name $valueType $required (Get-PositionText $parameter)
+				}
+				($parameters | Sort-Object) -join '; '
+			}
+
+			$actual = foreach ($item in (Get-BuildHelp $Name).syntax.syntaxItem) {
+				$parameters = foreach ($parameter in $item.parameter) {
+					Format-SyntaxParameter $parameter.name $parameter.parameterValue $parameter.required $parameter.position
+				}
+				($parameters | Sort-Object) -join '; '
+			}
+
+			Should-BeCollection -Expected @($expected) -Actual @($actual)
+		}
 	}
 }

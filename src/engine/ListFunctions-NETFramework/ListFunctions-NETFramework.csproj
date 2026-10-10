@@ -35,6 +35,13 @@
 		<Compile Include="..\ListFunctions-Next\**\*.cs" Exclude="..\ListFunctions-Next\obj\**;..\ListFunctions-Next\bin\**" />
 	</ItemGroup>
 
+	<!-- So is the cmdlets' help, which Get-Help looks for under this assembly's file name. -->
+	<ItemGroup>
+		<Content Include="..\ListFunctions-Next\en-US\ListFunctions.Next.dll-Help.xml" Link="en-US\ListFunctions.NETFramework.dll-Help.xml">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+
 	<ItemGroup>
 		<PackageReference Include="Microsoft.PowerShell.5.ReferenceAssemblies" ExcludeAssets="runtime" />
 	</ItemGroup>

@@ -49,7 +49,7 @@ Item numbers continue from `bugs.md`, so each number names one item in either fi
 
 - [x] 48 — `[ValidateScriptVariable]` rejects script blocks that have a `param()` block
 - [x] 49 — New-Dictionary's `-InputObject` takes only a hashtable
-- [/] 50 — There's no completion for type names and no help content
+- [x] 50 — There's no completion for type names and no help content
 - [x] 51 — The legacy script implementation is still in the repo
 
 ## Running the repros
@@ -1282,6 +1282,20 @@ Fixing these after 4.0.0 doesn't break anyone.
   - Engine, `Completion/TypeNameCompleterTests.cs`: each form of the argument, a type argument that closes every bracket, a namespace and a generic type left open, no completions when there's no name to complete, and the names left out. `Completion/GeneratedNestedTypes.cs` gives the test assembly a C# 14 extension block, whose nested types PowerShell offers in both editions.
   - Pester, `tests/Module.Tests.ps1`: each of the seven parameters completes `[gu` to `[guid]`, by name or by position, and `New-List ` with nothing typed gets no file names.
 - **Not changed:** the help content, the item's second half. The manifest's `HelpInfoURI` still points at the GitHub issues page.
+
+**Fixed (help content):** on 2026-10-10, which completes the item. Every cmdlet has help, so `Get-Help` shows its description, syntax, parameters, input and output types, notes, and examples in both editions.
+
+- **The help file:** `src/engine/ListFunctions-Next/en-US/ListFunctions.Next.dll-Help.xml`, MAML that's maintained by hand. That was chosen on 2026-10-10 over markdown that PlatyPS would turn into MAML, so the repo needs no new tool. The text follows the README, and the cmdlets' XML docs where the README says less, such as what `-ValuePropertyName` accepts.
+- **What each cmdlet's help holds:** the README's shared sections where they apply to the cmdlet, such as how input binds, `$null` input, the variables of its script blocks, the forms of a type argument, stopping early, and what happens to errors in script blocks. Most of its examples come from the README, rewritten where needed to run without a file, such as New-HashSet's CSV example, which uses `ConvertFrom-Csv`. Its notes list its aliases, including its name in 3.x, because Get-Help shows no ALIASES section for a cmdlet that has a help file.
+- **Where the file goes:** Get-Help looks for the assembly's file name followed by `-Help.xml` in a culture folder beside the assembly. ListFunctions-Next copies the file into `en-US` in its output, and ListFunctions-NETFramework copies the same file as `en-US/ListFunctions.NETFramework.dll-Help.xml`, in every configuration. For another UI culture, both editions fall back to `en-US`.
+- **The syntax:** Get-Help shows the syntax blocks and parameter attributes that the file writes, not the cmdlet's, so a one-off script wrote them from the cmdlets' parameter sets, in the order that `Get-Command -Syntax` uses. A parameter is `required` in the parameters section when it's mandatory in every parameter set that has it, so the dynamic `-CaseSensitive` of New-HashSet is required there, and New-Dictionary's isn't. The comment at the top of the file says how to keep the file in step.
+- **The manifest:** `HelpInfoURI` is commented out. With the issues page, `Update-Help -Module ListFunctions` failed in both editions because the URI "does not resolve to a container". The module ships its help and has no updatable help, so `Update-Help -Module ListFunctions` now reports that the module doesn't support updatable help.
+- **Tests:** Pester, a new Help context in `tests/Module.Tests.ps1`. For each cmdlet in `CmdletsToExport`, `Get-Help` returns help from the file, the parameters section matches the cmdlet's parameters in name, type, required, position, pipeline input, and aliases, and there's one syntax block for each parameter set, with the same parameters, value types, required flags, and positions.
+- **Docs:** `CLAUDE.md` has a new Help section and lists the `en-US` folders in the shipped layout, and the README says that each command has help. The `lf-pwsh-internals` skill has a new `references/help.md` with the measurements, and the `lf-testing` skill says that `Module.Tests.ps1` fails until the help matches a parameter change.
+- **Not changed:**
+  - The shipped module. `ListFunctions/Core` and `ListFunctions/Desk` get their `en-US` folders with the 4.0.0 DLLs, and `FileList` lists the help files then, which `bugs.md` item 15 now lists.
+  - No `about_ListFunctions` topic. The shared sections of the README are in the help of each cmdlet they apply to.
+  - No online version. The help has no URI, so `Get-Help -Online` still has nothing to open.
 
 ### 51 — The legacy script implementation is still in the repo
 

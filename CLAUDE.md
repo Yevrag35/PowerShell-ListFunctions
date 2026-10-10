@@ -42,8 +42,8 @@ There are four projects under `src/engine/`:
 		- They throw the same exception types as .NET, but an `ArgumentException` they throw on `netstandard2.0` has the parameter name only in its message, so its `ParamName` is `null`.
 		- .NET has no `ArgumentOutOfRangeException.ThrowIfNegativeOrGreaterThan`, so the extension of that name compiles only for `netstandard2.0`. Code that builds for every target calls `Guard.ThrowIfNegativeOrGreaterThan`, which is all that `Modern/Guard.cs` still holds.
 	- Its internals are exposed to `ListFunctions.Next`, `ListFunctions.NETFramework`, and `ListFunctions.Engine.Tests` through `<AssemblyAttribute>` InternalsVisibleTo items in the csproj.
-- **`ListFunctions-Next`** targets `net10.0` and builds `ListFunctions.Next.dll`, the PowerShell 7 binary module. All cmdlets live here, under `Cmdlets/Assertions`, `Cmdlets/Constructs`, and `Cmdlets/Finds`.
-- **`ListFunctions-NETFramework`** is an SDK-style project that targets `net48` and builds `ListFunctions.NETFramework.dll`, the Windows PowerShell 5.1 module. It has almost no code of its own, only a `ModuleInitializer` that adds an `AssemblyResolve` hook to load dependencies from its own folder. It compiles **every `.cs` file in `ListFunctions-Next`** through a wildcard `<Compile Include>`.
+- **`ListFunctions-Next`** targets `net10.0` and builds `ListFunctions.Next.dll`, the PowerShell 7 binary module. All cmdlets live here, under `Cmdlets/Assertions`, `Cmdlets/Constructs`, and `Cmdlets/Finds`, and so does their help, in `en-US/ListFunctions.Next.dll-Help.xml` (see Help).
+- **`ListFunctions-NETFramework`** is an SDK-style project that targets `net48` and builds `ListFunctions.NETFramework.dll`, the Windows PowerShell 5.1 module. It has almost no code of its own, only a `ModuleInitializer` that adds an `AssemblyResolve` hook to load dependencies from its own folder. It compiles **every `.cs` file in `ListFunctions-Next`** through a wildcard `<Compile Include>`, and it copies Next's help file into its output as `en-US/ListFunctions.NETFramework.dll-Help.xml`.
 	- As a result, all code in `ListFunctions-Next` must also compile for .NET Framework 4.8 against the PowerShell 5 reference assemblies.
 	- Wrap newer BCL or PowerShell 7 APIs in `#if NETCOREAPP` or `#if NET9_0_OR_GREATER`, as the existing code does.
 	- Building only `ListFunctions-Next` does not catch these errors. Build the full solution.
@@ -65,13 +65,21 @@ Every cmdlet derives from `Cmdlets/ListFunctionCmdletBase`.
 
 The cmdlets mirror native PowerShell wherever they can: they read input the way PowerShell binds it, errors from their script blocks end a command the way they do in `ForEach-Object`, and conversions store what `$list.Add($x)` stores. Load the `lf-pwsh-internals` skill before you change code that depends on how PowerShell behaves, answer a question about it, or measure it. The skill records the engine behavior that the code relies on, as measured in both editions.
 
+### Help
+
+The cmdlets' help is MAML, written by hand in `src/engine/ListFunctions-Next/en-US/ListFunctions.Next.dll-Help.xml`. Get-Help looks for a binary module's help in a culture folder beside the assembly, in a file named after the assembly, so each project copies the file into an `en-US` folder in its output under its own assembly's name.
+
+- Get-Help shows the syntax blocks and parameter attributes as the file writes them, not as the cmdlet declares them. When you change a cmdlet's parameters, parameter sets, aliases, positions, or pipeline input, change the file to match. `tests/Module.Tests.ps1` compares the two in both editions.
+- The help text follows the README. When a cmdlet's behavior changes, update its description, parameters, and examples in both.
+- The comment at the top of the file states its formatting rules. The `lf-pwsh-internals` skill's `references/help.md` records how Get-Help finds and shows the file.
+
 ### Shipped module layout
 
 The `ListFunctions/` directory is the publishable module, and it contains committed build outputs.
 
 - `ListFunctions.psm1` checks `$PSVersionTable.PSVersion.Major`. On 5 it imports `Desk/ListFunctions.NETFramework.dll`; on 7 it imports `Core/ListFunctions.Next.dll`.
-- `Core/` holds the `net10.0` builds of Engine, Next, and ZLinq. `Desk/` holds the `netstandard2.0` Engine and the NETFramework DLL.
-- Copy these DLLs in by hand from the Release output folders. Those folders include the NuGet dependencies, so nothing has to come from the NuGet cache.
+- `Core/` holds the `net10.0` builds of Engine, Next, and ZLinq. `Desk/` holds the `netstandard2.0` Engine and the NETFramework DLL. Each also holds the help file of its module DLL in an `en-US` folder.
+- Copy these files in by hand from the Release output folders, including the `en-US` folders. Those folders include the NuGet dependencies, so nothing has to come from the NuGet cache.
 - When cmdlets, aliases, or shipped files change, update `CmdletsToExport`, `AliasesToExport`, and `FileList` in `ListFunctions.psd1`.
 - The version (currently `4.0.0`) is set in two places: `<Version>` in `src/engine/Directory.Build.props` and `ModuleVersion` in the `.psd1`. Change both together. `AssemblyVersion` and `FileVersion` are set to `$(Version)` so they stay exactly three-part.
 - `Directory.Build.props` also holds the shared authorship and repository metadata and the common compiler settings (`RootNamespace`, `LangVersion`, `ImplicitUsings`, `AllowUnsafeBlocks`), plus `CopyLocalLockFileAssemblies`.

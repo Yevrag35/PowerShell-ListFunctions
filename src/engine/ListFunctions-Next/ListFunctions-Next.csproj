@@ -24,6 +24,13 @@
 		</Content>
 	</ItemGroup>
 
+	<!-- Get-Help reads the cmdlets' help from a culture folder beside the assembly, in a file named after the assembly. -->
+	<ItemGroup>
+		<Content Include="en-US\ListFunctions.Next.dll-Help.xml">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+
 	<ItemGroup>
 		<PackageReference Include="System.Management.Automation" ExcludeAssets="runtime;native" />
 	</ItemGroup>

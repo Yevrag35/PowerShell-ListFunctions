@@ -118,7 +118,7 @@
             LicenseUri   = 'https://raw.githubusercontent.com/Yevrag35/PowerShell-ListFunctions/master/LICENSE'
 
             # A URL to the main website for this project.
-            ProjectUri   = 'https://github.com/Yevrag35/PowerShell-ListFunctions.git'
+            ProjectUri   = 'https://github.com/Yevrag35/PowerShell-ListFunctions'
 
             # A URL to an icon representing this module.
             IconUri      = 'https://images.yevrag35.com/icons/list-functions.png'
@@ -133,7 +133,7 @@
     } # End of PrivateData hashtable
 
     # HelpInfo URI of this module
-    HelpInfoURI       = 'https://github.com/Yevrag35/PowerShell-ListFunctions/issues'
+    # HelpInfoURI = ''
 
     # Default prefix for commands exported from this module. Override the default prefix using Import-Module -Prefix.
     # DefaultCommandPrefix = ''

@@ -63,7 +63,7 @@ Write a test only when it has merit. Don't write a failing test before every fix
 - **Has no merit:** the test only restates the code, an existing test already covers the behavior, or the change can't regress in a way that users would notice.
 - **Usually needs no new test:** a refactor that doesn't change behavior, removing dead code, making a type internal, a rename, a change to comments or docs, or a release step such as copying the shipped DLLs into `ListFunctions/`. Run the existing tests instead, and if none of them reaches the code you changed, say so. The tests import the build output, not the DLLs under `ListFunctions/`, so they can't check a release.
 
-When a test has merit, write it before or after the change, whichever helps, and don't give it a `BugNN` tag. Whether or not a change gets tests, `Module.Tests.ps1` checks that the build exports exactly the manifest's `CmdletsToExport` and `AliasesToExport`, so it fails until `ListFunctions.psd1` lists a new cmdlet and its aliases.
+When a test has merit, write it before or after the change, whichever helps, and don't give it a `BugNN` tag. Whether or not a change gets tests, `Module.Tests.ps1` checks that the build exports exactly the manifest's `CmdletsToExport` and `AliasesToExport`, so it fails until `ListFunctions.psd1` lists a new cmdlet and its aliases. It also compares each cmdlet's help with the cmdlet's parameter sets and parameters, so it fails until the help file in `src/engine/ListFunctions-Next/en-US/` matches a parameter change or covers a new cmdlet. Its tests read the help from the build output, so rebuild after you change the help file.
 
 ## Which suite a test goes in
 
