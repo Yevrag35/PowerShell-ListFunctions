@@ -2,76 +2,89 @@
 
 Use the "third-person singular simple present tense" in git commit titles.
 
-# Use the following instructions when asked for comments on C# source files.
+# C# documentation comments
+
+Every section from here to the end of this file applies when you write or edit XML documentation comments in C# source files.
 
 # WHAT TO DOCUMENT
 * Types: classes, structs (including ref struct and readonly struct), records, interfaces, enums, delegates, attributes.
-* Members: constructors, finalizers, methods, operators, properties (including indexers), events, and fields that are public/protected/internal.
-* Fully document Private methods.
-* Generic parameters: add a <typeparam> for each generic type parameter.
-* Constraints: reflect practical effects inside <remarks>.
-* Return values: add <returns> for all non-void methods.
-* Properties: include a <value> describing what the property represents.
-* Exceptions: add <exception cref="..."> entries for all guards and throw sites that are reasonably inferable.
+* Members that are public, protected, or internal (including protected internal and private protected): constructors, finalizers, methods, operators, properties (including indexers), events, and fields.
+* Fully document private methods too.
+* Generic parameters: add a `<typeparam>` for each generic type parameter.
+* Constraints: reflect practical effects inside `<remarks>`.
+* Return values: add `<returns>` for all non-void methods.
+* Properties: include a `<value>` describing what the property represents.
+* Exceptions: add `<exception cref="...">` entries for all guards and throw sites that are reasonably inferable.
 
 # STYLE AND SYNTAX RULES (MANDATORY)
 
 XML tag order for every documented symbol:
-a) <summary> (one concise sentence stating what it is/does; imperative mood)
-b) <remarks> (immediately after <summary>; deeper details, invariants, perf notes)
-c) <typeparam> and <param> in declaration order
-d) <returns> (mutually exclusive with "<value>")
-e) <exception> (one tag per possible exception)
-f) <value> (properties only and is to be used instead of "<returns>")
-g) <example> (only when it adds clarity)
 
-## Cross-references:
-* Use <see langword="..."/> for language keywords: null, true, false, default, checked, unchecked, stackalloc, etc.
-* Use <see cref="..."/> for types and members, including generics like List{T}, Dictionary{TKey,TValue}, ReadOnlySpan{T}, IMemoryOwner{T}, etc.
-* Disambiguate overloaded members with full signatures, e.g., <see cref="SomeType.SomeMethod(int, string)"/>.
-* NEVER use <see langword="..."/> inside an <exception> tag. Write the keyword as plain text instead.
-  * Correct: <exception cref="ArgumentNullException">Thrown when <paramref name="key"/> is null.</exception>
-  * Incorrect: <exception cref="ArgumentNullException">Thrown when <paramref name="key"/> is <see langword="null"/>.</exception>
-  * This applies to <exception> only; <summary>, <remarks>, <param>, <returns>, and <value> still use <see langword="..."/> normally.
-* Do not use smart quotes.
+1. `<summary>` (one concise sentence stating what it is/does, in the third-person singular; see Language and tone)
+2. `<remarks>` (immediately after `<summary>`; deeper details, invariants, perf notes)
+3. `<typeparam>` and `<param>` in declaration order
+4. `<returns>` (mutually exclusive with `<value>`)
+5. `<exception>` (one tag per exception type, covering every condition that throws it)
+6. `<value>` (properties and indexers only, in place of `<returns>`; it still comes after `<exception>`)
+7. `<example>` (only when it adds clarity)
+
+## Cross-references
+* Use `<see langword="..."/>` for C# keywords: null, true, false, default, checked, unchecked, stackalloc, etc.
+* Use `<see cref="..."/>` for types and members, including generics like List{T}, Dictionary{TKey,TValue}, ReadOnlySpan{T}, IMemoryOwner{T}, etc.
+* Use `<paramref name="..."/>` to refer to a parameter and `<typeparamref name="..."/>` to refer to a type parameter.
+* Use `<c>...</c>` for inline code that isn't a reference to a symbol: PowerShell syntax such as `$_`, `-CaseSensitive`, and `begin`, and C# expressions such as `ArgumentNullException.ThrowIfNull(value)`. A PowerShell keyword goes in `<c>` even when C# has the same keyword: `<see langword="break"/>` means C#'s `break`, so write PowerShell's as `<c>break</c>`.
+* Disambiguate overloaded members with full signatures, e.g., `<see cref="SomeType.SomeMethod(int, string)"/>`.
+* NEVER use `<see langword="..."/>` inside an `<exception>` tag. Write the keyword as plain text instead.
+  * Correct: `<exception cref="ArgumentNullException">Thrown when <paramref name="key"/> is null.</exception>`
+  * Incorrect: `<exception cref="ArgumentNullException">Thrown when <paramref name="key"/> is <see langword="null"/>.</exception>`
+  * This applies to `<exception>` only; `<summary>`, `<remarks>`, `<param>`, `<returns>`, and `<value>` still use `<see langword="..."/>` normally.
 
 ## Crefs in files that use ZLinq
-* In a file with `using ZLinq;`, write every cref to ArgumentNullException as System.ArgumentNullException, and every cref to GC as System.GC. This applies to <exception cref>, <see cref>, and <seealso cref> alike. Other types, such as ArgumentException, keep the short form.
-  * Correct: <exception cref="System.ArgumentNullException">Thrown when <paramref name="variableNames"/> is null.</exception>
-  * Incorrect: <exception cref="ArgumentNullException">Thrown when <paramref name="variableNames"/> is null.</exception>
-* ZLinq declares an internal ArgumentNullException in its netstandard2.0 build, and an internal GC in every target. Code can't see them, but cref lookup still finds them, so the short names are ambiguous. A type cref such as <see cref="GC"/> produces CS0419, and a member cref such as <see cref="GC.KeepAlive(object)"/> produces CS1574.
+* In a file with `using ZLinq;`, write every cref to ArgumentNullException as System.ArgumentNullException, and every cref to GC as System.GC. This applies to `<exception cref>`, `<see cref>`, and `<seealso cref>` alike. Other types, such as ArgumentException, keep the short form.
+  * Correct: `<exception cref="System.ArgumentNullException">Thrown when <paramref name="variableNames"/> is null.</exception>`
+  * Incorrect: `<exception cref="ArgumentNullException">Thrown when <paramref name="variableNames"/> is null.</exception>`
+* ZLinq declares an internal ArgumentNullException in its netstandard2.0 build, and an internal GC in every target. Code can't see them, but cref lookup still finds them, so the short names are ambiguous. A type cref such as `<see cref="GC"/>` produces CS0419, and a member cref such as `<see cref="GC.KeepAlive(object)"/>` produces CS1574.
 * Only the netstandard2.0 and net48 builds report the ArgumentNullException warning; the net10.0 builds don't. Keep the namespace even when one target builds cleanly.
 * Code is not affected: `throw new ArgumentNullException(...)` compiles without the namespace. Files without `using ZLinq;` keep the short form.
 
-# Language and tone (MANDATORY):
-* American English, concise, active voice.
-* MANDATORY - Use present tense!
-* Prefer "Gets …", "Sets …", "Creates …", "Returns …".
+# Language and tone (MANDATORY)
+* American English, concise, active voice, present tense.
+* Use the third-person singular, as the commit titles do: "Gets the comparer.", not the imperative "Get the comparer." or the future "Will get the comparer."
+* Open each `<summary>` according to the kind of symbol:
+  * Methods: a verb, such as "Gets ...", "Creates ...", "Returns ...", or "Determines whether ...".
+  * Abstract and virtual members: "When implemented in a derived class, ..." or "When overridden in a derived class, ...", then that verb.
+  * Properties: "Gets ..." when read-only and "Gets or sets ..." when read/write. A Boolean property uses "Gets a value that indicates whether ...".
+  * Types: a verb such as "Represents ..." or "Provides ...".
+  * Constructors: see Constructors under CONTENT GUIDANCE.
+  * Fields, constants, and enum members: a noun phrase or a short sentence, such as "The shared empty collection."
+* Write `<typeparam>`, `<param>`, `<returns>`, and `<value>` as noun phrases, such as "The element type." A Boolean result reads "`<see langword="true"/>` if ...; otherwise, `<see langword="false"/>`."
+* Start `<exception>` text with "Thrown when ...". That form and the "When implemented/overridden in a derived class" openings are the only exceptions to active voice.
+* Use ASCII punctuation: straight quotes and apostrophes, not smart quotes, and three periods, not an ellipsis character.
 
-# Code style assumptions (do not alter code to enforce these; just respect them):
+# Code style assumptions (do not alter code to enforce these; just respect them)
 * File-scoped namespaces.
-* Using directives outside the namespace; prefer qualified using directives in nested scope.
+* Using directives outside the namespace. A using directive that does sit inside a namespace names its namespace in full, not relative to the enclosing one.
 * Modifier order: public, private, protected, internal, file, static, extern, new, virtual, abstract, sealed, override, readonly, unsafe, volatile, async.
 * Prefer regular constructors over primary constructors (do not convert forms).
 
 # PUBLIC SURFACE HYGIENE (MANDATORY)
-* When documenting public or protected types/members, do not reference internal or private types, members, or namespaces in text or cref. Avoid <see cref="InternalType"/> or <see cref="SomeType.InternalMember"/>.
+* When documenting public or protected types/members, do not reference internal or private types, members, or namespaces in text or cref. Avoid `<see cref="InternalType"/>` or `<see cref="SomeType.InternalMember"/>`.
 * If behavior depends on internal implementation details, describe it generically without naming internal identifiers. Example: "Uses an internal cache to avoid repeated allocations" rather than naming the cache type.
 * Examples must compile against the public surface only and must not construct or reference internal helpers.
-* Do not expose internal exceptions or error codes; describe observable conditions using public concepts (e.g., "Throws an ArgumentException when the format is invalid.").
-* Do not imply stability of non-public contracts; link only to public, stable symbols in <see cref="..."/>.
+* Do not expose internal exceptions or error codes; describe observable conditions using public concepts (e.g., `<exception cref="ArgumentException">Thrown when the format is invalid.</exception>`).
+* Do not imply stability of non-public contracts; link only to public, stable symbols in `<see cref="..."/>`.
 
 # CONTENT GUIDANCE
 * Summaries: one crisp sentence about purpose (what), not implementation (how).
-* Remarks: nontrivial behavior, invariants, concurrency and thread-safety, performance and allocation characteristics, ownership semantics for spans/buffers/pools, and edge cases. Use separate <para> blocks within <remarks> for clarity.
-* Parameters: meaning, allowed ranges, preconditions; indicate null allowance with <see langword="null"/> when applicable.
-* Exceptions: "Thrown when …" with the exact parameter name and condition where evident.
+* Remarks: nontrivial behavior, invariants, concurrency and thread-safety, performance and allocation characteristics, ownership semantics for spans/buffers/pools, and edge cases. Use separate `<para>` blocks within `<remarks>` for clarity.
+* Parameters: meaning, allowed ranges, preconditions; indicate null allowance with `<see langword="null"/>` when applicable.
+* Exceptions: "Thrown when ..." with the exact parameter name and condition where evident.
 * Thread-safety: state clearly if members are thread-safe or not when inferable.
 * Collections and spans: call out mutability, copying vs referencing, lifetime (especially for ref struct), and ownership/disposal expectations.
-* Enums: each enum member should have a brief inline summary comment.
+* Enums: give each enum member a brief `<summary>`, on a single line when it fits.
 * Operators: summarize semantics and note overflow/checked behavior if it is implied by usage.
 * Delegates: document the role of the callback and each parameter/return.
-* Constructor comments should follow the standard .NET commenting phraseology of "Initializes a new <see cref/> instance...". If the constructor has parameters, those should be mentioned in the summary to avoid confusion with other constructors with different parameters (or none at all).
+* Constructors: start the summary with "Initializes a new `<see cref="TypeName"/>` instance", where TypeName is the constructor's own type. If the constructor has parameters, mention them in the summary so it isn't confused with the type's other constructors, as in "Initializes a new `<see cref="HashBlock"/>` instance with the specified script block."
 
 # DOC COMMENT PLACEMENT (MANDATORY)
 * XML documentation comments (/// ...) must be the outermost block immediately preceding the documented symbol.
@@ -82,12 +95,12 @@ g) <example> (only when it adds clarity)
 3. The member/type declaration
 * NEVER place/insert comments in lines between the attributes and the declaration.
 
-## GENERICS AND CONSTRAINTS
-* For each <typeparam name="T"> provide a brief semantic description (e.g., "The element type.").
-* In <remarks>, restate practical effects of constraints (e.g., "When T is unmanaged, instances can be copied without boxing.").
+# GENERICS AND CONSTRAINTS
+* For each `<typeparam name="T">` provide a brief semantic description (e.g., "The element type.").
+* In `<remarks>`, restate practical effects of constraints (e.g., "Because T is unmanaged, the method can stackalloc a buffer of T.").
 
-## SPANS/UNSAFE/STACK SEMANTICS
-* When code uses Span<T>, ReadOnlySpan<T>, Memory<T>, IMemoryOwner<T>, stackalloc, pinnable references, or unsafe code, describe lifetime and safety constraints in <remarks>.
+# SPANS/UNSAFE/STACK SEMANTICS
+* When code uses `Span<T>`, `ReadOnlySpan<T>`, `Memory<T>`, `IMemoryOwner<T>`, stackalloc, pinnable references, or unsafe code, describe lifetime and safety constraints in `<remarks>`.
 * Mention slicing and bounds expectations where obvious.
 
 # EXTENSION BLOCKS (MANDATORY)
@@ -97,23 +110,24 @@ A C# 14 `extension(...)` block is a documented symbol in its own right, not just
 ## The block declaration
 * Every extension block gets its own /// doc comment placed immediately above the `extension` keyword.
 * Required tags, in the standard order:
-	a) <summary> - what the block's members do for the receiver type. Example: "Provides extension methods for <see cref="Span{T}"/> that allow for bounds-check-free element access and slicing."
-	b) <remarks> - optional; behavior or invariants shared by every member in the block.
-	c) <typeparam> - one per type parameter declared on the block itself (`extension<T>(...)`), in declaration order.
-	d) <param> - one for the receiver parameter. This is MANDATORY. The receiver is documented here and nowhere else.
-* Restate the practical effect of block-level constraints (`where TKey : notnull`, `allows ref struct`) inside the block's <remarks>, per GENERICS AND CONSTRAINTS.
-* No <returns>, <value>, or <exception> on the block itself; those belong to individual members.
+  1. `<summary>` - what the block's members do for the receiver type. Example: "Provides extension methods for `<see cref="Span{T}"/>` that allow for bounds-check-free element access and slicing."
+  2. `<remarks>` - optional; behavior or invariants shared by every member in the block.
+  3. `<typeparam>` - one per type parameter declared on the block itself (`extension<T>(...)`), in declaration order.
+  4. `<param>` - one for the receiver parameter. This is MANDATORY whenever the block names its receiver. The receiver is documented here and nowhere else.
+* A block that leaves its receiver unnamed, such as `extension(ArgumentNullException)`, has no receiver parameter, so its doc comment has no `<param>`.
+* Restate the practical effect of block-level constraints (`where TKey : notnull`, `allows ref struct`) inside the block's `<remarks>`, per GENERICS AND CONSTRAINTS.
+* No `<returns>`, `<value>`, or `<exception>` on the block itself; those belong to individual members.
 
 ## Members inside the block
-* A member documents only its own signature: <summary>, <remarks>, its own <typeparam> and <param>, <returns> (methods) or <value> (properties), and <exception>.
-* NEVER add a <param> for the receiver on a member. The receiver is not one of that member's parameters; that tag belongs on the block.
-* DO use <paramref name="receiver"/> inside a member's docs to refer to the receiver. The name resolves from the enclosing block.
+* A member documents only its own signature: `<summary>`, `<remarks>`, its own `<typeparam>` and `<param>`, `<returns>` (methods) or `<value>` (properties), and `<exception>`.
+* NEVER add a `<param>` for the receiver on a member. The receiver is not one of that member's parameters; that tag belongs on the block.
+* DO use `<paramref name="receiver"/>` inside a member's docs to refer to a named receiver. The name resolves from the enclosing block.
 
 ## Cross-referencing an extension member
 * Neither the pre-C# 14 static form nor the bare member signature resolves; both produce CS1574.
-	* Incorrect: <see cref="BattleFlowExtensions.NewBattleFlowAsync(Orchestrator, Enemy, ICombatantAI)"/>
-	* Incorrect: <see cref="NewBattleFlowAsync(Enemy, ICombatantAI)"/>
-	* Correct: <see cref="BattleFlowExtensions.extension(Orchestrator).NewBattleFlowAsync(Enemy, ICombatantAI)"/>
+  * Incorrect: `<see cref="BattleFlowExtensions.NewBattleFlowAsync(Orchestrator, Enemy, ICombatantAI)"/>`
+  * Incorrect: `<see cref="NewBattleFlowAsync(Enemy, ICombatantAI)"/>`
+  * Correct: `<see cref="BattleFlowExtensions.extension(Orchestrator).NewBattleFlowAsync(Enemy, ICombatantAI)"/>`
 * Form the cref as: containing static class, then `extension(ReceiverType)` - the receiver type only, no parameter name - then the member signature with its own parameter types. The receiver type is not repeated in that parameter list.
 
 ## Layout
@@ -151,35 +165,36 @@ public static class AlternateLookupExtensions
 ```
 
 # PERFORMANCE NOTES
-* If the implementation clearly aims to reduce allocations, branch mispredictions, or leverage pooling/vectorization, add a short "Performance:" paragraph inside <remarks> using <para><b>Performance:</b> ...</para>.
+* If the implementation clearly aims to reduce allocations, branch mispredictions, or leverage pooling/vectorization, add a short "Performance:" paragraph inside `<remarks>` using `<para><b>Performance:</b> ...</para>`.
 
 # EXAMPLES
-* Include <example> with minimal, focused code only when it materially clarifies behavior. Omit otherwise.
+* Include `<example>` with minimal, focused code only when it materially clarifies behavior. Omit otherwise.
 
 # EDGE CASES
 * Overloads: disambiguate cref targets with parameter lists.
-* Indexers: use <param name="index"> and <value>.
+* Indexers: use a `<param>` for each index parameter, under that parameter's own name, and a `<value>`.
 * Records: document equality and identity semantics.
 * Partial types/members: document as if other parts may not be visible; avoid contradictions.
-* Avoid <inheritdoc/> unless the member is an override or interface implementation where inherited docs are fully sufficient and accurate.
+* Avoid `<inheritdoc/>` unless the member is an override or interface implementation where inherited docs are fully sufficient and accurate.
 
 # INFERENCE RULES
 * Infer intent from names, guards, throws, and obvious contracts.
-* If a parameter is validated against null, assert that it must not be <see langword="null"/>.
+* If a parameter is validated against null, assert that it must not be `<see langword="null"/>`.
 * If returning pooled or cached instances, state ownership and disposal rules.
-* If some behavior cannot be determined with confidence, include a neutral line and add a TODO note inside <remarks> as a separate <para> (e.g., <para>TODO: Clarify behavior when X is null.</para>).
+* If some behavior cannot be determined with confidence, include a neutral line and add a TODO note inside `<remarks>` as a separate `<para>` (e.g., `<para>TODO: Clarify behavior when X is null.</para>`).
 
 # VALIDATION CHECKLIST (APPLY BEFORE RETURNING)
-* Every documented symbol has a <summary>; <remarks> is present when there is any nontrivial behavior.
-* All <param> and <typeparam> entries exist and are in declaration order.
-* <returns> is present for all non-void members.
-* <value> is present for properties.
-* Reasonable <exception> tags are included where guard conditions or throw sites are evident.
-* All cross-references use <see cref="..."/> or <see langword="..."/> appropriately.
-* No <exception> tag contains a <see langword="..."/> element; keywords there are written as plain text.
-* <remarks> immediately follows <summary> everywhere.
-* Every extension block has its own doc comment carrying a <param> for the receiver, and no member inside it re-documents that receiver.
-* Every cref to an extension member uses the ContainingClass.extension(ReceiverType).Member(...) form.
+* Every documented symbol has a `<summary>`; `<remarks>` is present when there is any nontrivial behavior.
+* Summaries use the third-person singular present tense ("Gets ...", not "Get ..."), and `<exception>` text starts with "Thrown when ...".
+* All `<param>` and `<typeparam>` entries exist and are in declaration order.
+* `<returns>` is present for all non-void methods.
+* `<value>` is present for properties.
+* Reasonable `<exception>` tags are included where guard conditions or throw sites are evident.
+* All cross-references use `<see cref="..."/>`, `<see langword="..."/>`, `<paramref>`, or `<typeparamref>` appropriately, and other inline code uses `<c>`.
+* No `<exception>` tag contains a `<see langword="..."/>` element; keywords there are written as plain text.
+* `<remarks>` immediately follows `<summary>` everywhere.
+* Every extension block has its own doc comment, with a `<param>` for the receiver when the block names one, and no member inside it re-documents that receiver.
+* Every cref to an extension member uses the `ContainingClass.extension(ReceiverType).Member(...)` form.
 * In files with `using ZLinq;`, every cref to ArgumentNullException or GC is written as System.ArgumentNullException or System.GC.
 * No references (text or cref) to internal/private symbols for public/protected APIs.
-* No smart quotes; no extra prose outside the updated code.
+* ASCII punctuation only (no smart quotes or ellipsis characters); no extra prose outside the updated code.

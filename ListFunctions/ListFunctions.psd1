@@ -30,7 +30,7 @@
     Copyright         = 'Copyright (c) 2020-2026 Yevrag35, LLC.'
 
     # Description of the functionality provided by this module
-    Description       = 'A simple module that provides functions to manipulate, search, and create Arrays, Collections, Lists, and Sets.'
+    Description       = 'A module for testing, searching, and building generic .NET collections: List[T], HashSet[T], SortedSet[T], and Dictionary[TKey, TValue]. Equality comparers, hash code functions, and sort orders are ordinary PowerShell script blocks, so you don''t have to write and compile an IEqualityComparer[T] or IComparer[T] class.'
 
     # Minimum version of the Windows PowerShell engine required by this module
     PowerShellVersion = '5.1'
@@ -99,10 +99,19 @@
         'ListFunctions.psm1',
         'Core\ListFunctions.Engine.dll',
         'Core\ListFunctions.Next.dll',
-		'Core\ZLinq.dll',
+        'Core\ZLinq.dll',
+        'Core\en-US\ListFunctions.Next.dll-Help.xml',
         'Desk\ListFunctions.Engine.dll',
-        'Desk\ListFunctions.NETFramework.dll'
-	)
+        'Desk\ListFunctions.NETFramework.dll',
+        'Desk\Microsoft.Bcl.Memory.dll',
+        'Desk\System.Buffers.dll',
+        'Desk\System.Collections.Immutable.dll',
+        'Desk\System.Memory.dll',
+        'Desk\System.Numerics.Vectors.dll',
+        'Desk\System.Runtime.CompilerServices.Unsafe.dll',
+        'Desk\ZLinq.dll',
+        'Desk\en-US\ListFunctions.NETFramework.dll-Help.xml'
+    )
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
     PrivateData       = @{
@@ -112,7 +121,7 @@
             # Tags applied to this module. These help with module discovery in online galleries.
             Tags         = @('All', 'Any', 'Array', 'Assert', 'bool', 'Collection', 'compare', 'Condition',
                'count', 'Enumerable', 'equality', 'Find', 'HashSet', 'index', 'Last', 'Linq',
-               'List', 'Modify', 'Predicate', 'Remove', 'set', 'sort', 'Test', 'Where', 'Convert', 'ConvertTo')
+               'List', 'Predicate', 'set', 'sort', 'Test', 'Where', 'Convert', 'ConvertTo')
 
             # A URL to the license for this module.
             LicenseUri   = 'https://raw.githubusercontent.com/Yevrag35/PowerShell-ListFunctions/master/LICENSE'
@@ -126,7 +135,14 @@
             # Prerelease   = 'beta'
 
             # ReleaseNotes of this module
-            ReleaseNotes = 'Fixes Find-IndexOf cmdlet from returning the wrong result in certain situations.'
+            ReleaseNotes = @'
+4.0.0 has breaking changes. The README at https://github.com/Yevrag35/PowerShell-ListFunctions describes how each command works.
+- ListFunctions runs on Windows PowerShell 5.1 and on PowerShell 7.6 or later. In PowerShell 7.5 or earlier, the import fails with an error that says so.
+- Assert-AnyObject, Assert-AllObject, Find-IndexOf, and Find-LastIndexOf are renamed Test-AnyObject, Test-AllObject, Find-Index, and Find-LastIndex. The old names still work as aliases.
+- Each command has help, so Get-Help shows its description, parameters, and examples.
+- -GenericType, -KeyType, and -ValueType complete type names when you press Tab.
+- Many bug fixes change behavior: how the commands handle $null and pipeline input, convert elements to the collection's type, compare strings, and report errors from script blocks.
+'@
 
         } # End of PSData hashtable
 

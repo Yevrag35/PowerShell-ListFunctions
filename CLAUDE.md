@@ -77,9 +77,9 @@ The cmdlets' help is MAML, written by hand in `src/engine/ListFunctions-Next/en-
 
 The `ListFunctions/` directory is the publishable module, and it contains committed build outputs.
 
-- `ListFunctions.psm1` checks `$PSVersionTable.PSVersion.Major`. On 5 it imports `Desk/ListFunctions.NETFramework.dll`; on 7 it imports `Core/ListFunctions.Next.dll`.
-- `Core/` holds the `net10.0` builds of Engine, Next, and ZLinq. `Desk/` holds the `netstandard2.0` Engine and the NETFramework DLL. Each also holds the help file of its module DLL in an `en-US` folder.
-- Copy these files in by hand from the Release output folders, including the `en-US` folders. Those folders include the NuGet dependencies, so nothing has to come from the NuGet cache.
+- `ListFunctions.psm1` imports `Desk/ListFunctions.NETFramework.dll` in Windows PowerShell 5.1 (the `Desktop` edition) and `Core/ListFunctions.Next.dll` in PowerShell 7.6 or later. Any other PowerShell, such as 7.5, gets the module's own error, because .NET 9 and earlier can't load the `net10.0` build.
+- `Core/` holds the `net10.0` builds of Engine, Next, and ZLinq. `Desk/` holds the NETFramework DLL, the `netstandard2.0` Engine, and the other DLLs of the `net48` output: ZLinq, and the `net462` builds of System.Memory, System.Collections.Immutable, Microsoft.Bcl.Memory, System.Buffers, System.Numerics.Vectors, and System.Runtime.CompilerServices.Unsafe. Each also holds the help file of its module DLL in an `en-US` folder.
+- Copy these files in by hand from the Release output folders, including the `en-US` folders. Those folders include the NuGet dependencies, so nothing has to come from the NuGet cache. Copy every DLL, but leave out the `.pdb`, XML documentation, and `.deps.json` files, which the module doesn't use.
 - When cmdlets, aliases, or shipped files change, update `CmdletsToExport`, `AliasesToExport`, and `FileList` in `ListFunctions.psd1`.
 - The version (currently `4.0.0`) is set in two places: `<Version>` in `src/engine/Directory.Build.props` and `ModuleVersion` in the `.psd1`. Change both together. `AssemblyVersion` and `FileVersion` are set to `$(Version)` so they stay exactly three-part.
 - `Directory.Build.props` also holds the shared authorship and repository metadata and the common compiler settings (`RootNamespace`, `LangVersion`, `ImplicitUsings`, `AllowUnsafeBlocks`), plus `CopyLocalLockFileAssemblies`.
@@ -88,7 +88,7 @@ The `ListFunctions/` directory is the publishable module, and it contains commit
 
 ## Code style
 
-`src/engine/.editorconfig` is the authority. **Most existing C# does not follow it yet:** files use 4-space indentation, CRLF line endings, block-scoped namespaces, and sometimes a BOM. Don't treat that as the house style, and don't copy it from nearby code. Code you write or change must use:
+`src/engine/.editorconfig` is the authority. Code you write or change must use:
 
 - Tabs for indentation (tab width 4) in C#.
 - LF line endings (`.gitattributes` also sets `* text=auto eol=lf`) and UTF-8.
@@ -100,6 +100,6 @@ The `ListFunctions/` directory is the publishable module, and it contains commit
 
 Ask before reformatting whole files that you are not otherwise changing.
 
-XML documentation follows `.github/copilot-instructions.md`. It covers tag order, `<see langword>` rules (never inside `<exception>`), public-surface hygiene, C# 14 `extension(...)` block documentation, and present-tense, active-voice wording. Read it before writing or editing doc comments.
+XML documentation follows `.github/copilot-instructions.md`. It covers tag order, how each kind of symbol's `<summary>` starts (third-person singular, present tense, active voice), cross-references (`<see langword>` never inside `<exception>`, `<c>` for PowerShell syntax, and crefs that clash with ZLinq's internal types), public-surface hygiene, and C# 14 `extension(...)` block documentation. Read it before writing or editing doc comments.
 
 Commit titles use third-person singular simple present tense, for example "Updates …" or "Adds …".
