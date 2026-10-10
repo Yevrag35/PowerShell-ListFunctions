@@ -1,7 +1,9 @@
 ###############################################################################
-# Set default behavior to automatically normalize line endings.
+# Standardize all text files on LF in the working tree, on every platform.
+# `eol=lf` overrides each contributor's local `core.autocrlf` setting,
+# so Windows checkouts get LF too. Binary files are still auto-detected.
 ###############################################################################
-* text=auto
+* text=auto eol=lf
 
 ###############################################################################
 # Set default behavior for command prompt diff.

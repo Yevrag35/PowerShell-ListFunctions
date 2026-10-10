@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		xunit.v3 runs the tests on Microsoft.Testing.Platform, so the project builds an executable, and the root global.json
+		opts `dotnet test` into that platform. Don't add Microsoft.NET.Test.Sdk or xunit.runner.visualstudio.
+		net10.0 tests Engine's net10.0 build in PowerShell 7. net48 tests its netstandard2.0 build in Windows PowerShell 5.1.
+	-->
+	<PropertyGroup>
+		<TargetFrameworks>net10.0;net48</TargetFrameworks>
+		<OutputType>Exe</OutputType>
+		<Nullable>enable</Nullable>
+		<IsPackable>false</IsPackable>
+		<RootNamespace>ListFunctions.Engine.Tests</RootNamespace>
+		<AssemblyName>ListFunctions.Engine.Tests</AssemblyName>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Using Include="Xunit" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="xunit.v3" />
+	</ItemGroup>
+
+	<!-- The SDK hosts the whole PowerShell 7 engine, including the built-in cmdlets. -->
+	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+		<PackageReference Include="Microsoft.PowerShell.SDK" />
+	</ItemGroup>
+
+	<!-- The tests compile against the reference assemblies and load Windows PowerShell 5.1 from the GAC. -->
+	<ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+		<PackageReference Include="Microsoft.PowerShell.5.ReferenceAssemblies" ExcludeAssets="runtime" />
+	</ItemGroup>
+
+	<!-- Engine's polyfills aren't visible here, and the AllowsNull alias in Directory.Build.props needs one on net48. -->
+	<ItemGroup>
+		<PackageReference Include="PolySharp">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\ListFunctions.Engine\ListFunctions.Engine.csproj" />
+	</ItemGroup>
+
+</Project>

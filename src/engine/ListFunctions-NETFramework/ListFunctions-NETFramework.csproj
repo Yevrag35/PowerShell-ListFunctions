@@ -1,95 +1,61 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="..\packages\Nullable.1.3.1\build\Nullable.props" Condition="Exists('..\packages\Nullable.1.3.1\build\Nullable.props')" />
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-  <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{6E62CFEE-5F6B-4097-98C0-93F3CF55A17D}</ProjectGuid>
-    <LangVersion>9.0</LangVersion>
-    <OutputType>Library</OutputType>
-    <Nullable>enable</Nullable>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>ListFunctions</RootNamespace>
-    <AssemblyName>ListFunctions.NETFramework</AssemblyName>
-    <AssemblyVersion>3.1.0</AssemblyVersion>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <FileVersion>3.1.0</FileVersion>
-    <Version>3.1.0</Version>
-    <TargetFrameworkVersion>v4.7.1</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <Deterministic>true</Deterministic>
-    <NuGetPackageImportStamp>
-    </NuGetPackageImportStamp>
-    <TargetFrameworkProfile />
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Management.Automation, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.PowerShell.5.ReferenceAssemblies.1.1.0\lib\net4\System.Management.Automation.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.CSharp" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Nullable\AllowNullAttribute.cs" />
-    <Compile Include="Nullable\DisallowNullAttribute.cs" />
-    <Compile Include="Nullable\DoesNotReturnAttribute.cs" />
-    <Compile Include="Nullable\DoesNotReturnIfAttribute.cs" />
-    <Compile Include="Nullable\MaybeNullAttribute.cs" />
-    <Compile Include="Nullable\MaybeNullWhenAttribute.cs" />
-    <Compile Include="Nullable\MemberNotNullAttribute.cs" />
-    <Compile Include="Nullable\MemberNotNullWhenAttribute.cs" />
-    <Compile Include="Nullable\NotNullAttribute.cs" />
-    <Compile Include="Nullable\NotNullIfNotNullAttribute.cs" />
-    <Compile Include="Nullable\NotNullWhenAttribute.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(Configuration)' != 'Release'">
-    <Content Include="Debug.ps1">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-  <ItemGroup Condition="'$(Configuration)' == 'Release'">
-    <Content Include="Debug.ps1">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
-    </Content>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="app.config" />
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="..\ListFunctions-Next\**\*.cs" Exclude="..\ListFunctions-Next\obj\**\*.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\ListFunctions.Engine\ListFunctions.Engine.csproj">
-      <Project>{515aa5f2-1c73-4556-a519-c2ff18b423f4}</Project>
-      <Name>ListFunctions.Engine</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('..\packages\Nullable.1.3.1\build\Nullable.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Nullable.1.3.1\build\Nullable.props'))" />
-  </Target>
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net48</TargetFramework>
+		<Nullable>enable</Nullable>
+		<AssemblyName>ListFunctions.NETFramework</AssemblyName>
+		<Product>ListFunctions-NETFramework</Product>
+		<AssemblyTitle>ListFunctions-NETFramework</AssemblyTitle>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)'=='Debug'">
+		<DebugType>full</DebugType>
+		<DebugSymbols>true</DebugSymbols>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)'=='Release'">
+		<DebugType>portable</DebugType>
+	</PropertyGroup>
+
+	<ItemGroup Condition="'$(Configuration)' != 'Release'">
+		<Content Include="Debug.ps1">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+	<ItemGroup Condition="'$(Configuration)' == 'Release'">
+		<Content Include="Debug.ps1">
+			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
+			<CopyToPublishDirectory>Never</CopyToPublishDirectory>
+		</Content>
+	</ItemGroup>
+
+	<!-- Every cmdlet source file is shared with the PowerShell 7 project. -->
+	<ItemGroup>
+		<Compile Include="..\ListFunctions-Next\**\*.cs" Exclude="..\ListFunctions-Next\obj\**;..\ListFunctions-Next\bin\**" />
+	</ItemGroup>
+
+	<!-- So is the cmdlets' help, which Get-Help looks for under this assembly's file name. -->
+	<ItemGroup>
+		<Content Include="..\ListFunctions-Next\en-US\ListFunctions.Next.dll-Help.xml" Link="en-US\ListFunctions.NETFramework.dll-Help.xml">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.PowerShell.5.ReferenceAssemblies" ExcludeAssets="runtime" />
+	</ItemGroup>
+
+	<!-- As of PolySharp 1.16.0, Engine's generated polyfills (the nullable attributes and others) are not visible here, so this assembly generates its own. -->
+	<ItemGroup>
+		<PackageReference Include="PolySharp">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\ListFunctions.Engine\ListFunctions.Engine.csproj" />
+	</ItemGroup>
+
 </Project>

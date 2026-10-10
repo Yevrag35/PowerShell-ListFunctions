@@ -1,4 +1,4 @@
-﻿$curDir = Split-Path -Parent $MyInvocation.MyCommand.Definition;
+$curDir = Split-Path -Parent $MyInvocation.MyCommand.Definition;
 $myDesktop = [System.Environment]::GetFolderPath("Desktop")
 
 Import-Module "$curDir\ListFunctions.NETFramework.dll" -ErrorAction Stop

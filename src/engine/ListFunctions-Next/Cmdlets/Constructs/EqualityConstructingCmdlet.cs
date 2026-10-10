@@ -1,172 +1,251 @@
-﻿using ListFunctions.Extensions;
-using ListFunctions.Modern;
-using ListFunctions.Modern.Constructors;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Management.Automation;
-using System.Reflection;
+using ListFunctions.Components;
 
 #nullable enable
 
-namespace ListFunctions.Cmdlets.Construct
+namespace ListFunctions.Cmdlets.Constructs;
+
+/// <summary>
+/// Provides a base class for cmdlets that construct a generic collection whose elements or keys are compared for
+/// equality.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The begin phase is sealed. It chooses an equality comparer, and the derived class creates the collection with it.
+/// Derived classes add pipeline input in <see cref="Process(T)"/> and write the finished collection in
+/// <see cref="End(T)"/>. Only classes in this assembly can derive from this class.
+/// </para>
+/// <para>
+/// When the type used for equality is <see cref="string"/> or <see cref="object"/>, the cmdlet exposes a mandatory
+/// dynamic <c>-CaseSensitive</c> switch in the parameter set named by <see cref="CaseSensitiveParameterSetName"/>, and
+/// an optional one in the set named by <see cref="CaseSensitiveOptionalParameterSetName"/>, if any. Derived classes must
+/// implement <see cref="IDynamicParameters"/> for PowerShell to call <see cref="GetDynamicParameters"/>.
+/// </para>
+/// </remarks>
+/// <typeparam name="T">The type through which the derived cmdlet handles the constructed collection.</typeparam>
+public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
 {
-    public abstract class EqualityConstructingCmdlet<T> : ListFunctionCmdletBase
-    {
-        protected const string CASE_SENSE = "CaseSensitive";
-        protected const string JUST_COPY = "JustCopy";
-        protected const string AND_COPY = WITH_CUSTOM_EQUALITY + "AndCopy";
-        
-        static readonly Type _stringType = typeof(string);
-        static readonly string _addName = nameof(ICollection<object>.Add);
+	/// <summary>
+	/// The name of the parameter set that copies existing entries without a custom equality comparer.
+	/// </summary>
+	protected const string JUST_COPY = "JustCopy";
+	/// <summary>
+	/// The name of the parameter set that copies existing entries and uses a custom equality comparer.
+	/// </summary>
+	protected const string AND_COPY = WITH_CUSTOM_EQUALITY + "AndCopy";
 
-        private AddMethodInvoker _addMethod = null!;
-        private RuntimeDefinedParameter _caseSensitive = null!;
-        private T _collection = default!;
-        private Type _collectionType = null!;
-        private RuntimeDefinedParameterDictionary? _dict = null!;
-        private Type[] _genericTypes = null!;
-#if NET5_0_OR_GREATER
-        [MemberNotNullWhen(true, nameof(_addMethod))]
-#endif
-        private RuntimeDefinedParameterDictionary DynParamLib
-        {
-            get => _dict ??= new RuntimeDefinedParameterDictionary();
-        }
-        protected abstract string CaseSensitiveParameterSetName { get; }
+	private RuntimeDefinedParameter _caseSensitive = null!;
+	private T _collection = default!;
 
-        public virtual int Capacity { get; set; }
-        protected bool CaseSensitive => IsParameterValueCaseSensitive(_caseSensitive);
-        public virtual ActionPreference ScriptBlockErrorAction { get; set; }
+	/// <summary>
+	/// Gets the dictionary that holds the cmdlet's dynamic parameters, creating it on first access.
+	/// </summary>
+	/// <value>The <see cref="RuntimeDefinedParameterDictionary"/> that holds the dynamic parameters.</value>
+	private RuntimeDefinedParameterDictionary DynParamLib => field ??= [];
+	/// <summary>
+	/// Gets the name of the parameter set that the dynamic <c>-CaseSensitive</c> parameter belongs to.
+	/// </summary>
+	/// <remarks>
+	/// The switch is mandatory in this parameter set, which tells the set apart from the cmdlet's other parameter sets.
+	/// </remarks>
+	/// <value>The parameter set name for the <c>-CaseSensitive</c> switch.</value>
+	protected abstract string CaseSensitiveParameterSetName { get; }
+	/// <summary>
+	/// Gets the name of another parameter set that the dynamic <c>-CaseSensitive</c> parameter belongs to, as an
+	/// optional parameter.
+	/// </summary>
+	/// <remarks>
+	/// A parameter set that a mandatory parameter of its own already tells apart, such as one that copies existing
+	/// entries, can offer the switch this way. The base implementation returns <see langword="null"/>.
+	/// </remarks>
+	/// <value>The name of the parameter set, or <see langword="null"/> when the switch belongs to no other set.</value>
+	protected virtual string? CaseSensitiveOptionalParameterSetName => null;
 
-        public object? GetDynamicParameters()
-        {
-            this.DynParamLib.Clear();
-            bool hasCase = this.TryGetDynamicCaseParam(this.GetEqualityForType(), this.CaseSensitiveParameterSetName);
+	/// <summary>
+	/// Gets or sets the initial capacity requested for the collection.
+	/// </summary>
+	/// <remarks>
+	/// The derived class passes the value to the collection's constructor when it creates the collection, so the
+	/// collection doesn't have to grow until it holds more elements than this. Derived classes override the property to
+	/// make it a parameter.
+	/// </remarks>
+	/// <value>The requested initial capacity.</value>
+	public virtual int Capacity { get; set; }
+	/// <summary>
+	/// Gets a value that indicates whether the dynamic <c>-CaseSensitive</c> switch is set.
+	/// </summary>
+	/// <value><see langword="true"/> when <c>-CaseSensitive</c> is present and set; otherwise, <see langword="false"/>.</value>
+	protected bool CaseSensitive => IsParameterValueCaseSensitive(_caseSensitive);
+	/// <summary>
+	/// Gets or sets the error action preference applied while custom equality script blocks run.
+	/// </summary>
+	/// <value>The error action preference for script block execution.</value>
+	public virtual ActionPreference ScriptBlockErrorAction { get; set; }
 
-            return this.TryGetDynamicParameters(this.DynParamLib, hasCase)
-                ? this.DynParamLib
-                : null;
-        }
+	/// <summary>
+	/// Returns the dynamic parameters for the current invocation.
+	/// </summary>
+	/// <remarks>
+	/// The method rebuilds the dynamic parameter set on each call. It adds <c>-CaseSensitive</c> when the type used
+	/// for equality is <see cref="string"/> or <see cref="object"/>.
+	/// </remarks>
+	/// <returns>
+	/// A <see cref="RuntimeDefinedParameterDictionary"/> that contains <c>-CaseSensitive</c>, or <see langword="null"/>
+	/// when the type used for equality is any other type.
+	/// </returns>
+	public object? GetDynamicParameters()
+	{
+		this.DynParamLib.Clear();
 
-        #region PROCESSING
-        protected sealed override void BeginCore()
-        {
-            Type[]? genericTypes = this.GetGenericTypes();
-            IEqualityComparer? comparer = this.GetCustomEqualityComparer(this.GetEqualityForType());
+		return this.TryGetDynamicCaseParam(this.GetEqualityForType(), this.CaseSensitiveParameterSetName)
+			? this.DynParamLib
+			: null;
+	}
 
-            var ctor = this.GetConstructor(comparer, genericTypes);
-            _collection = (T)ctor.Construct();
+	#region PROCESSING
+	/// <summary>
+	/// Creates the collection.
+	/// </summary>
+	/// <remarks>
+	/// The method gets the equality comparer from <see cref="GetCustomEqualityComparer(Type)"/>, and the derived class
+	/// creates the collection with it. The collection gets <see cref="Capacity"/> as its initial capacity.
+	/// </remarks>
+	protected sealed override void BeginCore()
+	{
+		IEqualityComparer? comparer = this.GetCustomEqualityComparer(this.GetEqualityForType());
+		_collection = this.CreateCollection(comparer);
+	}
 
-            _collectionType = ctor.ConstructingGenericType;
-            _genericTypes = ctor.GenericArgumentTypes;
-            _addMethod = new AddMethodInvoker(ctor);
+	/// <summary>
+	/// Passes the constructed collection to <see cref="Process(T)"/> for the current pipeline record.
+	/// </summary>
+	/// <returns>Always <see langword="true"/>, so all pipeline input is processed.</returns>
+	protected sealed override bool ProcessCore()
+	{
+		this.Process(_collection);
+		return true;
+	}
+	/// <summary>
+	/// When implemented in a derived class, adds the current pipeline input to the collection.
+	/// </summary>
+	/// <param name="collection">The collection to add input to.</param>
+	protected abstract void Process(T collection);
 
-            this.Begin(_collection, _collectionType);
-        }
-        protected virtual void Begin(T collection, Type genericBaseType)
-        {
-            return;
-        }
+	/// <summary>
+	/// Passes the constructed collection to <see cref="End(T)"/>.
+	/// </summary>
+	/// <param name="state">The run state of the cmdlet. The method doesn't use it.</param>
+	private protected sealed override void EndCore(CmdletRunState state)
+	{
+		this.End(_collection);
+	}
+	/// <summary>
+	/// When overridden in a derived class, completes the cmdlet, typically by writing the collection to the pipeline.
+	/// </summary>
+	/// <remarks>The base implementation does nothing.</remarks>
+	/// <param name="collection">The constructed collection.</param>
+	protected virtual void End(T collection)
+	{
+		return;
+	}
 
-        protected sealed override bool ProcessCore()
-        {
-            return this.Process(_collection, _collectionType);
-        }
-        protected abstract bool Process(T collection, Type collectionType);
+	#endregion
 
-        protected sealed override void EndCore(bool wantsToStop)
-        {
-            this.End(_collection, wantsToStop);
-        }
-        protected virtual void End(T collection, bool wantsToStop)
-        {
-            return;
-        }
+	#region BACKEND
+	/// <summary>
+	/// When implemented in a derived class, creates the empty collection with the specified equality comparer.
+	/// </summary>
+	/// <remarks>
+	/// <see cref="BeginCore"/> calls the method once, before any pipeline input arrives. The collection gets
+	/// <see cref="Capacity"/> as its initial capacity.
+	/// </remarks>
+	/// <param name="comparer">
+	/// The equality comparer that <see cref="GetCustomEqualityComparer(Type)"/> returned, or <see langword="null"/> to use
+	/// the default for the type used for equality.
+	/// </param>
+	/// <returns>The new collection.</returns>
+	private protected abstract T CreateCollection(IEqualityComparer? comparer);
 
-        #endregion
+	/// <summary>
+	/// Adds the <c>-CaseSensitive</c> switch to <see cref="DynParamLib"/> when the equality type is <see cref="string"/> or <see cref="object"/>.
+	/// </summary>
+	/// <remarks>
+	/// The switch is mandatory in <paramref name="parameterSetName"/>, and optional in
+	/// <see cref="CaseSensitiveOptionalParameterSetName"/> when that isn't <see langword="null"/>. The
+	/// <see cref="RuntimeDefinedParameter"/> is created once and reused on later calls. <see cref="GetDynamicParameters"/>
+	/// clears <see cref="DynParamLib"/> before it calls the method, so the switch is never in it already.
+	/// </remarks>
+	/// <param name="genericType">The type used for equality.</param>
+	/// <param name="parameterSetName">The name of the parameter set in which the switch is mandatory.</param>
+	/// <returns><see langword="true"/> when the switch was added; otherwise, <see langword="false"/>.</returns>
+	private bool TryGetDynamicCaseParam(Type genericType, string parameterSetName)
+	{
+		bool returnLib = false;
+		if (typeof(string).Equals(genericType) || typeof(object).Equals(genericType))
+		{
+			if (_caseSensitive is null)
+			{
+				var attributes = new Collection<Attribute>()
+				{
+					new ParameterAttribute()
+					{
+						Mandatory = true,
+						ParameterSetName = parameterSetName,
+					},
+				};
 
-        #region BACKEND
-        protected abstract EqualityCollectionCtor GetConstructor(IEqualityComparer? comparer, Type[]? genericTypes);
+				if (this.CaseSensitiveOptionalParameterSetName is string optionalSetName)
+				{
+					attributes.Add(new ParameterAttribute()
+					{
+						ParameterSetName = optionalSetName,
+					});
+				}
 
-        protected virtual bool TryGetDynamicParameters(RuntimeDefinedParameterDictionary paramDict, bool hasCaseSensitive)
-        {
-            return hasCaseSensitive;
-        }
-        private bool TryGetDynamicCaseParam(Type genericType, string parameterSetName)
-        {
-            bool returnLib = false;
-            if (EqualityCollectionCtor.IsTypeObjectOrString(genericType))
-            {
-                _caseSensitive ??= new RuntimeDefinedParameter(CASE_SENSE, typeof(SwitchParameter),
-                    new Collection<Attribute>()
-                    {
-                        new ParameterAttribute()
-                        {
-                            Mandatory = true,
-                            ParameterSetName = parameterSetName,
-                        }
-                    });
+				_caseSensitive = new RuntimeDefinedParameter(CASE_SENSE, typeof(SwitchParameter), attributes);
+			}
 
-                returnLib = this.DynParamLib.TryAdd(CASE_SENSE, _caseSensitive);
-            }
+			this.DynParamLib[CASE_SENSE] = _caseSensitive;
+			returnLib = true;
+		}
 
-            return returnLib;
-        }
+		return returnLib;
+	}
 
-        protected void AddToCollection(T collection, object?[]? items, Func<object?, Type[], object?> conversion)
-        {
-            if (collection is null || items is null || items.Length < 1 || items[0] is null)
-            {
-                return;
-            }
+	/// <summary>
+	/// Returns the equality comparer to construct the collection with.
+	/// </summary>
+	/// <remarks>
+	/// For <see cref="string"/> elements, the base implementation returns <see cref="StringComparer.Ordinal"/> when
+	/// <c>-CaseSensitive</c> is set and <see cref="StringComparer.OrdinalIgnoreCase"/> otherwise. Both comparisons are
+	/// ordinal, so <c>-CaseSensitive</c> changes only whether case matters. For any other type the method returns
+	/// <see langword="null"/>, and the collection uses its default comparer.
+	/// </remarks>
+	/// <param name="genericType">The type used for equality.</param>
+	/// <returns>The equality comparer to use, or <see langword="null"/> to use the collection's default.</returns>
+	protected virtual IEqualityComparer? GetCustomEqualityComparer(Type genericType)
+	{
+		if (!typeof(string).Equals(genericType))
+			return null;
 
-            for (int i = items.Length - 1; i >= 0; i--)
-            {
-                items[i] = conversion(items[i], _genericTypes);
-            }
+		return IsParameterValueCaseSensitive(_caseSensitive)
+			? StringComparer.Ordinal
+			: StringComparer.OrdinalIgnoreCase;
+	}
+	/// <summary>
+	/// When implemented in a derived class, returns the type whose values the collection compares for equality.
+	/// </summary>
+	/// <returns>The element type for sets, or the key type for dictionaries.</returns>
+	protected abstract Type GetEqualityForType();
 
-            if (!_addMethod.TryInvoke(collection, items, false, out Exception? caughtEx))
-            {
-                this.WriteError(caughtEx.ToRecord(ErrorCategory.InvalidOperation, items));
-            }
-        }
-        protected void AddToCollection(T collection, object?[]? item, bool addIfNull)
-        {
-            if (collection is null || (item is null && !addIfNull))
-            {
-                return;
-            }
+	/// <summary>
+	/// Determines whether the specified dynamic switch parameter is set.
+	/// </summary>
+	/// <param name="parameter">The dynamic parameter to inspect, or <see langword="null"/>.</param>
+	/// <returns><see langword="true"/> when <paramref name="parameter"/> has a value that PowerShell treats as <see langword="true"/>; otherwise, <see langword="false"/>.</returns>
+	private static bool IsParameterValueCaseSensitive(RuntimeDefinedParameter? parameter)
+	{
+		return LanguagePrimitives.IsTrue(parameter?.Value);
+	}
 
-            item ??= new object?[] { null };
-
-            if (!_addMethod.TryInvoke(collection, item, false, out Exception? caughtEx))
-            {
-                this.WriteError(caughtEx.ToRecord(ErrorCategory.InvalidOperation, item));
-            }
-        }
-        
-        protected virtual IEqualityComparer? GetCustomEqualityComparer(Type genericType)
-        {
-            if (!typeof(string).Equals(genericType))
-                return null;
-
-            return IsParameterValueCaseSensitive(_caseSensitive)
-                ? StringComparer.CurrentCulture
-                : StringComparer.OrdinalIgnoreCase;
-        }
-        protected abstract Type[]? GetGenericTypes();
-        protected abstract Type GetEqualityForType();
-
-        private static bool IsParameterValueCaseSensitive(RuntimeDefinedParameter? parameter)
-        {
-            return LanguagePrimitives.IsTrue(parameter?.Value);
-        }
-
-        #endregion
-    }
+	#endregion
 }
